@@ -1,0 +1,188 @@
+name: Playwright Tests
+
+run-name: >
+  ${{ github.event_name == 'workflow_dispatch'
+      && format('Playwright - {0}', inputs.suite)
+      || 'Playwright - regression (push/PR)' }}
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+  workflow_dispatch:
+    inputs:
+      suite:
+        required: false
+        default: regression
+        type: choice
+        options:
+          - Login
+          - sanity
+          - regression
+          - property
+          - projectAndJob
+          - bids
+          - contract
+          - budget
+          - changeOrderAndinvoice
+          - approval
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    env:
+      PLAYWRIGHT_BLOB_REPORT: '1'
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Load .env
+        run: |
+          if [ -f .env ]; then
+            cat .env >> $GITHUB_ENV
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run login first
+        id: login
+        continue-on-error: true
+        run: |
+          if [ "${{ inputs.suite }}" = "Login" ]; then
+            npx playwright test --grep "TC01" --workers=1 || true
+          else
+            npx playwright test --grep @login --workers=1 || true
+          fi
+          
+      - name: Run mandatory tests
+        id: mandatory
+        if: ${{ inputs.suite == 'regression' || inputs.suite == 'changeOrderAndinvoice' }}
+        continue-on-error: false
+        run: |
+          npx playwright test --grep @mandatory --workers=1 || true
+
+      - name: Run suite
+        id: suite
+        if: always()
+        continue-on-error: false
+        run: |
+          SUITE="${{ inputs.suite }}"
+
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            echo "Push/PR: running regression"
+            npx playwright test --grep @mandatory --workers=1 || true
+            npx playwright test --grep-invert @mandatory --workers=4 || true
+
+          elif [ "$SUITE" = "Login" ]; then
+            echo "Login: already executed"
+            exit 0
+
+          elif [ "$SUITE" = "sanity" ]; then
+            echo "sanity: @sanity only"
+            npx playwright test --grep @sanity --workers=1 || true
+
+          elif [ "$SUITE" = "regression" ]; then
+            echo "regression: invert mandatory"
+            npx playwright test --grep-invert @mandatory --workers=4 || true
+
+          elif [ "$SUITE" = "property" ]; then
+            echo "property suite"
+            npx playwright test --grep @property --workers=4 || true
+
+          elif [ "$SUITE" = "projectAndJob" ]; then
+            echo "projectAndJob suite"
+            npx playwright test --grep @projectAndJob --workers=4 || true
+
+          elif [ "$SUITE" = "bids" ]; then
+            echo "bids suite"
+            npx playwright test --grep @bids --workers=1 || true
+
+          elif [ "$SUITE" = "contract" ]; then
+            echo "contract suite"
+            npx playwright test --grep @contract --workers=1 || true
+
+          elif [ "$SUITE" = "budget" ]; then
+            echo "budget suite"
+            npx playwright test --grep @budget --workers=4 || true
+
+          elif [ "$SUITE" = "changeOrderAndinvoice" ]; then
+            echo "changeOrderAndinvoice suite"
+            npx playwright test --grep @changeOrderAndinvoice --workers=4 || true
+
+          elif [ "$SUITE" = "approval" ]; then
+            echo "approval suite"
+            npx playwright test --grep @approval --workers=4 || true
+
+          else
+            echo "Unknown suite → running regression"
+            npx playwright test --grep @mandatory --workers=1 || true
+            npx playwright test --grep-invert @mandatory --workers=4 || true
+          fi
+
+      - name: Run cleanup script
+        id: cleanup
+        if: always()
+        continue-on-error: true
+        run: |
+          echo "Running cleanup script after suite completion"
+          PLAYWRIGHT_BLOB_REPORT=0 npx playwright test tests/TC16_cleanup_properties.spec.js --workers=1
+
+      - name: Merge Playwright reports
+        if: always()
+        run: |
+          export PLAYWRIGHT_BLOB_REPORT=0
+          rm -rf playwright-report
+
+          if [ -d blob-report ] && [ -n "$(ls -A blob-report 2>/dev/null)" ]; then
+            npx playwright merge-reports blob-report --reporter html
+          else
+            echo "No blob reports found; creating empty report"
+            mkdir -p playwright-report
+            echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>No results</title></head><body><p>No Playwright blob reports were produced.</p></body></html>' > playwright-report/index.html
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ github.run_number }}
+          path: playwright-report/
+          retention-days: 30
+
+      - uses: actions/upload-pages-artifact@v3
+        if: always()
+        with:
+          path: playwright-report/
+
+  deploy:
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+
+    steps:
+      - uses: actions/deploy-pages@v4
