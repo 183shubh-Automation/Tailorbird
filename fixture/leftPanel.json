@@ -1,5 +1,5 @@
 {
-  "dashboardUrl": "https://beta.tailorbird.com/financials/capex",
+  "dashboardUrl": "/financials/capex",
   "expectedLabels": [
     "Properties",
     "Approvals",

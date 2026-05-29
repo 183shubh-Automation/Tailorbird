@@ -1,6 +1,6 @@
 {
-  "dashboardUrl": "https://beta.tailorbird.com/dashboard",
-  "organizationUrl": "https://beta.tailorbird.com/organization",
+  "dashboardUrl": "/dashboard",
+  "organizationUrl": "/organization",
 
   "inviteDialogTitle": "Invite users",
   "inviteWizardNextText": "Next",
