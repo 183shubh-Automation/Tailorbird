@@ -56,26 +56,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-
-      - name: Install Playwright browsers
-        run: npx playwright install chromium
-
-      - name: Run login first
-        id: login
-        continue-on-error: true
-        run: |
-          if [ "${{ inputs.suite }}" = "Login" ]; then
-            npx playwright test --grep "TC01" --workers=1 || true
-          else
-            npx playwright test --grep @login --workers=1 || true
-          fi
           
       - name: Run mandatory tests
         id: mandatory
