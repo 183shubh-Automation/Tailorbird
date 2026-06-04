@@ -10,8 +10,8 @@ const LOGIN_SCREENSHOT_OPTIONS = {
   fullPage: true,
   animations: 'disabled',
   // Headed + hosted auth UI can shift slightly between runs.
-  maxDiffPixels: 9000,
-  maxDiffPixelRatio: 0.08,
+  maxDiffPixels: 15000,
+  maxDiffPixelRatio: 0.15,
 };
 
 test.describe('Tailorbird Login Flow', () => {

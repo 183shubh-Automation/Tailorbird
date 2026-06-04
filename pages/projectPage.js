@@ -524,7 +524,7 @@ exports.ProjectPage = class ProjectPage {
                 Logger.info(`Using option from CLI: ${selectedOption}`);
             } else {
                 // Prefer the option that matches the intended property name — never pick randomly,
-                // which could silently select The Brook or another property and break contract assertions.
+                // which could silently select The Westerham or another property and break contract assertions.
                 selectedOption =
                     optionTexts.find(t => t.trim() === currentPropertyName.trim()) ??
                     optionTexts.find(t => t.includes(currentPropertyName.trim())) ??

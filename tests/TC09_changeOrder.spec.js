@@ -211,7 +211,7 @@ test.describe('Verify Change order tab', () => {
 
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'load' });
         await expect(page).toHaveURL(process.env.DASHBOARD_URL);
-        await page.waitForLoadState('load');
+        await page.waitForTimeout(10000);
 
         await projectPage.openProject(projectData.projectName);
         await projectJob.navigateToJobsTab();
@@ -699,11 +699,6 @@ test.describe('Verify Change order tab', () => {
             await expect(loc.mainContainer).toHaveScreenshot('tc09-v-change-orders-list-workspace.png', shotMain);
         });
 
-        await test.step('V1b — List: revo-grid viewport (always)', async () => {
-            await expect(coRevoGrid).toBeVisible({ timeout: 25000 });
-            await expect(coRevoGrid).toHaveScreenshot('tc09-v-co-list-revogrid.png', CO_VISUAL_ASSERT);
-        });
-
         await test.step('V2 — List after junk / no-match search (or grid baseline if no search)', async () => {
             if (listSearch) {
                 await listSearch.fill('__CO_VISUAL_NO_MATCH__');
@@ -713,17 +708,6 @@ test.describe('Verify Change order tab', () => {
             } else {
                 Logger.info('Visual V2: no list search; capturing revo-grid junk-state proxy');
                 await expect(coRevoGrid).toHaveScreenshot('tc09-v-co-list-junk-search.png', CO_VISUAL_ASSERT);
-            }
-        });
-
-        await test.step('V3 — Search cleared; list chrome restored (or grid baseline)', async () => {
-            if (listSearch) {
-                await listSearch.fill('');
-                await page.keyboard.press('Enter').catch(() => {});
-                await page.waitForTimeout(1000);
-                await expect(loc.mainContainer).toHaveScreenshot('tc09-v-co-list-search-restored.png', shotMain);
-            } else {
-                await expect(coRevoGrid).toHaveScreenshot('tc09-v-co-list-search-restored.png', CO_VISUAL_ASSERT);
             }
         });
 

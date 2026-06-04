@@ -259,7 +259,7 @@ module.exports = {
      * Handles both full screen (direct nav) and minimized (More menu) scenarios
      */
     runTwoClickTest: async function (page, label) {
-        await page.waitForLoadState('networkidle');
+        await page.waitForTimeout(30000);
         await page.waitForTimeout(500);
         await page.locator('nav').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
 

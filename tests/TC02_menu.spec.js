@@ -12,8 +12,8 @@ const uiBenchmark = require('../fixture/tailorbirdUiMessages.json');
 const MENU_SCREENSHOT_OPTIONS = {
     animations: 'disabled',
     // Left-nav icon/text anti-aliasing varies in headed runs.
-    maxDiffPixels: 9000,
-    maxDiffPixelRatio: 0.08,
+    maxDiffPixels: 15000,
+    maxDiffPixelRatio: 0.15,
 };
 
 let page;

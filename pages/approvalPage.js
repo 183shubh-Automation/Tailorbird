@@ -14,7 +14,7 @@ exports.ApprovalJob = class ApprovalJob {
         try {
             Logger.step('Navigating to Approval tab');
             await approval.approvalTab.click();
-            await this.page.waitForURL('**/approvals/**', { timeout: 15000 }).catch(() => {});
+            await this.page.waitForURL('**/approvals/**', { timeout: 25000 }).catch(() => {});
             const _t0 = Date.now();
             const _tab = this.page.getByRole('tab', { name: 'Approval Templates' });
             const _ok = await _tab.waitFor({ state: 'visible', timeout: 20_000 }).then(() => true).catch(() => false);
@@ -41,12 +41,12 @@ exports.ApprovalJob = class ApprovalJob {
         const _t0 = Date.now();
         try {
             const _btn = this.page.getByRole('button', { name: 'Create Template' }).first();
-            const _ok = await _btn.waitFor({ state: 'visible', timeout: 20_000 }).then(() => true).catch(() => false);
+            const _ok = await _btn.waitFor({ state: 'visible', timeout: 30_000 }).then(() => true).catch(() => false);
             if (_ok) {
                 Logger.info(`[Approval] Page ready in ${Date.now() - _t0}ms`);
             } else {
                 for (let _i = 0; _i < 3; _i++) {
-                    await this.page.waitForTimeout(5000);
+                    await this.page.waitForTimeout(7000);
                     if (await _btn.isVisible().catch(() => false)) {
                         Logger.info(`[Approval] Page ready after extra ${(_i + 1) * 5}s`);
                         return;
@@ -715,7 +715,7 @@ exports.ApprovalJob = class ApprovalJob {
         try {
             Logger.step('Navigating to Approval Templates tab');
             await approval.approvalTemplatesTab.click();
-            await this.page.waitForTimeout(800);
+            await this.page.waitForTimeout(8000);
             Logger.success('Navigated to Approval Templates tab');
         } catch (error) {
             Logger.error('Error navigating to Approval Templates tab: ' + error.message);
@@ -728,8 +728,8 @@ exports.ApprovalJob = class ApprovalJob {
             Logger.step('Opening Create Template dialog');
             await approval.createTemplateButton.click();
             const dialog = this.page.getByRole('dialog').filter({ has: approval.templateNameInput });
-            await expect(dialog).toBeVisible({ timeout: 20000 });
-            await this.page.waitForTimeout(400);
+            await expect(dialog).toBeVisible({ timeout: 30000 });
+            await this.page.waitForTimeout(4000);
             Logger.success('Create Template dialog opened');
         } catch (error) {
             Logger.error('Error opening Create Template dialog: ' + error.message);
@@ -770,11 +770,11 @@ exports.ApprovalJob = class ApprovalJob {
             Logger.step('Adding property from dropdown: ' + propertyName);
             // Open the Add Properties dropdown (collapsed field is a button)
             await approval.addPropertiesTrigger.click();
-            await this.page.waitForTimeout(300);
+            await this.page.waitForTimeout(3000);
 
             // Type into the dropdown's internal search input
             await approval.addPropertiesInput.fill(propertyName);
-            await this.page.waitForTimeout(500);
+            await this.page.waitForTimeout(5000);
 
             // Mantine renders options inside a visible Combobox dropdown; each row contains a checkbox input.
             const dropdown = this.page.locator('.mantine-Combobox-dropdown:visible').first();
@@ -804,7 +804,7 @@ exports.ApprovalJob = class ApprovalJob {
             // Close dropdown / commit selection (Escape can trigger page-level "Go Back")
             await approval.templateNameInput.click({ force: true });
             await dropdown.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => { });
-            await this.page.waitForTimeout(800);
+            await this.page.waitForTimeout(8000);
             Logger.success('Property added from dropdown: ' + propertyName);
         } catch (error) {
             Logger.error('Error adding property: ' + error.message);
@@ -819,11 +819,11 @@ exports.ApprovalJob = class ApprovalJob {
             const approverInput = approval.selectApproverInput.first();
             await approverInput.waitFor({ state: 'visible', timeout: approverTimeout });
             await approverInput.fill(approverName, { timeout: approverTimeout });
-            await this.page.waitForTimeout(800);
+            await this.page.waitForTimeout(8000);
             await this.page.keyboard.press('ArrowDown');
-            await this.page.waitForTimeout(300);
+            await this.page.waitForTimeout(500);
             await this.page.keyboard.press('Enter');
-            await this.page.waitForTimeout(1200);
+            await this.page.waitForTimeout(2000);
             Logger.success('Approver added from dropdown');
         } catch (error) {
             Logger.error('Error adding approver: ' + error.message);
@@ -1000,7 +1000,7 @@ exports.ApprovalJob = class ApprovalJob {
             await approval.createTemplateSubmit.click();
             await this.page.getByRole('button', { name: 'Create Template' }).first()
                 .waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
-            await this.page.waitForTimeout(500);
+            await this.page.waitForTimeout(1000);
             Logger.success('Create Template form submitted');
         } catch (error) {
             Logger.error('Error submitting form: ' + error.message);
@@ -1024,7 +1024,7 @@ exports.ApprovalJob = class ApprovalJob {
                     await approval.cancelButton.first().click();
                 }
             }
-            await this.page.waitForTimeout(600);
+            await this.page.waitForTimeout(2000);
 
             // When the form is dirty, cancelling may open a secondary "discard changes" confirmation.
             const drawerStillVisible = await drawerLocator.isVisible({ timeout: 500 }).catch(() => false);
@@ -1138,12 +1138,12 @@ exports.ApprovalJob = class ApprovalJob {
         try {
             Logger.step('Opening Edit template dialog');
             // Wait for any modal/portal to be removed before clicking
-            await this.page.waitForTimeout(500);
+            await this.page.waitForTimeout(5000);
             const editBtn = approval.editButtons.first();
             // Use force click to bypass any overlay blocking
             await editBtn.click({ force: true });
             await this.waitForPageLoad();
-            await this.page.waitForTimeout(1200);
+            await this.page.waitForTimeout(5000);
             Logger.success('Edit template dialog opened');
         } catch (error) {
             Logger.error('Error opening Edit template dialog: ' + error.message);

@@ -8,8 +8,10 @@ const PropertiesHelper = require('../pages/properties');
 const OrganizationHelper = require('../pages/organizationHelper');
 const data = require('../fixture/organization.json');
 
-const SAMPLE_PROPERTY_1 = 'Harbor Bay at MacDill_Liberty Cove (Sample Property 1)';
-const SAMPLE_PROPERTY_2 = 'The Brook (Sample Property 2)';
+const SAMPLE_PROPERTY_1 = 'Test Property 1_Cottages on Elm';
+const SAMPLE_PROPERTY_2 = 'Test Property 2_The Westerham';
+const SAMPLE_PROPERTY_3 = 'Test Property 3_Courtney Ridge Apartments';
+const SAMPLE_PROPERTY_4 = 'Test Property 4_Malmstrom';
 
 /**
  * Loads recently created property name.
@@ -34,6 +36,195 @@ function loadRecentPropertyName() {
   } catch {
     return null;
   }
+}
+
+/**
+ * Loads the job name stored in data/lastCreatedJob.json.
+ * @returns {string|null}
+ */
+function loadLastCreatedJobName() {
+  const filePath = path.join(__dirname, '../data/lastCreatedJob.json');
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return typeof parsed?.jobName === 'string' ? parsed.jobName.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Navigates to the global Jobs page via the left panel.
+ * Expands "Construction Management" if collapsed before clicking "Jobs (Contracts & POs)".
+ * @param {import('@playwright/test').Page} page
+ */
+async function navigateToJobsViaLeftPanel(page) {
+  const nav = page.locator('nav').first();
+  await nav.waitFor({ state: 'visible', timeout: 15000 });
+
+  const jobsItem = nav.locator('a, div').filter({ hasText: /^Jobs \(Contracts & POs\)$/i }).first();
+
+  if (!(await jobsItem.isVisible().catch(() => false))) {
+    const cmSection = nav.locator('a, div').filter({ hasText: /^Construction Management$/i }).first();
+    if (await cmSection.isVisible().catch(() => false)) {
+      await cmSection.click();
+      await page.waitForTimeout(700);
+    }
+  }
+
+  await expect(jobsItem).toBeVisible({ timeout: 15000 });
+  await jobsItem.click();
+  await page.waitForURL('**/jobs', { timeout: 20000 });
+  await page.waitForLoadState('networkidle').catch(() => {});
+  await page.waitForTimeout(1500);
+}
+
+/**
+ * Collects visible job rows from the treegrid on the /jobs page.
+ * Returns array of { title, propertyName } for data rows only (skips header/checkbox/action rows).
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<Array<{title: string, propertyName: string}>>}
+ */
+async function collectVisibleJobInfoFromGrid(page) {
+  const grid = page.locator('[role="treegrid"]').first();
+  await grid.waitFor({ state: 'visible', timeout: 60000 });
+  const rows = grid.locator('[role="row"]');
+  const count = await rows.count();
+  const jobs = [];
+  const skip = new Set(['Title', '']);
+
+  for (let i = 0; i < count; i++) {
+    const row = rows.nth(i);
+    const cells = row.locator('[role="gridcell"]');
+    const cellCount = await cells.count();
+    // Data rows have 10 gridcells; action rows have 1, checkbox rows have 1, headers have 0.
+    if (cellCount < 5) continue;
+
+    const title = (await cells.nth(0).innerText().catch(() => '')).trim().split('\n')[0].trim();
+    if (!title || skip.has(title)) continue;
+
+    const propText = (await cells.last().innerText().catch(() => '')).trim().split('\n')[0].trim();
+    jobs.push({ title, propertyName: propText });
+  }
+
+  return [...new Map(jobs.map((j) => [j.title, j])).values()];
+}
+
+/**
+ * Scrolls the jobs treegrid and collects all job rows (handles virtualization).
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<Array<{title: string, propertyName: string}>>}
+ */
+async function collectAllJobsFromGrid(page) {
+  const grid = page.locator('[role="treegrid"]').first();
+  await grid.waitFor({ state: 'visible', timeout: 60000 });
+  const all = new Map();
+
+  await grid.evaluate((el) => { el.scrollTop = 0; });
+  await page.waitForTimeout(400);
+
+  let stagnant = 0;
+  let prevSize = 0;
+
+  for (let step = 0; step < 80; step++) {
+    const batch = await collectVisibleJobInfoFromGrid(page);
+    batch.forEach(({ title, propertyName }) => {
+      if (!all.has(title)) all.set(title, propertyName);
+    });
+
+    if (all.size === prevSize) stagnant++;
+    else stagnant = 0;
+    prevSize = all.size;
+
+    const atBottom = await grid.evaluate((el) => {
+      return el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
+    });
+    if (atBottom && stagnant >= 2) break;
+
+    await grid.evaluate((el) => {
+      el.scrollTop = Math.min(
+        el.scrollTop + Math.max(200, el.clientHeight * 0.75),
+        el.scrollHeight
+      );
+    });
+    await page.waitForTimeout(280);
+    if (stagnant >= 8 && step > 10) break;
+  }
+
+  return [...all.entries()].map(([title, propertyName]) => ({ title, propertyName }));
+}
+
+/**
+ * Searches for a job by title and deletes it via the "Delete Row" button.
+ * Confirms using the Mantine popover or dialog confirmation button.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} jobTitle
+ * @returns {Promise<boolean>} true if deleted, false if not found
+ */
+async function deleteJobByTitle(page, jobTitle) {
+  // Wait for search input to be enabled (may be disabled during grid refresh after a prior deletion).
+  const searchInput = page.locator('input[placeholder="Search..."]:not([disabled])').first();
+  await searchInput.waitFor({ state: 'visible', timeout: 30000 });
+  await searchInput.fill(jobTitle);
+  await page.waitForLoadState('networkidle').catch(() => {});
+  await page.waitForTimeout(1200);
+
+  // Search is substring-based so multiple rows may appear (e.g. "Mall in Noida" matches
+  // "Mall in Noida_XXXXX"). Find the data row whose first cell EXACTLY matches the title
+  // and use its positional index to click the corresponding delete button.
+  const grid = page.locator('[role="treegrid"]').first();
+  const rows = grid.locator('[role="row"]');
+  const rowCount = await rows.count();
+  let exactDataRowIndex = -1;
+  let dataRowsSeen = 0;
+
+  for (let i = 0; i < rowCount; i++) {
+    const row = rows.nth(i);
+    const cells = row.locator('[role="gridcell"]');
+    const cellCount = await cells.count();
+    if (cellCount < 5) continue; // skip action / checkbox rows
+    const title = (await cells.nth(0).innerText().catch(() => '')).trim().split('\n')[0].trim();
+    if (title === jobTitle) {
+      exactDataRowIndex = dataRowsSeen;
+    }
+    dataRowsSeen++;
+  }
+
+  if (exactDataRowIndex === -1) {
+    console.log(`[cleanup-jobs] Job "${jobTitle}" not found with exact title match, skipping.`);
+    await searchInput.fill('');
+    await page.waitForLoadState('networkidle').catch(() => {});
+    return false;
+  }
+
+  const deleteBtn = page.locator('button[aria-label="Delete Row"]').nth(exactDataRowIndex);
+  if (!(await deleteBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
+    await searchInput.fill('');
+    return false;
+  }
+
+  await deleteBtn.click();
+  await page.waitForTimeout(500);
+
+  const confirmBtn = page.locator([
+    '.mantine-Popover-dropdown button:has-text("Delete")',
+    '[role="alertdialog"] button:has-text("Delete")',
+    '[role="dialog"] button:has-text("Delete")',
+  ].join(', ')).first();
+  await confirmBtn.waitFor({ state: 'visible', timeout: 10000 });
+  await confirmBtn.click();
+
+  await page.waitForLoadState('networkidle').catch(() => {});
+  await page.waitForTimeout(1000);
+
+  // Wait for search to re-enable before clearing it.
+  await page.locator('input[placeholder="Search..."]:not([disabled])').first()
+    .waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+  await searchInput.fill('');
+  await page.waitForLoadState('networkidle').catch(() => {});
+  await page.waitForTimeout(800);
+  return true;
 }
 
 /**
@@ -218,6 +409,106 @@ async function revokeAllInvitedUsersAcrossPages(page) {
 }
 
 test.describe.skip('Properties cleanup', () => {
+  test('TC261 @cleanup @job Delete all jobs not belonging to protected properties or last created job', async ({ browser }) => {
+    test.setTimeout(300000);
+
+    const lastCreatedJobName = loadLastCreatedJobName();
+    const protectedProperties = new Set([
+      SAMPLE_PROPERTY_1,
+      SAMPLE_PROPERTY_2,
+      SAMPLE_PROPERTY_3,
+      SAMPLE_PROPERTY_4,
+    ]);
+
+    console.log(`[cleanup-jobs] Protected job from lastCreatedJob.json: ${lastCreatedJobName || '(none)'}`);
+    console.log(`[cleanup-jobs] Protected properties: ${[...protectedProperties].join(', ')}`);
+
+    const context = await browser.newContext({ storageState: 'sessionState.json' });
+    const page = await context.newPage();
+
+    try {
+      try {
+        await test.step('Open app with existing session', async () => {
+          const dashboardUrl = process.env.DASHBOARD_URL || data.dashboardUrl;
+          await page.goto(dashboardUrl);
+          await page.waitForLoadState('networkidle').catch(() => {});
+          if ((page.url() || '').includes('/login')) {
+            throw new Error('sessionState.json is not authenticated. Refresh sessionState once, then rerun cleanup.');
+          }
+        });
+
+        await test.step('Navigate to Jobs tab via left panel', async () => {
+          await navigateToJobsViaLeftPanel(page);
+        });
+
+        await test.step('Delete all non-protected jobs', async () => {
+          let iterations = 0;
+          const maxIterations = 200;
+
+          while (iterations < maxIterations) {
+            iterations++;
+
+            const searchInput = page.locator('input[placeholder="Search..."]').first();
+            // Search is disabled when the grid is empty — no jobs left to process.
+            const searchEnabled = await searchInput.evaluate(el => !el.disabled).catch(() => false);
+            if (!searchEnabled) {
+              console.log('[cleanup-jobs] Search input disabled — no jobs in grid, done.');
+              break;
+            }
+            await searchInput.fill('');
+            await page.waitForLoadState('networkidle').catch(() => {});
+            await page.waitForTimeout(1200);
+
+            const allJobs = await collectAllJobsFromGrid(page);
+            const toDelete = allJobs.filter(({ title, propertyName }) => {
+              const protectedByProp = protectedProperties.has(propertyName);
+              const protectedByJob = lastCreatedJobName && title === lastCreatedJobName;
+              return !protectedByProp && !protectedByJob;
+            });
+
+            if (toDelete.length === 0) {
+              console.log('[cleanup-jobs] No extra jobs to delete.');
+              break;
+            }
+
+            for (const { title } of toDelete) {
+              console.log(`[cleanup-jobs] Deleting job: "${title}"`);
+              await deleteJobByTitle(page, title);
+            }
+          }
+
+          expect(iterations).toBeLessThan(maxIterations);
+        });
+
+        await test.step('Verify no non-protected jobs remain', async () => {
+          const searchInput = page.locator('input[placeholder="Search..."]').first();
+          await searchInput.fill('');
+          await page.waitForLoadState('networkidle').catch(() => {});
+          await page.waitForTimeout(1200);
+
+          const remaining = await collectAllJobsFromGrid(page);
+          const unexpected = remaining.filter(({ title, propertyName }) => {
+            const protectedByProp = protectedProperties.has(propertyName);
+            const protectedByJob = lastCreatedJobName && title === lastCreatedJobName;
+            return !protectedByProp && !protectedByJob;
+          });
+
+          expect(
+            unexpected.map((j) => j.title),
+            `Non-protected jobs still present: ${unexpected.map((j) => `"${j.title}" (property: ${j.propertyName})`).join(', ')}`
+          ).toEqual([]);
+        });
+
+      } catch (err) {
+        throw new Error(`[cleanup-jobs] Job cleanup failed: ${err?.message || err}`);
+      }
+    } finally {
+      await context.close().catch((e) => {
+        console.warn(`[cleanup-jobs] context.close warning: ${e.message}`);
+      });
+    }
+  });
+
   test('TC259 @cleanup @property Delete all properties except sample pair and recently created', async ({
     browser,
   }) => {
@@ -226,9 +517,9 @@ test.describe.skip('Properties cleanup', () => {
     test.setTimeout(180000);
 
     const recent = loadRecentPropertyName();
-    const keep = new Set([SAMPLE_PROPERTY_1, SAMPLE_PROPERTY_2]);
+    const keep = new Set([SAMPLE_PROPERTY_1, SAMPLE_PROPERTY_2, SAMPLE_PROPERTY_3, SAMPLE_PROPERTY_4]);
     if (recent) keep.add(recent);
-    const requiredKeep = new Set([SAMPLE_PROPERTY_1, SAMPLE_PROPERTY_2]);
+    const requiredKeep = new Set([SAMPLE_PROPERTY_1, SAMPLE_PROPERTY_2, SAMPLE_PROPERTY_3, SAMPLE_PROPERTY_4]);
 
     const context = await browser.newContext({ storageState: 'sessionState.json' });
     const page = await context.newPage();

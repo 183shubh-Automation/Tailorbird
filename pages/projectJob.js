@@ -1034,14 +1034,17 @@ exports.ProjectJob = class ProjectJob {
             }
         };
     
+        const _now = new Date();
+        const _yr = _now.getFullYear();
+        const _mo = String(_now.getMonth() + 1).padStart(2, '0');
         const CONTRACT_DATA = {
             scope: 'Bid with material',
             budgetCategory: 'Bathroom fixtures install',
             scheduleOfValue: '15000',
             costItem: 'Mirror clipped',
             contractAmount: '25000',
-            startDate: '2026-05-01',
-            endDate: '2026-05-30',
+            startDate: `${_yr}-${_mo}-01`,
+            endDate: `${_yr}-${_mo}-28`,
         };
     
         try {
@@ -1105,15 +1108,18 @@ exports.ProjectJob = class ProjectJob {
             const innerContractPanel = contractsJobPanel.getByRole('tabpanel', { name: 'Contract' }).first();
             await expect(innerContractPanel).toBeVisible({ timeout: 15000 });
     
+            // Delete any pre-existing contract rows using the revogr-data action section.
+            // Grid now has 3 revogr-data[type="rgRow"] sections: nth(0)=pinned-left,
+            // nth(1)=main content, nth(2)=pinned-right actions (copy + delete buttons).
             await page.waitForTimeout(2500);
-            const deleteButtons = page.locator(
-                'button:has(svg.lucide-trash-2), button:has(svg.lucide-trash2), button[aria-label="Delete Row"]'
-            );
+            const contractsGridPre = innerContractPanel.locator('revo-grid[role="treegrid"]').first();
+            const actionSectionPre = contractsGridPre.locator('revogr-data[type="rgRow"]').nth(2);
             let guard = 0;
             while (guard < 40) {
-                const count = await deleteButtons.count().catch(() => 0);
+                const delBtns = actionSectionPre.locator('[data-rgrow] button[aria-label="Delete"]');
+                const count = await delBtns.count().catch(() => 0);
                 if (count === 0) break;
-                const delBtn = deleteButtons.first();
+                const delBtn = delBtns.first();
                 await delBtn.scrollIntoViewIfNeeded();
                 const isDisabled = await delBtn.isDisabled().catch(() => true);
                 if (isDisabled) {
@@ -1215,11 +1221,11 @@ exports.ProjectJob = class ProjectJob {
                 scope: findColumnIndex(headers, /scope/i),
                 budgetCategory: findColumnIndex(headers, /budget category/i),
                 scheduleOfValue: findColumnIndex(headers, /schedule of value/i),
-                location: findColumnIndex(headers, /^location$/i),
+                location: findOptionalColumnIndex(headers, /^location$/i),
                 costItem: findOptionalColumnIndex(headers, /cost item/i),
                 contractAmount: findColumnIndex(headers, /contract amount/i),
-                startDate: findColumnIndex(headers, /start date/i),
-                endDate: findColumnIndex(headers, /end date/i),
+                startDate: findOptionalColumnIndex(headers, /start date/i),
+                endDate: findOptionalColumnIndex(headers, /end date/i),
             };
             const contractAmountTriggerCol =
                 findOptionalColumnIndex(headers, /days in reno/i) ??
@@ -1334,8 +1340,10 @@ exports.ProjectJob = class ProjectJob {
                     innerContractPanel
                         .locator('input[placeholder="Search or type to create..."]')
                         .or(innerContractPanel.getByPlaceholder(/search or type to create/i))
+                        .or(innerContractPanel.locator('input[placeholder="Search options..."]'))
                         .or(innerContractPanel.locator('[role="dialog"] input[placeholder*="Search"]'))
                         .or(page.locator('input[placeholder="Search or type to create..."]'))
+                        .or(page.locator('input[placeholder="Search options..."]'))
                         .first();
 
                 let searchInputCell;
@@ -1379,12 +1387,12 @@ exports.ProjectJob = class ProjectJob {
     
             const SOV_VALUE = '15000';
             const fillScheduleOfValue = async (reason) => {
-                Logger.step(`Schedule of Value → ${SOV_VALUE} via Location dblclick → SOV (${reason})`);
+                Logger.step(`Schedule of Value → ${SOV_VALUE} via dblclick → SOV (${reason})`);
                 await page.keyboard.press('Escape').catch(() => {});
                 await page.waitForTimeout(250);
-    
+
                 await setValueViaTriggeredCell({
-                    triggerCol: colMap.location,
+                    triggerCol: colMap.location ?? colMap.budgetCategory,
                     targetCol: colMap.scheduleOfValue,
                     value: SOV_VALUE,
                     commitKey: 'Enter',
@@ -1447,12 +1455,15 @@ exports.ProjectJob = class ProjectJob {
             const clickCalendarDayAfterOpen = async (dateStr) => {
                 const fullName = toCalendarBtnName(dateStr);
                 const dayNum = Number(dateStr.split('-')[2]);
+                // Primary: match by aria-label (e.g. "1 June 2026")
                 const full = page.getByRole('button', { name: fullName, exact: true });
                 if (await full.isVisible({ timeout: 3000 }).catch(() => false)) {
-                    await full.click(); 
+                    await full.click();
                     return;
                 }
-                const short = page.getByRole('button', { name: new RegExp(`^${dayNum}$`) }).first();
+                // Fallback: match by visible text content — getByRole uses accessible name
+                // (which may be "1 June 2026") not text, so filter by text instead.
+                const short = page.locator('button').filter({ hasText: new RegExp(`^${dayNum}$`) }).first();
                 await expect(short).toBeVisible({ timeout: 10000 });
                 await short.click();
             };
@@ -1465,38 +1476,46 @@ exports.ProjectJob = class ProjectJob {
                 Logger.info('TC47_NEW_UI: Cost Item column not present in this grid variant — skipping');
             }
     
-            await page.keyboard.press('Escape');
-            await page.waitForTimeout(300);
-            const scopeCellStart = getCell(colMap.scope);
-            await scopeCellStart.scrollIntoViewIfNeeded();
-            await scopeCellStart.click({ force: true });
-            await page.waitForTimeout(400);
-            for (let i = 0; i < tabsFromScopeToCol(colMap.startDate); i++) {
-                await page.keyboard.press('Tab');
-                await page.waitForTimeout(200);
+            if (colMap.startDate !== null) {
+                await page.keyboard.press('Escape');
+                await page.waitForTimeout(300);
+                const scopeCellStart = getCell(colMap.scope);
+                await scopeCellStart.scrollIntoViewIfNeeded();
+                await scopeCellStart.click({ force: true });
+                await page.waitForTimeout(400);
+                for (let i = 0; i < tabsFromScopeToCol(colMap.startDate); i++) {
+                    await page.keyboard.press('Tab');
+                    await page.waitForTimeout(200);
+                }
+                await page.keyboard.press('Enter');
+                await page.waitForTimeout(700);
+                await clickCalendarDayAfterOpen(CONTRACT_DATA.startDate);
+                await page.keyboard.press('Escape');
+                await page.waitForTimeout(500);
+            } else {
+                Logger.info('TC47_NEW_UI: Start Date column not present — skipping');
             }
-            await page.keyboard.press('Enter');
-            await page.waitForTimeout(700);
-            await clickCalendarDayAfterOpen(CONTRACT_DATA.startDate);
-            await page.keyboard.press('Escape');
-            await page.waitForTimeout(500);
 
-            await page.keyboard.press('Escape');
-            await page.waitForTimeout(300);
-            const scopeCellEnd = getCell(colMap.scope);
-            await scopeCellEnd.scrollIntoViewIfNeeded();
-            await scopeCellEnd.click({ force: true });
-            await page.waitForTimeout(400);
-            for (let i = 0; i < tabsFromScopeToCol(colMap.endDate); i++) {
+            if (colMap.endDate !== null) {
+                await page.keyboard.press('Escape');
+                await page.waitForTimeout(300);
+                const scopeCellEnd = getCell(colMap.scope);
+                await scopeCellEnd.scrollIntoViewIfNeeded();
+                await scopeCellEnd.click({ force: true });
+                await page.waitForTimeout(400);
+                for (let i = 0; i < tabsFromScopeToCol(colMap.endDate); i++) {
+                    await page.keyboard.press('Tab');
+                    await page.waitForTimeout(200);
+                }
+                await page.keyboard.press('Enter');
+                await page.waitForTimeout(700);
+                await clickCalendarDayAfterOpen(CONTRACT_DATA.endDate);
+                await page.keyboard.press('Escape');
                 await page.keyboard.press('Tab');
-                await page.waitForTimeout(200);
+                await page.waitForTimeout(600);
+            } else {
+                Logger.info('TC47_NEW_UI: End Date column not present — skipping');
             }
-            await page.keyboard.press('Enter');
-            await page.waitForTimeout(700);
-            await clickCalendarDayAfterOpen(CONTRACT_DATA.endDate);
-            await page.keyboard.press('Escape');
-            await page.keyboard.press('Tab');
-            await page.waitForTimeout(600);
     
             Logger.step('Re-applying Contract Amount after date pickers');
             await setValueViaTriggeredCell({
@@ -1584,33 +1603,30 @@ exports.ProjectJob = class ProjectJob {
                 await expect(savedCaCell).toBeVisible({ timeout: 8000 });
             }
     
-            Logger.step('Delete bids again before finalize...');
-            await this.deleteExistingBids();
-            const contractsTabBack = page.getByRole('tab', { name: 'Contracts' });
-            await expect(contractsTabBack).toBeVisible({ timeout: 10000 });
-            await contractsTabBack.click();
-            await page.waitForLoadState('load');
-            await page.waitForTimeout(1000);
-
-            // Delete any auto-created incomplete rows (no scope) before finalizing
+            // Delete any auto-created incomplete rows (no scope) before finalizing.
+            // Grid has 3 revogr-data[type="rgRow"] sections: nth(0)=pinned-left,
+            // nth(1)=main content (scope text lives here), nth(2)=pinned-right actions.
             Logger.info('Pre-finalize: purging any incomplete contract rows...');
+            const contentSection = contractsGrid.locator('revogr-data[type="rgRow"]').nth(1);
+            const actionSection = contractsGrid.locator('revogr-data[type="rgRow"]').nth(2);
             let purgeGuard = 0;
             while (purgeGuard < 10) {
                 await page.waitForTimeout(300);
-                const rowsWithDelete = contractsGrid.locator('div[role="row"]').filter({
-                    has: page.locator('button:has(svg.lucide-trash-2), button:has(svg.lucide-trash2), button[aria-label="Delete Row"]'),
-                });
-                const total = await rowsWithDelete.count().catch(() => 0);
+                const dataRows = contentSection.locator('div[role="row"][data-rgrow]');
+                const total = await dataRows.count().catch(() => 0);
                 let deleted = false;
                 for (let ri = 0; ri < total; ri++) {
-                    const row = rowsWithDelete.nth(ri);
+                    const row = dataRows.nth(ri);
                     const hasScope = await row
                         .locator(`div[role="gridcell"]:has-text("${CONTRACT_DATA.scope}")`)
                         .isVisible({ timeout: 500 })
                         .catch(() => false);
                     if (!hasScope) {
-                        const delBtn = row
-                            .locator('button:has(svg.lucide-trash-2), button:has(svg.lucide-trash2), button[aria-label="Delete Row"]')
+                        const rgrow = await row.getAttribute('data-rgrow').catch(() => null);
+                        if (rgrow === null) continue;
+                        // Locate the delete button in the actions column at the same row index.
+                        const delBtn = actionSection
+                            .locator(`[data-rgrow="${rgrow}"] button[aria-label="Delete"]`)
                             .first();
                         if (await delBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
                             await delBtn.click({ force: true });

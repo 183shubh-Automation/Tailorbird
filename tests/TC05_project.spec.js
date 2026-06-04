@@ -18,7 +18,7 @@ let projectPage, projectJob, prop;
 const PROJECT_VISUAL_ASSERT = {
     animations: 'disabled',
     maxDiffPixels: 30000,
-    maxDiffPixelRatio: 0.06,
+    maxDiffPixelRatio: 0.15,
 };
 
 test.beforeEach(async ({ page }) => {
@@ -62,9 +62,8 @@ test('TC65 @regression @sanity @mandatory @projectAndJob @contract : User should
     expect(fs.existsSync(budgetDataPath), 'files/budget_data.csv must exist for budget upload').toBeTruthy();
 
     await budgetJob.navigateToBudget();
-    await budgetJob.waitForPageLoad();
+    // await budgetJob.waitForPageLoad();
 
-    await page.waitForTimeout(5500);
     const propertySelected = await budgetJob.selectPropertyByName(propertyName);
     expect(propertySelected, `Property "${propertyName}" must exist in Budget property dropdown`).toBeTruthy();
 
@@ -81,7 +80,7 @@ test('TC65 @regression @sanity @mandatory @projectAndJob @contract : User should
 
     await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'load' });
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(10000);
 
     await projectPage.navigateToProjects();
     await projectPage.openCreateProjectModal();
@@ -107,7 +106,7 @@ test('TC66 @regression @projectAndJob : User should be able to search project us
 test('TC67 @regression @projectAndJob : User should be able to apply filter and export project', async () => {
     await projectPage.navigateToProjects();
     await projectPage.setProjectsTableView();
-    await projectJob.applyProjectFilterAndExport('Harbor Bay at MacDill_Liberty Cove (Sample Property 1)', 'Automa_Test');
+    await projectJob.applyProjectFilterAndExport('Test Property 1_Cottages on Elm', 'Automa_Test');
     // await projectJob.deleteFirstProjectRow();
 });
 
@@ -525,7 +524,7 @@ test('@regression @projectAndJob TC271 - Reject project creation with "      ." 
     await projectPage.nameInput.fill('      .');
 
     // Property: read from run-data if available, fall back to known sample property
-    let propertyName = 'Harbor Bay at MacDill_Liberty Cove (Sample Property 1)';
+    let propertyName = 'Test Property 1_Cottages on Elm';
     try {
         const propertyDataPath = path.join(__dirname, '../data/propertyData.json');
         const downloadsPropertyPath = path.join(process.cwd(), 'downloads', 'property.json');

@@ -18,7 +18,7 @@ class LoginPage {
     // this.organizationSelect = page.locator("button:has-text('Tailorbird_QA_Automations')");
     this.organizationSelect = page
       .locator('.ak-OrgSelection')
-      .getByRole('button', { name: 'Tailorbird_QA_Automations' });
+      .getByRole('button', { name: 'QA Automations Org_2026' });
 
     /** Exact strings from AuthKit (keep in sync with fixture/authKitMessages.json; verify via MCP if UI changes). */
     this.authKit = authKitMessages;

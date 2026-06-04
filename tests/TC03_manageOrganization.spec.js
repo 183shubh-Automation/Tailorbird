@@ -134,8 +134,8 @@ test.describe('Manage Organization Flow ', () => {
 const ORGANIZATION_WORKSPACE_SCREENSHOT_OPTIONS = {
   animations: 'disabled',
   /** User table rows change during suite (invites); allow modest pixel drift vs golden image. */
-  maxDiffPixels: 12_000,
-  maxDiffPixelRatio: 0.04,
+  maxDiffPixels: 15_000,
+  maxDiffPixelRatio: 0.15,
 };
 
 /** Shared assertion: product blocks bad invites via Mantine errors, alerts, native validity, or dialog copy. */

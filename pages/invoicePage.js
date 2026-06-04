@@ -1610,7 +1610,7 @@ class InvoicePage {
                 .locator('[role="treegrid"]')
                 .filter({ has: this.page.locator('[role="columnheader"]').filter({ hasText: /Budget Category/i }) })
                 .first();
-            await expect(grid).toBeVisible({ timeout: 12000 });
+            await expect(grid).toBeVisible({ timeout: 30000 });
 
             let budgetCategoryHeader = grid.locator('[role="columnheader"]').filter({ hasText: /Budget Category/i }).first();
             let headerVisible = await budgetCategoryHeader.isVisible({ timeout: 4000 }).catch(() => false);
@@ -1624,12 +1624,12 @@ class InvoicePage {
                     if (!(await t.isVisible().catch(() => false))) continue;
                     await t.click({ force: true }).catch(() => {});
                     await this.page.waitForTimeout(250);
-                    headerVisible = await budgetCategoryHeader.isVisible({ timeout: 1500 }).catch(() => false);
+                    headerVisible = await budgetCategoryHeader.isVisible({ timeout: 15000 }).catch(() => false);
                 }
             }
             if (!headerVisible) {
                 budgetCategoryHeader = grid.locator('[role="columnheader"]').filter({ hasText: /Budget Category/i }).first();
-                await expect(budgetCategoryHeader).toBeVisible({ timeout: 12000 });
+                await expect(budgetCategoryHeader).toBeVisible({ timeout: 30000 });
             } else {
                 await expect(budgetCategoryHeader).toBeVisible({ timeout: 10000 });
             }

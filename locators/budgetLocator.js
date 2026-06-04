@@ -9,10 +9,10 @@ function budgetLocators(page) {
 
         // --- Property selection ---
         propertyDropdownButton: page
-            .getByRole('button', { name: /Select a Property|Sample Property|Harbor Bay|name_/i })
+            .getByRole('button', { name: /Select a Property|Test Property|Sample Property|name_/i })
             .first(),
-        brookProperty: page.getByRole('menuitem', { name: /The Brook \(Sample Property 2\)/ }),
-        propertyHeader: page.getByRole('button', { name: /The Brook \(Sample Property 2\)/ }),
+        brookProperty: page.getByRole('menuitem', { name: /Test Property 2_The Westerham/i }),
+        propertyHeader: page.getByRole('button', { name: /Test Property 2_The Westerham/i }),
         propertyMenuItems: page.getByRole('menuitem'),
 
         // --- Year & Version selectors ---

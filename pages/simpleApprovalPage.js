@@ -10,12 +10,12 @@ class SimpleApprovalPage {
 
     async navigateToApprovalTab() {
         await this.loc.approvalTab.click();
-        await this.page.waitForLoadState('networkidle');
+        await this.page.waitForTimeout(20000);
         await this.page.waitForTimeout(1000);
     }
 
     async waitForPageLoad() {
-        await this.page.waitForLoadState('networkidle');
+        await this.page.waitForTimeout(20000);
         await this.page.waitForTimeout(1500);
     }
 

@@ -96,7 +96,7 @@ test.describe('Verify Invoice tab', () => {
 
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'load' });
         await expect(page).toHaveURL(process.env.DASHBOARD_URL);
-        await page.waitForLoadState('load');
+        await page.waitForTimeout(10000);
 
         await projectPage.openProject(projectData.projectName);
         await projectJob.navigateToJobsTab();

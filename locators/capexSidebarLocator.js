@@ -1,6 +1,6 @@
 function capexSidebarLocators(page) {
     return {
-        propertyDropdown: page.getByRole('button', { name: /Select a Property|name_|Sample Property|Harbor|Brook/i }).first(),
+        propertyDropdown: page.getByRole('button', { name: /Select a Property|name_|Sample Property|Test Property|Westerham/i }).first(),
         propertySearchInput: page.getByRole('textbox', { name: /Search properties\.\.\./i }).first(),
         propertyMenuItems: page.getByRole('menuitem'),
         yearDropdown: page.getByRole('textbox', { name: /\d{4}/ }).first(),

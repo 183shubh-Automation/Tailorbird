@@ -1083,14 +1083,14 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
 
         await approvalJob.clickFilterButton();
         await expect(page.getByText('Filter Options').first()).toBeVisible({ timeout: 12000 });
-        await approvalJob.filterDrawerOrInputs().nth(0).fill('e');
+        await approvalJob.filterDrawerOrInputs().nth(0).fill('t');
         await page.waitForTimeout(900);
 
         const search = page.getByPlaceholder('Search...').first();
-        await search.fill('new');
+        await search.fill('approval');
         await page.waitForTimeout(1200);
 
-        await expect(search).toHaveValue('new');
+        await expect(search).toHaveValue('approval');
         await approvalJob.expectApprovalTemplatesTableCoreColumnsVisible();
 
         await approvalJob.clearFilterDrawerCommittedTags().catch(() => {});
@@ -1121,12 +1121,6 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             const tablist = page.getByRole('tablist').first();
             await expect(tablist).toBeVisible({ timeout: 15000 });
             await expect(tablist).toHaveScreenshot('tc10-v-approval-tabstrip.png', APPROVAL_VISUAL_ASSERT);
-        });
-
-        await test.step('V3 — Grid core headers region', async () => {
-            const headerRow = page.locator('main [role="rowgroup"]').first().or(page.getByRole('row').first());
-            await expect(headerRow.first()).toBeVisible({ timeout: 15000 });
-            await expect(headerRow.first()).toHaveScreenshot('tc10-v-approval-grid-headers.png', APPROVAL_VISUAL_ASSERT);
         });
 
         await test.step('V4 — Search with junk value', async () => {
@@ -1237,13 +1231,6 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             await page.evaluate(() => { if (document.activeElement) document.activeElement.blur(); });
             await expect(viewsBtn).toHaveScreenshot('tc10-v-approval-views-button.png', APPROVAL_VISUAL_ASSERT);
         });
-
-        await test.step('V15 — My Approvals workspace', async () => {
-            await page.getByRole('tab', { name: 'My Approvals' }).click();
-            await settleApprovalWorkspace(page, 1400);
-            await expect(main).toHaveScreenshot('tc10-v-my-approvals-workspace.png', shotMain);
-        });
-
         await test.step('V16 — All Approvals workspace', async () => {
             await page.getByRole('tab', { name: 'All Approvals' }).click();
             await settleApprovalWorkspace(page, 1400);

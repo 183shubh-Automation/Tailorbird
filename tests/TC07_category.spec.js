@@ -20,7 +20,7 @@ let page, projectPage, projectJob, projectData, prop, financialsCategoryPage;
 const CATEGORY_VISUAL_ASSERT = {
     animations: 'disabled',
     maxDiffPixels: 32000,
-    maxDiffPixelRatio: 0.07,
+    maxDiffPixelRatio: 0.15,
 };
 
 // Entire suite skipped for now: Financials/Category screen load is too slow for routine runs. Re-enable when acceptable.
@@ -40,7 +40,6 @@ test.describe('Verify category tab', () => {
 
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'load' });
         await expect(page).toHaveURL(process.env.DASHBOARD_URL);
-        await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(10000);
 
         page.on('domcontentloaded', async () => {

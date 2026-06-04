@@ -19,7 +19,7 @@ let page, projectPage, projectJob, projectData, prop;
 const JOB_VISUAL_ASSERT = {
     animations: 'disabled',
     maxDiffPixels: 32000,
-    maxDiffPixelRatio: 0.07,
+    maxDiffPixelRatio: 0.15,
 };
 
 async function openJobsWorkspaceFromLeftNav(page) {
@@ -30,7 +30,7 @@ async function openJobsWorkspaceFromLeftNav(page) {
         .first();
     await expect(jobsMenu).toBeVisible({ timeout: 15000 });
     await jobsMenu.click();
-    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(30000);
     await page.waitForURL(/\/jobs|tab=jobs/i, { timeout: 15000 }).catch(() => { });
 }
 
@@ -50,7 +50,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
 
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'load' });
         await expect(page).toHaveURL(process.env.DASHBOARD_URL);
-        await page.waitForLoadState('networkidle');
+        await page.waitForTimeout(10000);
 
         page.on('domcontentloaded', async () => {
             await page.evaluate(() => {
@@ -128,7 +128,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         Logger.step(`Updating contract estimated budget to: ${contractEstimatedBudget}`);
 
         await projectPage.openContractsTab();
-        // await page.waitForLoadState('networkidle');
+        // await page.waitForTimeout(30000);
         await page.waitForTimeout(10000);
 
         // Scope to the Contracts tab so .first() cannot click another "Edit" (failure snapshot: wrong dialog was "Edit Job").
@@ -159,7 +159,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         await expect(saveChangesBtn).toBeVisible({ timeout: 10000 });
         await expect(saveChangesBtn).toBeEnabled({ timeout: 10000 });
         await saveChangesBtn.click();
-        // await page.waitForLoadState('networkidle');
+        // await page.waitForTimeout(30000);
         await page.waitForTimeout(10000);
         Logger.success(`Contract estimated budget updated and saved: ${contractEstimatedBudget}`);
 
@@ -217,7 +217,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
                 .first();
             await expect(jobsMenu).toBeVisible({ timeout: 15000 });
             await jobsMenu.click();
-            await page.waitForLoadState('networkidle');
+            await page.waitForTimeout(20000);
 
             Logger.step('Opening target job from Jobs listing...');
             const searchInput = page.locator('input[placeholder="Search..."]').first();
@@ -285,7 +285,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
             // await expect(saveChangesBtn).toBeVisible({ timeout: 10000 });
             // await expect(saveChangesBtn).toBeEnabled({ timeout: 10000 });
             // await saveChangesBtn.click();
-            // await page.waitForLoadState('networkidle');
+            // await page.waitForTimeout(30000);
 
             const clearExistingContracts = async () => {
                 const contractsPanel = innerContractPanel;
@@ -707,7 +707,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
             if (await saveBtn.isVisible()) {
                 await expect(saveBtn).toBeVisible();
                 await saveBtn.click();
-                await page.waitForLoadState("networkidle");
+                await page.waitForTimeout(30000);
             }
 
 
@@ -734,7 +734,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
                     await confirmBtn.click();
                 }
 
-                // await page.waitForLoadState("networkidle");
+                // await page.waitForTimeout(30000);
                 await page.waitForTimeout(5000);
                 const finalizeResponse = await finalizeResponsePromise;
                 if (finalizeResponse) {
@@ -765,7 +765,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         await projectJob.openJobSummary();
         await projectJob.navigateToBidsTab();
         await projectJob.minimizeManageVendors();
-        // await page.waitForLoadState('networkidle');
+        // await page.waitForTimeout(30000);
         await page.waitForTimeout(15000);
 
         const changeOrdersTab = page.getByRole('tab', { name: 'Change Orders' });

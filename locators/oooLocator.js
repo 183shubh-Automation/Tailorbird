@@ -70,7 +70,7 @@ function oooLocators(page) {
             .filter({ hasText: /Active.*delegating approvals to/i }),
 
         // ── Sidebar user block (used in TC-OOO-012 navigation test) ────────
-        sidebarUserBlock: page.locator('nav').getByText(/Sumit Mishra/i).first(),
+        sidebarUserBlock: page.locator('nav').getByText(/Sumit Harsh/i).first(),
 
         // ── Approvals sidebar link ─────────────────────────────────────────
         sidebarApprovalsLink: page.locator('nav').getByText('Approvals').first(),

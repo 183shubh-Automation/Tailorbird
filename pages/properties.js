@@ -83,7 +83,7 @@ class PropertiesHelper {
         this.log('Properties data error banner detected; attempting recovery.');
         const retryBtn = this.page.getByRole('button', { name: /Retry/i }).first();
         if (await retryBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-            await retryBtn.click({ force: true }).catch(() => {});
+            await retryBtn.click({ force: true }).catch(() => { });
             await this.page.waitForTimeout(2500);
         }
 
@@ -91,7 +91,7 @@ class PropertiesHelper {
         if (stillError) {
             const refreshBtn = this.page.getByRole('button', { name: /Refresh Page/i }).first();
             if (await refreshBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-                await refreshBtn.click({ force: true }).catch(() => {});
+                await refreshBtn.click({ force: true }).catch(() => { });
                 await this.page.waitForLoadState('domcontentloaded');
                 await this.page.waitForTimeout(2500);
             }
@@ -107,7 +107,7 @@ class PropertiesHelper {
             this.log(`Navigating to URL: ${url}`);
             const apiWait = this.waitForApi200('goto', [/\/api\/organization\/current/, /\/api\/profile/, /\/api\/auth\/feature-flags/], 60_000);
             await this.page.goto(url, { waitUntil: "load" });
-            await this.page.waitForLoadState("networkidle");
+            await this.page.waitForTimeout(35000);
             await apiWait;
             this.log(`Navigation successful: ${url}`);
         } catch (err) {
@@ -124,7 +124,7 @@ class PropertiesHelper {
 
     async goToProperties() {
         const propertiesLink = this.page.locator(propertyLocators.propertiesNavLink).first();
-        await propertiesLink.scrollIntoViewIfNeeded().catch(() => {});
+        await propertiesLink.scrollIntoViewIfNeeded().catch(() => { });
         if (!(await propertiesLink.isVisible().catch(() => false))) {
             const origin = new URL(this.page.url()).origin;
             const apiWait = this.waitForApi200('goToProperties:fallback', [/\/api\/properties/, /\/api\/bird-table\?table_name=property/, /\/api\/table-view-config\?tableName=property/], 60_000);
@@ -157,7 +157,7 @@ class PropertiesHelper {
             await this.page.locator(propertyLocators.createPropertyButton).click({ force: true });
 
             console.log("📌 Waiting for Add Property modal to appear...");
-            await this.addPropertyDialog().waitFor({ state: "visible" });
+            await this.addPropertyDialog().waitFor({ state: "visible", timeout: 25000 });
 
             console.log("📝 Verifying modal field presence...");
             await this.verifyModalFields();
@@ -165,7 +165,7 @@ class PropertiesHelper {
             console.log(`✍ Entering Name: ${name}`);
             await this.nameInput.fill(name);
 
-             // Site expects city / state / zip before the full address so autocomplete can match.
+            // Site expects city / state / zip before the full address so autocomplete can match.
             console.log(`✍ Entering City: ${city}`);
             await this.cityInput.fill(city);
             console.log(`✍ Entering State: ${state}`);
@@ -284,19 +284,6 @@ class PropertiesHelper {
         await expect(this.addPropertyBtn).toBeVisible();
     }
 
-    // async changeView(view) {
-    //     await this.page.waitForLoadState("networkidle");
-    //     await this.page.waitForTimeout(2000);
-    //     // Click the view switcher button (first button after search input)
-    //     await this.page.getByRole('button').nth(1).waitFor({ state: "visible" });
-    //     await this.page.getByRole('button').nth(1).click();
-    //     await this.page.getByRole('menuitem', { name: view }).waitFor({ state: "visible" });
-    //     await this.page.getByRole('menuitem', { name: view }).click();
-    //     await this.page.locator(propertyLocators.gridRootWrapper).first().waitFor({ state: "visible" });
-    //     await this.page.waitForLoadState("networkidle");
-    //     await this.page.waitForTimeout(2000);
-    // }
-
     async changeView(view) {
         if (!/\/properties(\/|$)/.test(this.page.url())) {
             await this.goToProperties();
@@ -314,10 +301,10 @@ class PropertiesHelper {
             for (let i = 0; i < count; i++) {
                 const switcher = switchers.nth(i);
                 if (!(await switcher.isVisible().catch(() => false))) continue;
-                await switcher.click({ force: true }).catch(() => {});
+                await switcher.click({ force: true }).catch(() => { });
                 const viewItem = this.page.getByRole('menuitem', { name: view }).first();
                 if (await viewItem.isVisible({ timeout: 1500 }).catch(() => false)) {
-                    await viewItem.click({ force: true }).catch(() => {});
+                    await viewItem.click({ force: true }).catch(() => { });
                     menuOpened = true;
                     break;
                 }
@@ -354,6 +341,41 @@ class PropertiesHelper {
      * Apply one property-type filter in the open Filter popup, assert UI feedback, then reset.
      * BirdTable uses "Applied Filters" + button "Reset Filters" (not treegrid badges / "Clear All Filters" link).
      */
+    // async filterProperty(type) {
+    //     const popup = this.filterPopup();
+    //     await popup.waitFor({ state: 'visible', timeout: 15000 });
+
+    //     const checkbox = popup.getByRole('checkbox', { name: type });
+    //     await checkbox.waitFor({ state: 'visible', timeout: 20000 });
+    //     await checkbox.click();
+
+    //     await this.page.waitForLoadState('networkidle').catch(() => {});
+    //     await this.page.waitForTimeout(400);
+
+    //     const resetBtn = popup.getByRole('button', { name: 'Reset Filters' });
+    //     await expect(resetBtn).toBeVisible({ timeout: 15000 });
+    //     await expect(popup.getByText(/Applied Filters/i)).toBeVisible({ timeout: 10000 });
+
+    //     const grid = this.page.locator(propertyLocators.gridRootWrapper).first();
+    //     const dataRows = grid.locator('[role="row"]').filter({ has: this.page.locator('[role="gridcell"]') });
+    //     const nRows = await dataRows.count();
+    //     console.log(
+    //         `[ASSERT] Filter "${type}": visible data rows in current treegrid viewport = ${nRows} (expected ≥1 when data exists; 0 can mean virtualized empty slice or no matches).`,
+    //     );
+    //     if (nRows === 0) {
+    //       console.log(
+    //         "ℹ️ filterProperty: no visible data rows after filter (empty result or virtualized grid); UI still shows Applied Filters + Reset.",
+    //       );
+    //     } else {
+    //       await dataRows.first().scrollIntoViewIfNeeded().catch(() => {});
+    //       await expect(dataRows.first()).toBeVisible({ timeout: 15_000 });
+    //     }
+
+    //     await resetBtn.click();
+    //     await expect(resetBtn).toBeHidden({ timeout: 15000 });
+    //     await this.page.waitForTimeout(300);
+    // }
+
     async filterProperty(type) {
         const popup = this.filterPopup();
         await popup.waitFor({ state: 'visible', timeout: 15000 });
@@ -362,8 +384,7 @@ class PropertiesHelper {
         await checkbox.waitFor({ state: 'visible', timeout: 20000 });
         await checkbox.click();
 
-        await this.page.waitForLoadState('networkidle').catch(() => {});
-        await this.page.waitForTimeout(400);
+        await this.page.waitForTimeout(3000);
 
         const resetBtn = popup.getByRole('button', { name: 'Reset Filters' });
         await expect(resetBtn).toBeVisible({ timeout: 15000 });
@@ -372,16 +393,18 @@ class PropertiesHelper {
         const grid = this.page.locator(propertyLocators.gridRootWrapper).first();
         const dataRows = grid.locator('[role="row"]').filter({ has: this.page.locator('[role="gridcell"]') });
         const nRows = await dataRows.count();
+
         console.log(
             `[ASSERT] Filter "${type}": visible data rows in current treegrid viewport = ${nRows} (expected ≥1 when data exists; 0 can mean virtualized empty slice or no matches).`,
         );
+
         if (nRows === 0) {
-          console.log(
-            "ℹ️ filterProperty: no visible data rows after filter (empty result or virtualized grid); UI still shows Applied Filters + Reset.",
-          );
+            console.log(
+                "ℹ️ filterProperty: no visible data rows after filter (empty result or virtualized grid); UI still shows Applied Filters + Reset.",
+            );
         } else {
-          await dataRows.first().scrollIntoViewIfNeeded().catch(() => {});
-          await expect(dataRows.first()).toBeVisible({ timeout: 15_000 });
+            await dataRows.first().scrollIntoViewIfNeeded().catch(() => { });
+            await expect(dataRows.first()).toBeVisible({ timeout: 15000 });
         }
 
         await resetBtn.click();
@@ -402,12 +425,37 @@ class PropertiesHelper {
             const byBirdTable = mainScope.locator(propertyLocators.birdTableExportButton);
             const nBt = await byBirdTable.count();
             if (nBt > 0) {
-                exportBtn = onDetails && nBt > 1 ? byBirdTable.last() : byBirdTable.first();
+                if (onDetails && nBt > 1) {
+                    // Multiple tabs each render an Export button; pick the visible one (active tab).
+                    let visibleBtn = null;
+                    for (let i = 0; i < nBt; i++) {
+                        const candidate = byBirdTable.nth(i);
+                        if (await candidate.isVisible().catch(() => false)) {
+                            visibleBtn = candidate;
+                            break;
+                        }
+                    }
+                    exportBtn = visibleBtn || byBirdTable.first();
+                } else {
+                    exportBtn = byBirdTable.first();
+                }
             } else {
                 const byBirdTablePage = this.page.locator(propertyLocators.birdTableExportButton);
                 const nPage = await byBirdTablePage.count();
                 if (nPage > 0) {
-                    exportBtn = onDetails && nPage > 1 ? byBirdTablePage.last() : byBirdTablePage.first();
+                    if (onDetails && nPage > 1) {
+                        let visibleBtn = null;
+                        for (let i = 0; i < nPage; i++) {
+                            const candidate = byBirdTablePage.nth(i);
+                            if (await candidate.isVisible().catch(() => false)) {
+                                visibleBtn = candidate;
+                                break;
+                            }
+                        }
+                        exportBtn = visibleBtn || byBirdTablePage.first();
+                    } else {
+                        exportBtn = byBirdTablePage.first();
+                    }
                 }
             }
             if (!exportBtn) {
@@ -421,13 +469,13 @@ class PropertiesHelper {
                     onDetails && n > 1 ? exportCandidates.last() : exportCandidates.first();
             }
             await exportBtn.waitFor({ state: "attached", timeout: 20000 });
-            await exportBtn.scrollIntoViewIfNeeded().catch(() => {});
+            await exportBtn.scrollIntoViewIfNeeded().catch(() => { });
             const exportClickable = (await exportBtn.isVisible().catch(() => false))
                 ? () => exportBtn.click()
                 : () =>
-                      exportBtn.evaluate((el) => {
-                          if (el instanceof HTMLElement) el.click();
-                      });
+                    exportBtn.evaluate((el) => {
+                        if (el instanceof HTMLElement) el.click();
+                    });
             if (!(await exportBtn.isVisible().catch(() => false))) {
                 console.log("ℹ️ Export control not visible — using programmatic click (property details / overflow toolbar).");
             }
@@ -479,9 +527,9 @@ class PropertiesHelper {
         }
         await input.click();
         await input.fill(name);
-        await input.press("Enter").catch(() => {});
+        await input.press("Enter").catch(() => { });
 
-        await this.page.waitForLoadState("networkidle");
+        await this.page.waitForTimeout(5000);
         await this.page.waitForTimeout(800);
 
         // More robust than relying on first row; virtualization/sorting can reorder rows.
@@ -513,7 +561,7 @@ class PropertiesHelper {
 
             const cell = this.page.locator(propertyLocators.propertyNameCell(name)).first();
             const row = cell.locator(propertyLocators.rowFromCell).first();
-            await row.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
+            await row.waitFor({ state: "visible", timeout: 5000 }).catch(() => { });
             rowIndex = await row.getAttribute("data-rgrow").catch(() => null);
             if (rowIndex) break;
             console.log(`⚠️ Could not resolve row index for "${name}" (attempt ${attempt}/3).`);
@@ -524,7 +572,7 @@ class PropertiesHelper {
         }
         console.log(`📌 Row index (data-rgrow): ${rowIndex}`);
 
-        await this.page.waitForLoadState("networkidle");
+        await this.page.waitForTimeout(10000);
         await this.page.waitForTimeout(3000);
 
         await this.page.locator(propertyLocators.rowDeleteIcon(rowIndex)).first().waitFor({ state: "visible" });
@@ -540,7 +588,7 @@ class PropertiesHelper {
             await deleteStepTwo.click();
         }
 
-        await this.page.waitForLoadState("networkidle");
+        await this.page.waitForTimeout(10000);
         await this.page.waitForTimeout(1000);
 
         const searchInput = this.page.locator(propertyLocators.searchInput).first();
@@ -806,8 +854,7 @@ class PropertiesHelper {
             const cell = row.locator("td").nth(0).locator("span");
             const updatedRole = (await cell.innerText()).trim();
             this.log(`Fetched updated role: ${updatedRole}`);
-            await this.page.waitForLoadState("networkidle");
-            await this.page.waitForTimeout(2000);
+            await this.page.waitForTimeout(10000);
             expect(updatedRole).toBe(expectedRole);
             this.log(`Role verification PASSED → ${email}: ${updatedRole} == ${expectedRole}`);
             return updatedRole;
@@ -1133,7 +1180,7 @@ class PropertiesHelper {
             console.log(`✔ "${type}" checkbox clicked\n`);
 
             console.log("⏳ Step 3: Waiting for data refresh...");
-            await this.page.waitForLoadState("networkidle");
+            await this.page.waitForTimeout(5000);
             await this.page.waitForTimeout(3000);
             console.log("✔ Data loaded successfully\n");
 
@@ -1191,8 +1238,7 @@ class PropertiesHelper {
             console.log("⏳ Waiting for dialog to appear...");
             await this.page.locator('[role="dialog"]').waitFor({ state: "visible", timeout: 10000 });
             console.log("✔ Dialog found → waiting for network idle");
-            await this.page.waitForLoadState("networkidle");
-            await this.page.waitForTimeout(2000);
+            await this.page.waitForTimeout(10000);
             console.log("✔ Dialog fully loaded");
 
             // Simply verify dialog is visible and has content
@@ -1218,14 +1264,21 @@ class PropertiesHelper {
         }
     }
 
-    /** Pick first entry in takeoff version dropdown when shown (Unit Mix modal removed from product). */
+    /** Pick first entry in takeoff version dropdown only when no version is already selected. */
     async ensureTakeoffVersionSelected() {
-        await this.page.waitForLoadState('networkidle').catch(() => {});
-        await this.page.waitForTimeout(400);
+        // await this.page.waitForLoadState('networkidle').catch(() => { });
+        await this.page.waitForTimeout(14000);
         const versionInput = this.page.locator('input[placeholder="Select Version"]');
         const visible = await versionInput.isVisible({ timeout: 12000 }).catch(() => false);
         if (!visible) {
             console.log("ℹ️ No Select Version control; continuing");
+            return;
+        }
+        // Skip re-selection when a version is already shown — re-clicking the same option
+        // triggers a data reload that removes revo-grids from the DOM.
+        const currentValue = await versionInput.inputValue().catch(() => '');
+        if (currentValue.trim()) {
+            console.log(`ℹ️ Version already selected ("${currentValue.trim()}"); skipping re-selection`);
             return;
         }
         console.log("⏳ Select Version → first option");
@@ -1238,9 +1291,9 @@ class PropertiesHelper {
             await this.page.keyboard.press('ArrowDown');
             await this.page.keyboard.press('Enter');
         }
-        await this.page.waitForLoadState('networkidle').catch(() => {});
-        await this.page.waitForTimeout(1500);
-    }     
+        // await this.page.waitForLoadState('networkidle').catch(() => { });
+        await this.page.waitForTimeout(15000);
+    }
 
     /**
      * Floor Plans → revo-grid; Building Exterior → AG Grid. Order avoids picking the wrong table when both exist in DOM.
@@ -1255,13 +1308,22 @@ class PropertiesHelper {
             if (cells < 1) return -1;
             return cells * 1000 + Math.min(box.width * box.height, 1e6);
         };
-        /** revo-grid can be attached with cells but fail isVisible() (shadow / clipping). */
+        /**
+         * revo-grid can be attached with cells but fail isVisible() (shadow / clipping).
+         * Visible grids use the same scale as scoreGridStrict so they always outscore
+         * hidden grids from inactive tabs (e.g. Locations revo-grid with hundreds of rows).
+         */
         const scoreGridLoose = async (g) => {
             const cells = await g.locator('[role="gridcell"]').count().catch(() => 0);
             if (cells < 1) return -1;
+            const vis = await g.isVisible().catch(() => false);
             const box = await g.boundingBox().catch(() => null);
-            const area = box && box.width >= 2 && box.height >= 2 ? Math.min(box.width * box.height, 1e6) : 100;
-            return cells * 1000 + area;
+            if (vis && box && box.width >= 2 && box.height >= 2) {
+                return cells * 1000 + Math.min(box.width * box.height, 1e6);
+            }
+            // Hidden / clipped grid — use only cell count (no ×1000 multiplier) so any
+            // visible grid found by scoreGridStrict always wins.
+            return cells;
         };
         const pickBestFrom = async (locator, scoreFn) => {
             const n = await locator.count();
@@ -1277,9 +1339,13 @@ class PropertiesHelper {
             }
             return { best, bestScore };
         };
-        const revo = this.page.locator('revo-grid[role="treegrid"]');
-        const tree = this.page.locator('[role="treegrid"]');
-        const ag = this.page.locator('.ag-root[role="grid"]');
+        // Scope grid search to the Takeoffs tabpanel to exclude revo-grids from other
+        // tabs (e.g. Locations which can have hundreds of rows and outscore the visible grid).
+        const takeoffsScope = this.page.getByRole('tabpanel', { name: 'Takeoffs' }).first();
+        const scopeEl = (await takeoffsScope.count()) > 0 ? takeoffsScope : this.page;
+        const revo = scopeEl.locator('revo-grid[role="treegrid"]');
+        const tree = scopeEl.locator('[role="treegrid"]');
+        const ag = scopeEl.locator('.ag-root[role="grid"]');
 
         let winner = null;
         let winScore = -1;
@@ -1332,12 +1398,12 @@ class PropertiesHelper {
             } else {
                 await this.page.locator(propertyLocators.exteriorTab).click();
             }
-            await this.page.waitForTimeout(800);
-            await this.page.waitForLoadState('networkidle').catch(() => {});
+            await this.page.waitForTimeout(18000);
+            // await this.page.waitForLoadState('networkidle').catch(() => { });
 
             const grid = await this.getVisibleTakeoffTreegrid(tab);
             await grid.waitFor({ state: 'attached', timeout: 30000 });
-            await grid.scrollIntoViewIfNeeded().catch(() => {});
+            await grid.scrollIntoViewIfNeeded().catch(() => { });
 
             let firstDataRow = await this.getFirstTakeoffDataRow(grid);
             await firstDataRow.waitFor({ state: 'attached', timeout: 25000 });
@@ -1368,21 +1434,29 @@ class PropertiesHelper {
             }
 
             const inventory1Cell = allCells.nth(3);
-            await inventory1Cell.scrollIntoViewIfNeeded().catch(() => {});
+            await inventory1Cell.scrollIntoViewIfNeeded().catch(() => { });
             await inventory1Cell.waitFor({ state: 'attached', timeout: 15000 });
-            await inventory1Cell.waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
+            await inventory1Cell.waitFor({ state: 'visible', timeout: 8000 }).catch(() => { });
             await inventory1Cell.dblclick({ timeout: 15000, force: true }).catch(() => {
                 return inventory1Cell.click({ timeout: 5000, force: true });
             });
             await this.page.waitForTimeout(500);
-            await this.page.keyboard.press('Control+A');
-            await this.page.waitForTimeout(100);
-            await this.page.keyboard.type('50');
-            await this.page.waitForTimeout(100);
-            await this.page.keyboard.press('Enter');
+            // Only type if an inline editor appeared; avoids unintended keyboard events on read-only grids.
+            const hasEditor = await this.page
+                .locator('input:visible, textarea:visible, [contenteditable="true"]:visible')
+                .first()
+                .isVisible({ timeout: 800 })
+                .catch(() => false);
+            if (hasEditor) {
+                await this.page.keyboard.press('Control+A');
+                await this.page.waitForTimeout(100);
+                await this.page.keyboard.type('50');
+                await this.page.waitForTimeout(100);
+                await this.page.keyboard.press('Enter');
+            }
 
-            await this.page.waitForLoadState('networkidle').catch(() => {});
-            await this.page.waitForTimeout(1000);
+            // await this.page.waitForLoadState('networkidle').catch(() => { });
+            await this.page.waitForTimeout(18000);
 
             const saveInDialog = this.page.locator('[role="dialog"] button:has-text("Save")');
             if (await saveInDialog.isVisible({ timeout: 2000 }).catch(() => false) && !(await saveInDialog.isDisabled())) {
@@ -1434,7 +1508,7 @@ class PropertiesHelper {
             await this.page.locator(`button:has-text('Add column')`).click();
 
             console.log("\n⏳ Waiting for column to be created...");
-            await this.page.waitForLoadState("networkidle");
+            await this.page.waitForTimeout(5000);
             await this.page.waitForTimeout(3000);
             console.log(`✔ Column submitted successfully → ${columnName}`);
 
@@ -1511,10 +1585,10 @@ class PropertiesHelper {
 
         const tableBtn = this.page.getByRole('button', { name: /^Table$/i }).first();
         if (await tableBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-            await tableBtn.click({ force: true }).catch(() => {});
+            await tableBtn.click({ force: true }).catch(() => { });
             await this.page.waitForTimeout(400);
             if (await directAddAction.isVisible({ timeout: 1000 }).catch(() => false)) {
-                await directAddAction.click({ force: true }).catch(() => {});
+                await directAddAction.click({ force: true }).catch(() => { });
                 return;
             }
         }
@@ -1529,14 +1603,14 @@ class PropertiesHelper {
             for (let i = 0; i < count; i++) {
                 const opener = openers.nth(i);
                 if (!(await opener.isVisible().catch(() => false))) continue;
-                await opener.click({ force: true }).catch(() => {});
+                await opener.click({ force: true }).catch(() => { });
                 const addCandidate = this.page
                     .locator('[data-testid="bt-table-action-add-column"]')
                     .or(this.page.getByRole("button", { name: /Add custom column/i }))
                     .or(this.page.getByRole("menuitem", { name: /Add column|Add custom column/i }))
                     .first();
                 if (await addCandidate.isVisible({ timeout: 1500 }).catch(() => false)) {
-                    await addCandidate.click({ force: true }).catch(() => {});
+                    await addCandidate.click({ force: true }).catch(() => { });
                     actionOpened = true;
                     break;
                 }
@@ -1583,8 +1657,8 @@ class PropertiesHelper {
             for (let i = 0; i < count; i++) {
                 const btn = candidate.nth(i);
                 if (await btn.isVisible().catch(() => false)) {
-                    await btn.scrollIntoViewIfNeeded().catch(() => {});
-                    await btn.click({ force: true }).catch(() => {});
+                    await btn.scrollIntoViewIfNeeded().catch(() => { });
+                    await btn.click({ force: true }).catch(() => { });
                     const addRowChoice = this.page
                         .getByRole('menuitem', { name: /Add site|Add row|Add unit|Add Data/i })
                         .or(this.page.getByRole('button', { name: /Add site|Add row|Add unit|Add Data/i }));
@@ -1606,8 +1680,8 @@ class PropertiesHelper {
         const tabpanel = this.page.getByRole('tabpanel', { name: /Locations/i });
         const locationSearch = tabpanel.locator('input[placeholder="Search..."]').first();
         if (await locationSearch.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await locationSearch.fill(rowName).catch(() => {});
-            await locationSearch.press('Enter').catch(() => {});
+            await locationSearch.fill(rowName).catch(() => { });
+            await locationSearch.press('Enter').catch(() => { });
             await this.page.waitForTimeout(700);
             const alreadyExists = await this.page
                 .locator(`[role="treegrid"] [role="gridcell"]:has-text("${rowName}")`)
@@ -1616,17 +1690,17 @@ class PropertiesHelper {
                 .catch(() => false);
             if (alreadyExists) {
                 console.log(`✔ Row already present in Locations grid: ${rowName}`);
-                await locationSearch.fill('').catch(() => {});
-                await locationSearch.press('Enter').catch(() => {});
+                await locationSearch.fill('').catch(() => { });
+                await locationSearch.press('Enter').catch(() => { });
                 return;
             }
-            await locationSearch.fill('').catch(() => {});
-            await locationSearch.press('Enter').catch(() => {});
+            await locationSearch.fill('').catch(() => { });
+            await locationSearch.press('Enter').catch(() => { });
         }
 
         const editBtn = this.page.getByRole('button', { name: /^Edit$/i }).first();
         if (await editBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
-            await editBtn.click({ force: true }).catch(() => {});
+            await editBtn.click({ force: true }).catch(() => { });
             await this.page.waitForTimeout(600);
         }
         const addSite = this.page
@@ -1641,10 +1715,10 @@ class PropertiesHelper {
                 .getByRole('button', { name: /^Table$/i })
                 .or(this.page.getByTestId('bt-table-action'));
             if (await tableAction.first().isVisible({ timeout: 1500 }).catch(() => false)) {
-                await tableAction.first().click({ force: true }).catch(() => {});
+                await tableAction.first().click({ force: true }).catch(() => { });
                 const addMenu = this.page.getByRole('menuitem', { name: /Add site|Add row|Add unit|Add Data/i }).first();
                 if (await addMenu.isVisible({ timeout: 1500 }).catch(() => false)) {
-                    await addMenu.click({ force: true }).catch(() => {});
+                    await addMenu.click({ force: true }).catch(() => { });
                 }
             }
         }
@@ -1665,8 +1739,8 @@ class PropertiesHelper {
         const firstCell = newRow.getByRole('gridcell').first();
         await expect(firstCell).toBeVisible({ timeout: 10000 });
         await firstCell.click({ force: true });
-        await firstCell.dblclick({ force: true }).catch(() => {});
-        await this.page.keyboard.press('Enter').catch(() => {});
+        await firstCell.dblclick({ force: true }).catch(() => { });
+        await this.page.keyboard.press('Enter').catch(() => { });
         const nameEditorCandidates = [
             this.page.locator('revogr-edit input:visible:not([readonly]):not([disabled])').first(),
             this.page.locator('input[type="text"]:visible:not([readonly]):not([disabled])').first(),
@@ -1680,7 +1754,7 @@ class PropertiesHelper {
             if (!visible) continue;
             const editable = await editor.isEditable().catch(() => false);
             if (!editable) continue;
-            await editor.click({ force: true }).catch(() => {});
+            await editor.click({ force: true }).catch(() => { });
             await editor.fill(rowName, { timeout: 3000 });
             filled = true;
             break;
@@ -1688,22 +1762,22 @@ class PropertiesHelper {
         if (!filled) {
             const inlineEditor = this.page.locator('[contenteditable="true"]:visible').last();
             if (await inlineEditor.isVisible({ timeout: 1000 }).catch(() => false)) {
-                await inlineEditor.click({ force: true }).catch(() => {});
-                await this.page.keyboard.press('Control+A').catch(() => {});
+                await inlineEditor.click({ force: true }).catch(() => { });
+                await this.page.keyboard.press('Control+A').catch(() => { });
                 await this.page.keyboard.type(rowName, { delay: 20 });
             } else {
                 // Fallback for in-cell edit mode where no standalone textbox appears.
-                await firstCell.click({ force: true }).catch(() => {});
-                await this.page.keyboard.press('Control+A').catch(() => {});
-                await this.page.keyboard.press('Backspace').catch(() => {});
+                await firstCell.click({ force: true }).catch(() => { });
+                await this.page.keyboard.press('Control+A').catch(() => { });
+                await this.page.keyboard.press('Backspace').catch(() => { });
                 await this.page.keyboard.type(rowName, { delay: 20 });
             }
         }
         await this.page.keyboard.press("Enter");
 
         if (await locationSearch.isVisible({ timeout: 1200 }).catch(() => false)) {
-            await locationSearch.fill(rowName).catch(() => {});
-            await locationSearch.press('Enter').catch(() => {});
+            await locationSearch.fill(rowName).catch(() => { });
+            await locationSearch.press('Enter').catch(() => { });
             await this.page.waitForTimeout(700);
         }
         const rowAdded = await this.page
@@ -1715,14 +1789,14 @@ class PropertiesHelper {
             // Second attempt: click first editable textbox if editor surfaced late.
             const lateEditor = this.page.locator('input[type="text"]:visible, textarea:visible').first();
             if (await lateEditor.isVisible({ timeout: 1200 }).catch(() => false)) {
-                await lateEditor.fill(rowName).catch(() => {});
-                await this.page.keyboard.press('Enter').catch(() => {});
+                await lateEditor.fill(rowName).catch(() => { });
+                await this.page.keyboard.press('Enter').catch(() => { });
             }
         }
         await expect(this.page.locator(`[role="treegrid"] [role="gridcell"]:has-text("${rowName}")`).first()).toBeVisible({ timeout: 8000 });
         if (await locationSearch.isVisible({ timeout: 1200 }).catch(() => false)) {
-            await locationSearch.fill('').catch(() => {});
-            await locationSearch.press('Enter').catch(() => {});
+            await locationSearch.fill('').catch(() => { });
+            await locationSearch.press('Enter').catch(() => { });
         }
         console.log(`✔ New site/unit name added: ${rowName}`);
     }
@@ -1739,8 +1813,8 @@ class PropertiesHelper {
 
         const locationSearch = tabpanel.locator('input[placeholder="Search..."]').first();
         if (await locationSearch.isVisible({ timeout: 1200 }).catch(() => false)) {
-            await locationSearch.fill(rowName).catch(() => {});
-            await locationSearch.press('Enter').catch(() => {});
+            await locationSearch.fill(rowName).catch(() => { });
+            await locationSearch.press('Enter').catch(() => { });
             await this.page.waitForTimeout(500);
         }
 
@@ -1751,8 +1825,8 @@ class PropertiesHelper {
             .first();
         if (!(await matchedRow.isVisible({ timeout: 4000 }).catch(() => false))) {
             if (await locationSearch.isVisible({ timeout: 800 }).catch(() => false)) {
-                await locationSearch.fill('').catch(() => {});
-                await locationSearch.press('Enter').catch(() => {});
+                await locationSearch.fill('').catch(() => { });
+                await locationSearch.press('Enter').catch(() => { });
             }
             console.log(`ℹ Row with "${rowName}" not visible in current grid view; skipping delete cleanup.`);
             return false;
@@ -1771,12 +1845,12 @@ class PropertiesHelper {
             .locator('button:has(svg.lucide-trash2), button[title*="Delete"], button[aria-label*="Delete"]')
             .first();
         if (await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await deleteBtn.scrollIntoViewIfNeeded().catch(() => {});
+            await deleteBtn.scrollIntoViewIfNeeded().catch(() => { });
             await deleteBtn.click({ force: true });
         } else {
             // Fallback when action column is hidden: select row and use keyboard delete.
             await row.getByRole('gridcell').first().click({ force: true });
-            await this.page.keyboard.press('Delete').catch(() => {});
+            await this.page.keyboard.press('Delete').catch(() => { });
         }
 
         const confirmBtn = this.page.getByRole('button', { name: 'Delete' });
@@ -1786,8 +1860,8 @@ class PropertiesHelper {
             await btnToClick.first().click();
         }
         if (await locationSearch.isVisible({ timeout: 800 }).catch(() => false)) {
-            await locationSearch.fill('').catch(() => {});
-            await locationSearch.press('Enter').catch(() => {});
+            await locationSearch.fill('').catch(() => { });
+            await locationSearch.press('Enter').catch(() => { });
         }
         console.log(`✔ Row deleted: ${rowName}`);
     }
@@ -1921,7 +1995,7 @@ class PropertiesHelper {
         const drawer = this.page.locator(prop.settingsDrawer);
         if (await closeBtn.count() > 0) {
             await closeBtn.first().click();
-            await drawer.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+            await drawer.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => { });
         }
         await this.page.waitForTimeout(500);
     }
@@ -1936,7 +2010,7 @@ class PropertiesHelper {
         const option = this.page.getByRole('option', { name: new RegExp(optionLabel, 'i') }).or(this.page.locator(prop.locationDropdownOption(type)));
         await option.first().waitFor({ state: 'visible', timeout: 8000 });
         await option.first().click();
-        await this.page.waitForLoadState('domcontentloaded').catch(() => {});
+        await this.page.waitForLoadState('domcontentloaded').catch(() => { });
         await this.page.waitForTimeout(800);
 
         // Grid can be attached but reported hidden transiently (revo virtualization).
@@ -1999,13 +2073,22 @@ class PropertiesHelper {
         const filterButton = this.page.getByRole('button', { name: /^Filter$/i }).first();
         await filterButton.waitFor({ state: "visible" });
         await filterButton.click();
-        await this.filterPropertyNew('CALEDESI');
-        await this.filterPropertyNew('CAPTIVA');
-        await this.filterPropertyNew('CLEARWTR');
-        await this.filterPropertyNew('DESOTO');
-        await this.filterPropertyNew('MADEIRA');
+        await this.filterPropertyNew('ce-gm');
+        await this.filterPropertyNew('ce-i');
+        await this.filterPropertyNew('ce-l');
+        await this.filterPropertyNew('ce-r');
+        await this.filterPropertyNew('ce-t v1');
+        // Clear all active filters so the grid is fully restored before closing the panel.
+        const resetFilters = this.page.locator('button:has-text("Reset Filters")').first();
+        if (await resetFilters.isVisible({ timeout: 3000 }).catch(() => false)) {
+            await resetFilters.click();
+            // await this.page.waitForLoadState('networkidle').catch(() => { });
+            await this.page.waitForTimeout(8000);
+        }
         await this.page.locator(".mantine-Paper-root .mantine-CloseButton-root").waitFor({ state: "visible" });
         await this.page.locator(".mantine-Paper-root .mantine-CloseButton-root").click();
+        // await this.page.waitForLoadState('networkidle').catch(() => { });
+        await this.page.waitForTimeout(8000);
     }
     async clickExteriortab() {
         const exteriorTab = this.page.locator(propertyLocators.exteriorTab);
@@ -2013,7 +2096,7 @@ class PropertiesHelper {
     }
     async searchInvalidProperty(name) {
         await this.page.locator(propertyLocators.searchInput).first().fill(name);
-        await this.page.waitForLoadState("networkidle");
+        await this.page.waitForTimeout(5000);
         await this.page.waitForTimeout(3000);
     }
     async clickAssetViewer() {
@@ -2131,7 +2214,7 @@ class PropertiesHelper {
         // Job details are rendered in Job Summary as label/value paragraph pairs.
         const summaryTab = this.page.getByRole('tab', { name: /Job Summary/i });
         if (await summaryTab.isVisible().catch(() => false)) {
-            await summaryTab.click().catch(() => {});
+            await summaryTab.click().catch(() => { });
         }
 
         const summaryPanel = this.page.getByRole('tabpanel', { name: /Job Summary/i })
@@ -2169,7 +2252,7 @@ class PropertiesHelper {
 
     async clearSearch(name) {
         await this.page.locator(propertyLocators.searchInput).first().fill(name);
-        await this.page.waitForLoadState("networkidle");
+        await this.page.waitForTimeout(5000);
         await this.page.waitForTimeout(3000);
     }
 }

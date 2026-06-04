@@ -24,15 +24,15 @@ let suitePropertyName;
 let suitePropertyId;
 const suitePropertyAddress = 'Domestic Terminal, College Park, GA 30337, USA';
 
-test.describe('CapEx Sidebar One-Page QA Checklist', () => {
+test.describe.only('CapEx Sidebar One-Page QA Checklist', () => {
 
     test.beforeAll(async () => {
-        // Use "The Brook (Sample Property 2)" — a permanent sample property on beta.tailorbird.com
-        // with real financial data: non-zero budget revisions, category codes ("100 - CA_Clubhouse/..."),
-        // and contract amounts ($200k aggregate). This gives TC254/TC255 real assertions to make
-        // without the 3-minute property-create + CSV-seed cycle.
-        suitePropertyName = process.env.CAPEX_STATIC_PROPERTY_NAME || 'The Brook (Sample Property 2)';
-        suitePropertyId = process.env.CAPEX_STATIC_PROPERTY_ID || '766';
+        // Use "Test Property 2_The Westerham" — a permanent sample property on beta.tailorbird.com
+        // with real financial data: non-zero budget revisions, category codes, and contract amounts.
+        // This gives TC254/TC255 real assertions without the 3-minute property-create + CSV-seed cycle.
+        suitePropertyName = process.env.CAPEX_STATIC_PROPERTY_NAME || 'Test Property 2_The Westerham';
+        // Use env var for ID; if not set, fall back to '' so openCapexForActiveProperty uses name-based nav.
+        suitePropertyId = process.env.CAPEX_STATIC_PROPERTY_ID || '';
         fs.writeFileSync(
             path.join(process.cwd(), 'data/propertyData.json'),
             JSON.stringify({ propertyName: suitePropertyName }, null, 2)
@@ -54,7 +54,7 @@ test.describe('CapEx Sidebar One-Page QA Checklist', () => {
     });
 
     test.afterAll(async () => {
-        // The Brook (Sample Property 2) is a permanent sample property — no cleanup needed.
+        // Test Property 2_The Westerham is a permanent sample property — no cleanup needed.
     });
 
     test('TC254 @regression @capexSidebar : Verify CapEx sidebar displays accurate row-level financial formula calculations, validates all supported formula column scenarios, and maintains correct project/job scope rollup values with non-zero financial data integrity checks', async () => {
