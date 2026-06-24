@@ -241,7 +241,7 @@ class LoginPage {
 
     await this.signInButton.click();
 
-    if (email !== 'admin_1771393239035@yopmail.com') {
+    if (email !== 'admin_1781257675038@yopmail.com') {
       await this.page.waitForURL(/organization-selection/, { timeout: 30000 });
       Logger.step('Step 6: Verifying successful login...');
       await this.page.waitForTimeout(5000);
@@ -360,6 +360,9 @@ class LoginPage {
         // Combobox triggers (Mantine Select, etc.) rely on visual context — demote to WARN
         if (el.ariaHasPopup === 'listbox' || el.ariaLabelledBy) {
           issues.push(`WARN: combobox/select <${el.tag}> has no explicit aria-label or placeholder (aria-haspopup="${el.ariaHasPopup || ''}")`);
+        } else if (el.visible === false) {
+          // Hidden inputs (collapsed dropdowns, off-screen Mantine internals) don't need labels
+          issues.push(`WARN: hidden <${el.tag}> has no label, placeholder, or aria-label`);
         } else {
           issues.push(`<${el.tag}> has no label, placeholder, or aria-label — inaccessible input`);
         }

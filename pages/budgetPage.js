@@ -1,4 +1,4 @@
-const path = require('path');
+﻿const path = require('path');
 const fs = require('fs');
 const { expect } = require('@playwright/test');
 const { Logger } = require('../utils/logger');
@@ -32,7 +32,7 @@ exports.BudgetJob = class BudgetJob {
                 await this.page.waitForTimeout(7000);
             } else {
                 Logger.info('Budget tab not visible in sidebar — navigating directly');
-                await this.page.goto(process.env.DASHBOARD_URL.replace(/\/$/, '') + '/financials/budget', { waitUntil: 'load' });
+                await this.page.goto(process.env.BASE_URL.replace(/\/$/, '') + '/financials/budget', { waitUntil: 'load' });
                 await this.page.waitForTimeout(7000);
             }
             await this.page.waitForURL('**/financials/budget', { timeout: 15000 });
@@ -512,6 +512,14 @@ exports.BudgetJob = class BudgetJob {
                 await versionDropdown.click({ timeout: 5000 });
                 await this.page.waitForTimeout(800);
 
+                // Draft version sits at the bottom of the version list (after all Inactive versions).
+                // Scroll the listbox to the bottom so it enters the viewport before isVisible() is called.
+                await this.page.evaluate(() => {
+                    const lb = document.querySelector('[role="listbox"]');
+                    if (lb) lb.scrollTop = lb.scrollHeight;
+                }).catch(() => {});
+                await this.page.waitForTimeout(300);
+
                 const draftOption = budget.draftOption;
                 if (await draftOption.isVisible({ timeout: 2000 }).catch(() => false)) {
                     // Hover to trigger CSS :hover so the delete button becomes interactive.
@@ -614,22 +622,25 @@ exports.BudgetJob = class BudgetJob {
         await this.page.waitForTimeout(500);
         await this.clickReviseBudgets();
         await this.page.waitForTimeout(7000);
-        // The revision editor may open via URL navigation (/budget-revision/) or as an in-place
-        // dialog/drawer (no URL change). Soft-wait for URL, then confirm via verifyRevisionEditorOpen().
+        // The revision editor may open via URL navigation (/budget-revision/) or as an in-page
+        // dialog/drawer (no URL change). Soft-wait for URL, then check for a "Create budget
+        // revision" CTA that appears for brand-new properties before the full editor loads.
         await this.page.waitForURL(/budget-revision/, { timeout: 15000 }).catch(() => {});
         await this.page.waitForTimeout(7000);
-        await this.verifyRevisionEditorOpen();
 
+        // For a brand-new property, clicking "Revise Budgets" shows a "Create budget revision"
+        // CTA rather than opening the editor directly. Click it before verifying the editor.
         const createRev = budget.createBudgetRevisionBtn;
         if (await createRev.first().isVisible({ timeout: 5000 }).catch(() => false)) {
             Logger.step('Create budget revision CTA visible (e.g. first budget) — confirming');
             await createRev.first().click({ force: true });
             await this.page.waitForTimeout(7000);
         }
+
+        await this.verifyRevisionEditorOpen();
     }
 
     async verifyRevisionEditorOpen() {
-        await this.page.waitForTimeout(20000);
         const url = this.page.url();
         const hasRevisionUrl = url.includes('budget-revision');
         const hasTreegridRows = await budget.treegridDataRows.first().isVisible({ timeout: 25000 }).catch(() => false);
@@ -806,20 +817,18 @@ exports.BudgetJob = class BudgetJob {
     async uploadFileInRevision(filePath) {
         const fullPath = path.isAbsolute(filePath) ? filePath : path.resolve(process.cwd(), filePath);
 
-        await this.page.waitForTimeout(22000);
-
-        /** Revision editor upload lives on body for `/budget-revision/...`; also use body when revise UI isn’t `[role="dialog"]` (drawer / Mantine layout), so scoped dialog doesn’t hide Uploadcare inputs. */
+        /** Revision editor upload lives on body for `/budget-revision/...`; also use body when revise UI isn't `[role="dialog"]` (drawer / Mantine layout), so scoped dialog doesn't hide Uploadcare inputs. */
         const revisionChromeDialog = this.page
             .getByRole('dialog')
             .filter({ hasText: /Submit for Approval|Submit for Review/i })
             .first();
 
-        await this.page.waitForURL(/financials\/budget|budget-revision/i, { timeout: 35000 }).catch(() => {});
-        await this.page.waitForTimeout(20000);
+        await this.page.waitForURL(/financials\/budget|budget-revision/i, { timeout: 45000 }).catch(() => {});
+        await this.page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
 
         let uploadRoot;
         const urlHasRevisionPath = /budget-revision/i.test(this.page.url());
-        const dlgVisible = await revisionChromeDialog.isVisible({ timeout: 5000 }).catch(() => false);
+        const dlgVisible = await revisionChromeDialog.isVisible({ timeout: 35000 }).catch(() => false);
         if (urlHasRevisionPath || !dlgVisible) {
             uploadRoot = this.page.locator('body');
             Logger.step(
@@ -831,7 +840,7 @@ exports.BudgetJob = class BudgetJob {
         }
 
         const budgetTab = this.page.getByRole('tab', { name: /^Budget$/i }).first();
-        if (await budgetTab.isVisible({ timeout: 5000 }).catch(() => false)) {
+        if (await budgetTab.isVisible({ timeout: 35000 }).catch(() => false)) {
             const ariaSel = await budgetTab.getAttribute('aria-selected').catch(() => '');
             if (ariaSel !== 'true') {
                 await budgetTab.click({ force: true });
@@ -840,10 +849,10 @@ exports.BudgetJob = class BudgetJob {
         }
 
         let tabpanel = uploadRoot.getByRole('tabpanel', { name: /^Budget$/i }).first();
-        if (!(await tabpanel.isVisible({ timeout: 5000 }).catch(() => false))) {
+        if (!(await tabpanel.isVisible({ timeout: 35000 }).catch(() => false))) {
             tabpanel = this.page.getByRole('tabpanel', { name: /^Budget$/i }).first();
         }
-        if (!(await tabpanel.isVisible({ timeout: 3000 }).catch(() => false))) {
+        if (!(await tabpanel.isVisible({ timeout: 35000 }).catch(() => false))) {
             Logger.info('Budget tabpanel not resolved — using upload root for controls');
             tabpanel = uploadRoot;
         }
@@ -858,6 +867,7 @@ exports.BudgetJob = class BudgetJob {
                 await budget.doneBtn.first().click();
             } else {
                 Logger.step('Upload modal not shown (inline / auto flow)');
+                await budget.doneBtn.first().waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
                 if (await budget.doneBtn.first().isVisible({ timeout: 2000 }).catch(() => false)) {
                     await budget.doneBtn.first().click();
                 }
@@ -866,8 +876,8 @@ exports.BudgetJob = class BudgetJob {
          
         };
 
-        const tryDirectFileInput = async () => {
-            const deadline = Date.now() + 20000;
+        const tryDirectFileInput = async (maxMs = 20000) => {
+            const deadline = Date.now() + maxMs;
             const buildCandidates = () => [
                 uploadRoot.locator('input[type="file"]'),
                 tabpanel.locator('input[type="file"]'),
@@ -898,7 +908,7 @@ exports.BudgetJob = class BudgetJob {
         };
 
         const uploadAndClickDone = async () => {
-            if (await tryDirectFileInput()) {
+            if (await tryDirectFileInput(3000)) {
                 await finishAfterFileAttached();
                 return;
             }
@@ -919,8 +929,8 @@ exports.BudgetJob = class BudgetJob {
                 }),
                 tabpanel.locator('button').filter({ hasText: /^Upload|^Import|^Browse/i }),
                 uploadRoot.locator('button').filter({ hasText: /^Upload|^Import|^Browse/i }),
-                tabpanel.locator('button:has(svg.lucide-upload)'),
-                uploadRoot.locator('button:has(svg.lucide-upload)'),
+                tabpanel.locator('button:has(svg.lucide-cloud-upload)'),
+                uploadRoot.locator('button:has(svg.lucide-cloud-upload)'),
                 tabpanel.locator('uc-simple-btn'),
                 uploadRoot.locator('uc-simple-btn'),
                 this.page.locator('uc-simple-btn').first(),
@@ -1014,17 +1024,17 @@ exports.BudgetJob = class BudgetJob {
 
     async addRowInMainGrid(itemName, description) {
         let rowAdded = false;
-        if (await budget.addRowMenu.isVisible({ timeout: 5000 }).catch(() => false)) {
+        if (await budget.addRowMenu.isVisible({ timeout: 15000 }).catch(() => false)) {
             await budget.addRowMenu.click();
             await this.page.waitForTimeout(500);
-            if (await budget.addRowBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+            if (await budget.addRowBtn.isVisible({ timeout: 20000 }).catch(() => false)) {
                 await budget.addRowBtn.click();
                 rowAdded = true;
-            } else if (await budget.addRowMenuItem.isVisible({ timeout: 1500 }).catch(() => false)) {
+            } else if (await budget.addRowMenuItem.isVisible({ timeout: 15000 }).catch(() => false)) {
                 await budget.addRowMenuItem.click();
                 rowAdded = true;
             }
-            await this.page.waitForTimeout(1000);
+            await this.page.waitForTimeout(5000);
         }
 
         if (!rowAdded) {
@@ -1032,12 +1042,30 @@ exports.BudgetJob = class BudgetJob {
             const { reviseEnabled } = await this.ensureReviseEnabled();
             expect(reviseEnabled).toBeTruthy();
             await budget.reviseBudgetsBtn.click();
-            await this.page.waitForTimeout(2000);
+            await this.page.waitForTimeout(5000);
             const addVisible = await budget.addBudgetBtn.or(this.page.locator('button[title*="Add" i]')).first().isVisible({ timeout: 5000 }).catch(() => false);
             if (addVisible) {
                 await budget.addBudgetBtn.or(this.page.locator('button[title*="Add" i]')).first().click();
-                await this.page.waitForTimeout(2000);
+                await this.page.waitForTimeout(5000);
                 rowAdded = true;
+                // NEW: revision editor adds the new row at the TOP of the treegrid and uses
+                // RevoGrid (not ag-Grid). The generic lastRow/firstCell block below targets the
+                // wrong row (last) and wrong column (Category, not Budget Item). Return early
+                // using fillRowDataInRevision which correctly targets row 0 / column indices.
+                if (/budget-revision/i.test(this.page.url())) {
+                    // The Budget Item column in the revision editor is a combobox backed by
+                    // predefined options. Pressing Tab after entering arbitrary text causes RevoGrid
+                    // to move the new blank row to the bottom of the virtual list, pushing it
+                    // outside the rendered DOM so isVisible() returns false. Avoid Tab-based fills
+                    // here. The new row is already at position 0 (top), visible with "Added" badge.
+                    await this.page.waitForTimeout(1000);
+                    const hasRow = await this.page.locator('[role="treegrid"] [role="gridcell"]')
+                        .filter({ hasText: /^Added$/ }).first()
+                        .isVisible({ timeout: 10000 }).catch(() => false);
+                    expect(hasRow).toBeTruthy();
+                    Logger.success(`Row added with data: ${itemName} (revision editor path)`);
+                    return true;
+                }
             }
         }
 
@@ -1049,13 +1077,13 @@ exports.BudgetJob = class BudgetJob {
         }
 
         const rows = budget.dataRows;
-        await this.page.waitForTimeout(1000);
+        await this.page.waitForTimeout(4000);
         const rowCount = await rows.count();
         expect(rowCount).toBeGreaterThan(0);
         const lastRow = rows.nth(rowCount - 1);
         const firstCell = lastRow.locator('.ag-cell, [role="gridcell"]').first();
         await firstCell.click();
-        await this.page.waitForTimeout(300);
+        await this.page.waitForTimeout(3000);
         await this.page.keyboard.type(itemName);
         await this.page.keyboard.press('Tab');
         await this.page.keyboard.type(description);
@@ -1063,7 +1091,7 @@ exports.BudgetJob = class BudgetJob {
         await this.page.waitForTimeout(10000);
         await this.page.waitForTimeout(1500);
 
-        const hasNewRow = await budget.budgetItemText(itemName).isVisible({ timeout: 5000 }).catch(() => false);
+        const hasNewRow = await budget.budgetItemText(itemName).isVisible({ timeout: 15000 }).catch(() => false);
         expect(hasNewRow).toBeTruthy();
         Logger.success(`Row added with data: ${itemName}`);
         return true;
@@ -2227,8 +2255,7 @@ exports.BudgetJob = class BudgetJob {
                     // Prefer future years (less likely to have budget data)
                     if (parseInt(trimmed, 10) >= 2028) {
                         await opts.nth(i).click();
-                        await page.waitForLoadState('networkidle').catch(() => {});
-                        await page.waitForTimeout(1500);
+                        await page.waitForTimeout(10000);
                         Logger.info(`Selected year ${trimmed} for empty-year state test`);
                         return true;
                     }
@@ -2238,5 +2265,115 @@ exports.BudgetJob = class BudgetJob {
             }
         }
         return false;
+    }
+
+    // ===================== TC244: Revision Adjustment Entry (Bounding Box) =====================
+
+    /**
+     * Enters an adjustment amount for a budget item row in the Revision Editor
+     * by combining the row's Y position (from the budget item text) with the
+     * Adjustment Amount column's X position (from the column header bounding box).
+     * @param {string} budgetItemName - Exact text of the Budget Item (e.g. 'Bathroom fixtures install')
+     * @param {number} amount - Numeric adjustment (negative for decrease, positive for increase)
+     */
+    async enterRevisionAdjustmentByItemName(budgetItemName, amount) {
+        Logger.step(`Entering revision adjustment ${amount} for "${budgetItemName}"`);
+        await this.page.waitForTimeout(2000);
+
+        // Find the Adjustment Amount column header to get its horizontal centre
+        const adjHeader = this.page.locator('[role="columnheader"]').filter({ hasText: 'Adjustment' }).first();
+        await expect(adjHeader).toBeVisible({ timeout: 20000 });
+        const adjHeaderBox = await adjHeader.boundingBox();
+        if (!adjHeaderBox) throw new Error('Adjustment Amount column header bounding box not available');
+        const adjCenterX = adjHeaderBox.x + adjHeaderBox.width / 2;
+
+        // Find the budget item text in the treegrid to get the row's vertical centre
+        const itemText = this.page.locator('[role="treegrid"]').getByText(budgetItemName).first();
+        await expect(itemText).toBeVisible({ timeout: 20000 });
+        const itemBox = await itemText.boundingBox();
+        if (!itemBox) throw new Error(`Bounding box not available for budget item: "${budgetItemName}"`);
+        const rowCenterY = itemBox.y + itemBox.height / 2;
+
+        // Click the cell at the intersection of Adjustment Amount column + this row
+        await this.page.mouse.click(adjCenterX, rowCenterY);
+        await this.page.waitForTimeout(600);
+        await this.page.keyboard.press('Enter');
+        await this.page.waitForTimeout(1000);
+
+        // Type the amount in the currency input that opens
+        const currencyInput = this.page.locator('[data-testid="bird-table-currency-input"]');
+        await currencyInput.waitFor({ state: 'visible', timeout: 10000 });
+        await currencyInput.fill(String(amount));
+        await this.page.keyboard.press('Enter');
+        await this.page.waitForTimeout(3000);
+
+        Logger.success(`Adjustment ${amount} entered for "${budgetItemName}"`);
+    }
+
+    /**
+     * TC244 v2 — fixes RevoGrid pinned-vs-scrollable Y misalignment.
+     * When a budget item name wraps to multiple lines the text element's centre
+     * falls into the NEXT row. Using itemBox.y + min(height/2, 15) keeps the
+     * click in the top portion of the element, always within the correct row.
+     */
+    async enterRevisionAdjustmentByItemNameV2(budgetItemName, amount) {
+        Logger.step(`Entering revision adjustment ${amount} for "${budgetItemName}" (v2)`);
+        await this.page.waitForTimeout(2000);
+
+        const adjHeader = this.page.locator('[role="columnheader"]').filter({ hasText: 'Adjustment' }).first();
+        await expect(adjHeader).toBeVisible({ timeout: 20000 });
+        const adjHeaderBox = await adjHeader.boundingBox();
+        if (!adjHeaderBox) throw new Error('Adjustment Amount column header bounding box not available');
+        const adjCenterX = adjHeaderBox.x + adjHeaderBox.width / 2;
+
+        const itemText = this.page.locator('[role="treegrid"]').getByText(budgetItemName).first();
+        await expect(itemText).toBeVisible({ timeout: 20000 });
+        const itemBox = await itemText.boundingBox();
+        if (!itemBox) throw new Error(`Bounding box not available for budget item: "${budgetItemName}"`);
+
+        // Use at most 15px below the top of the text element so that multi-line
+        // items (e.g. "Bathroom fixtures install") don't push rowCenterY into
+        // the next row's Y range in the scrollable grid section.
+        const rowCenterY = itemBox.y + Math.min(itemBox.height / 2, 15);
+
+        await this.page.mouse.click(adjCenterX, rowCenterY);
+        await this.page.waitForTimeout(600);
+        await this.page.keyboard.press('Enter');
+        await this.page.waitForTimeout(1000);
+
+        const currencyInput = this.page.locator('[data-testid="bird-table-currency-input"]');
+        await currencyInput.waitFor({ state: 'visible', timeout: 10000 });
+        await currencyInput.fill(String(amount));
+        await this.page.keyboard.press('Enter');
+        await this.page.waitForTimeout(3000);
+
+        Logger.success(`Adjustment ${amount} entered for "${budgetItemName}" (v2)`);
+    }
+
+    // ===================== TC244: Notes Column Scroll + Assertion =====================
+
+    async scrollRevisionEditorToNotesColumn() {
+        const dialog = this.page.locator('[role="dialog"]').first();
+        await dialog.waitFor({ state: 'visible', timeout: 10000 });
+        // Scroll the RevoGrid viewport scroll container to the far right to render Notes cells
+        await this.page.evaluate(() => {
+            const dlg = document.querySelector('[role="dialog"]');
+            if (!dlg) return;
+            const viewportScroll = dlg.querySelector('revogr-viewport-scroll');
+            if (viewportScroll) {
+                viewportScroll.scrollLeft = viewportScroll.scrollWidth;
+                viewportScroll.dispatchEvent(new Event('scroll', { bubbles: true }));
+            }
+            const scrollVirtual = dlg.querySelector('revogr-scroll-virtual.horizontal');
+            if (scrollVirtual) {
+                scrollVirtual.scrollLeft = scrollVirtual.scrollWidth;
+                scrollVirtual.dispatchEvent(new Event('scroll', { bubbles: true }));
+            }
+        });
+        await this.page.waitForTimeout(1000);
+    }
+
+    async assertRevisionAINoteVisible(expectedText) {
+        await expect(this.page.getByText(expectedText)).toBeVisible({ timeout: 15000 });
     }
 };

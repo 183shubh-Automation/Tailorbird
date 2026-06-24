@@ -1,0 +1,80 @@
+{
+  "bidName": "Auto_Bid_1782237181759",
+  "bidId": "114",
+  "bidUrl": "https://beta.tailorbird.com/bids/114",
+  "property": "bid_prop_1782237781872",
+  "bidType": "Unit Interior",
+  "detailLevel": "Short & Summarized",
+  "priceBy": "Lump Sum: by Scope",
+  "bidDueDate": "2026-12-31",
+  "status": "In Progress",
+  "invokeText": "Create an interior paint bid book. Scopes: Wall Paint, Ceiling Paint, Trim & Doors — each with 1 Material row and 1 Labor row. Include EXACTLY these columns in this order: Scope, Location, Item, Cost Type, Description, # Units, Unit Price, Aggregate, Weighted Avg Price, Notes.",
+  "invokeTextFallback": "paint",
+  "editedDueDate": "2027-03-15",
+  "sendToVendors": {
+    "searchTerm": "sumit corp",
+    "vendorName": "sumit corp"
+  },
+  "createBidDialog": {
+    "heading": "Add ai_bid",
+    "fields": [
+      {
+        "label": "Bid Name",
+        "placeholder": "Enter bid name"
+      },
+      {
+        "label": "Property",
+        "placeholder": "Select property"
+      },
+      {
+        "label": "Bid Type",
+        "placeholder": "Select bid type"
+      },
+      {
+        "label": "Detail Level",
+        "placeholder": "Select detail level"
+      },
+      {
+        "label": "Price By",
+        "placeholder": "Select price by"
+      },
+      {
+        "label": "Bid Due Date",
+        "placeholder": "Enter bid due date (YYYY-MM-DD)"
+      },
+      {
+        "label": "Status",
+        "placeholder": "Select status"
+      },
+      {
+        "label": "Linked Job",
+        "placeholder": "Select linked job"
+      }
+    ],
+    "buttons": [
+      "Cancel",
+      "add ai_bid"
+    ],
+    "bidTypeOptions": [
+      "CapEx",
+      "Unit Interior"
+    ],
+    "detailLevelOptions": [
+      "Short & Summarized",
+      "Medium amount of detail",
+      "Extensive detail"
+    ],
+    "priceByOptions": [
+      "Lump Sum: by Scope",
+      "Lump Sum: by Location",
+      "Lump Sum: by Asset",
+      "Price x Quantity: by Scope",
+      "Price x Quantity: by Location"
+    ],
+    "statusOptions": [
+      "Draft",
+      "In Progress",
+      "Awarded"
+    ]
+  }
+}

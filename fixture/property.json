@@ -12,6 +12,8 @@
     "Job Count",
     "Budget Variance",
     "Random Name",
+    "Fund",
+    "Region",
     "Actions"
   ],
   "scrollIncrement": 5,

@@ -109,6 +109,10 @@ function budgetLocators(page) {
         confirmBtn: page.getByRole('button', { name: /Submit|Confirm|Yes|Approve/i }),
         resetConfirmBtn: page.getByRole('button', { name: /Reset|Confirm|Yes/i }),
         deleteDraftDialog: page.getByRole('dialog').filter({ hasText: /Delete.*Draft|Delete Budget Version/i }),
+
+        // --- TC244: Revision editor inline currency editing ---
+        currencyEditInput: page.locator('[data-testid="bird-table-currency-input"]'),
+        revisionAdjustmentHeader: page.locator('[role="columnheader"]').filter({ hasText: 'Adjustment' }).first(),
     };
 }
 

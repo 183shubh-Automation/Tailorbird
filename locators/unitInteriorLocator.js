@@ -99,13 +99,13 @@ function unitInteriorLocators(page) {
             .getByRole('row')
             .filter({ has: page.getByRole('checkbox') }),
 
-        // Row locator by unit number — uses accessible-name match to avoid
-        // Mantine CSS polluting gridcell textContent (which breaks hasText regex)
+        // Row locator by unit number – works regardless of current status text
         rowByUnitNum: (num) => page.getByRole('tabpanel', { name: 'Units' })
             .locator('[role="treegrid"]')
             .getByRole('row')
             .filter({
-                has: page.getByRole('gridcell', { name: String(num), exact: true })
+                has: page.getByRole('gridcell')
+                    .filter({ hasText: new RegExp(`^\\s*${num}\\s*$`) })
             })
             .first(),
 
@@ -114,17 +114,19 @@ function unitInteriorLocators(page) {
             .locator('[role="treegrid"]')
             .getByRole('row')
             .filter({
-                has: page.getByRole('gridcell', { name: String(num), exact: true })
+                has: page.getByRole('gridcell')
+                    .filter({ hasText: new RegExp(`^\\s*${num}\\s*$`) })
             })
             .first()
             .getByRole('checkbox'),
 
-        // Expand toggle button (› ) – only present on rows with scope data (105, 106, 107)
+        // Expand toggle button (› ) – only present on Released/toggle rows (105, 106, 107)
         rowToggleBtnByUnitNum: (num) => page.getByRole('tabpanel', { name: 'Units' })
             .locator('[role="treegrid"]')
             .getByRole('row')
             .filter({
-                has: page.getByRole('gridcell', { name: String(num), exact: true })
+                has: page.getByRole('gridcell')
+                    .filter({ hasText: new RegExp(`^\\s*${num}\\s*$`) })
             })
             .first()
             .getByRole('button', { name: '›' }),
@@ -134,7 +136,8 @@ function unitInteriorLocators(page) {
             .locator('[role="treegrid"]')
             .getByRole('row')
             .filter({
-                has: page.getByRole('gridcell', { name: String(num), exact: true })
+                has: page.getByRole('gridcell')
+                    .filter({ hasText: new RegExp(`^\\s*${num}\\s*$`) })
             })
             .first()
             .getByRole('button', { name: 'Unit actions' }),
@@ -209,6 +212,33 @@ function unitInteriorLocators(page) {
 
         // Units observed without the toggle (Not in Reno rows) in the test job
         PLAIN_UNITS: [101, 102, 103, 104, 108, 201],
+
+        // ── Filter panel ─────────────────────────────────────────────────────
+        // Filter button scoped to unitsPanel — avoids collision with Filter buttons
+        // in Bids, Change Orders and Invoice panels
+        filterButton: page.getByRole('tabpanel', { name: 'Units' })
+            .getByRole('button', { name: 'Filter' }),
+
+        // Filter popover — scoped to dialogs that contain a "Filters" heading paragraph
+        filterDialog: page.locator('[role="dialog"]')
+            .filter({ has: page.locator('p').filter({ hasText: 'Filters' }) }),
+
+        // Filter textboxes (combobox-style — clicking opens a listbox of options)
+        filterStatusInput:   page.getByRole('textbox', { name: 'Status' }),
+        filterFpTypeInput:   page.getByRole('textbox', { name: 'FP Type' }),
+        filterUnitTypeInput: page.getByRole('textbox', { name: 'Unit Type' }),
+
+        // Listboxes that appear when the corresponding filter textbox is clicked
+        filterStatusListbox:   page.getByRole('listbox', { name: 'Status' }),
+        filterFpTypeListbox:   page.getByRole('listbox', { name: 'FP Type' }),
+        filterUnitTypeListbox: page.getByRole('listbox', { name: 'Unit Type' }),
+
+        // "Clear all" button — only rendered in the filter panel when ≥1 filter is active
+        clearAllFiltersBtn: page.getByRole('button', { name: 'Clear all' }),
+
+        // 0-based column indices within each data row's gridcells:
+        //   0=toggle  1=checkbox  2=Unit  3=FP Type  4=Unit Type  5=Status
+        FILTER_COL: { fpType: 3, unitType: 4, status: 5 },
     };
 }
 

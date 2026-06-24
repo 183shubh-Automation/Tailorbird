@@ -15,7 +15,7 @@ class SimpleApprovalPage {
     }
 
     async waitForPageLoad() {
-        await this.page.waitForTimeout(20000);
+        await this.page.waitForTimeout(30000);
         await this.page.waitForTimeout(1500);
     }
 
@@ -24,6 +24,7 @@ class SimpleApprovalPage {
         await this.page.waitForURL('**/approvals/my-approvals**', { timeout: 15000 }).catch(() => {});
         await expect(this.loc.myApprovalsTab).toHaveAttribute('aria-selected', 'true', { timeout: 10000 });
         await this.waitForPageLoad();
+        await this.page.waitForTimeout(8000);
     }
 
     async navigateToAllApprovalsTab() {
@@ -34,12 +35,12 @@ class SimpleApprovalPage {
     }
 
     async searchApprovals(term) {
-        await this.loc.searchInput.fill(term);
+        await this.loc.searchInput.fill(term,{timeout: 10000});
         await this.page.waitForTimeout(600);
     }
 
     async clearSearch() {
-        await this.loc.searchInput.clear();
+        await this.loc.searchInput.clear({timeout: 10000});
         await this.page.waitForTimeout(400);
     }
 

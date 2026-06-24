@@ -4,7 +4,7 @@ const organizationUrls = require("../fixture/organization.json");
 const roleManagementUiLabels = require("../fixture/manageTeamRoles.json");
 
 /**
- * Navigation + assertions for User Role Management (`/user-role-management`) and Organization (`/organization`).
+ * Navigation + assertions for Approvers Management (`/user-role-management`) and Organization (`/organization`).
  * Legacy `/manage-team` routes 404 on beta (MCP 2026-05-05).
  */
 class ManageTeamRolesHelper {
@@ -22,7 +22,7 @@ class ManageTeamRolesHelper {
     await this.page.waitForLoadState("domcontentloaded");
   }
 
-  /** Dashboard → user menu → Manage User Roles. */
+  /** Dashboard → user menu → Manage Approvers. */
   async landManageTeamViaMenu(dashboardUrl) {
     await this.organizationHelper.goto(dashboardUrl);
     await this.organizationHelper.goToUserRoleManagement();
@@ -60,7 +60,7 @@ class ManageTeamRolesHelper {
     await expect(this.page).toHaveURL(/user-role-management/i, { timeout: 15_000 });
   }
 
-  /** User Role Management grid exposes property/location columns (MCP-verified). */
+  /** Approvers Management grid exposes property/location columns (MCP-verified). */
   async expectRolesColumnHeaders() {
     await expect(
       this.page.getByRole("columnheader", { name: roleManagementUiLabels.gridColumnProperties, exact: true }).first(),

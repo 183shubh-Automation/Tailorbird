@@ -101,17 +101,27 @@ class OOOPage {
 
     /**
      * Ensures OOO is inactive via API. Idempotent — safe to call even if already inactive.
-     * Asserts the DELETE returns 200 if a deactivation was needed.
+     * Retries the DELETE once on transient failure to avoid failing a serial test suite
+     * and causing all subsequent tests to be skipped.
      */
     async ensureOooInactive() {
         const state = await this.getOooApiState();
-        if (state.ooo !== null) {
-            Logger.info('[OOO] Currently active — deactivating via API');
-            const res = await this.deleteOooDirect();
-            expect(res.status(), `Cleanup DELETE /api/ooo expected HTTP 200`).toBe(200);
-            Logger.success('[OOO] Deactivated successfully');
-        } else {
+        if (state.ooo === null) {
             Logger.info('[OOO] Already inactive — no cleanup needed');
+            return;
+        }
+        Logger.info('[OOO] Currently active — deactivating via API');
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            const res = await this.deleteOooDirect();
+            if (res.status() === 200) {
+                Logger.success('[OOO] Deactivated successfully');
+                return;
+            }
+            Logger.error(`[OOO] DELETE attempt ${attempt} returned HTTP ${res.status()}`);
+            if (attempt === 2) {
+                expect(res.status(), 'Cleanup DELETE /api/ooo expected HTTP 200').toBe(200);
+            }
+            await this.page.waitForTimeout(1500);
         }
     }
 
@@ -346,41 +356,48 @@ class OOOPage {
     }
 
     /**
-     * Types a user email into the team member search field and selects the matching option.
-     * Uses pressSequentially so the dropdown filters correctly by the typed text.
+     * Types the first word of targetName to filter the team member dropdown,
+     * then clicks the exact matching option by full name.
+     * e.g. targetName="Sumit Mishra" → types "Sumit" → dropdown filters → clicks "Sumit Mishra".
+     * Only the known stable test users (Sumit Mishra, Sumit Test, Sumit tailorbird, test sumit)
+     * should be passed — yopmail users are transient and may be deleted at any time.
      */
-    async searchAndSelectUser(userEmail) {
-        Logger.step(`[OOO] Searching for and selecting user "${userEmail}"`);
+    async searchAndSelectUser(targetName) {
+        Logger.step(`[OOO] Selecting team member "${targetName}"`);
+        const partial = targetName.trim().split(/\s+/)[0];
         await this.loc.input_teamMember.click();
-        await this.loc.input_teamMember.pressSequentially(userEmail, { delay: 50 });
-        await this.page.waitForTimeout(800);
-        const option = this.page.getByRole('option', { name: userEmail });
+        await this.loc.input_teamMember.pressSequentially(partial, { delay: 50 });
+        await this.page.waitForTimeout(500);
+        await this.page.getByRole('listbox').first().waitFor({ state: 'visible', timeout: 10000 });
+        const option = this.page.getByRole('option', { name: targetName });
         await option.waitFor({ state: 'visible', timeout: 10000 });
         await option.click();
         await expect(
             this.loc.input_teamMember,
-            `Team member input must show "${userEmail}" after selection`
-        ).toHaveValue(userEmail, { timeout: 5000 });
-        Logger.success(`[OOO] User "${userEmail}" selected`);
+            `Team member input must show "${targetName}" after selection`
+        ).toHaveValue(targetName, { timeout: 5000 });
+        Logger.success(`[OOO] Team member "${targetName}" selected`);
     }
 
     /**
-     * Re-selects the team member input (3-click to select-all, then press-sequential) — use when
-     * the input already has a value and needs replacing with a different user.
+     * Replaces the currently-selected team member. Clears existing value, types the
+     * first word of targetName to filter, then clicks the exact option by full name.
      */
-    async replaceSelectedUser(userEmail) {
-        Logger.step(`[OOO] Replacing delegate user with "${userEmail}"`);
+    async replaceSelectedUser(targetName) {
+        Logger.step(`[OOO] Replacing delegate user with "${targetName}"`);
+        const partial = targetName.trim().split(/\s+/)[0];
         await this.loc.input_teamMember.click({ clickCount: 3 });
-        await this.loc.input_teamMember.pressSequentially(userEmail, { delay: 50 });
-        await this.page.waitForTimeout(800);
-        const option = this.page.getByRole('option', { name: userEmail });
+        await this.loc.input_teamMember.pressSequentially(partial, { delay: 50 });
+        await this.page.waitForTimeout(500);
+        await this.page.getByRole('listbox').first().waitFor({ state: 'visible', timeout: 10000 });
+        const option = this.page.getByRole('option', { name: targetName });
         await option.waitFor({ state: 'visible', timeout: 10000 });
         await option.click();
         await expect(
             this.loc.input_teamMember,
-            `Team member input must show "${userEmail}" after replacing`
-        ).toHaveValue(userEmail, { timeout: 5000 });
-        Logger.success(`[OOO] Delegate user replaced with "${userEmail}"`);
+            `Team member input must show "${targetName}" after replacing`
+        ).toHaveValue(targetName, { timeout: 5000 });
+        Logger.success(`[OOO] Delegate user replaced with "${targetName}"`);
     }
 
     /**
@@ -442,6 +459,27 @@ class OOOPage {
     }
 
     // ── Data helpers (use API — nothing hardcoded) ────────────────────────
+
+    /**
+     * Returns labels of all stable test team members from /api/ooo/delegates,
+     * excluding the current logged-in user (who cannot delegate to themselves).
+     * Stable members are those whose name contains "sumit" (case-insensitive) —
+     * the known long-lived test accounts: Sumit Mishra, Sumit Test, Sumit tailorbird, test sumit.
+     * Yopmail users are excluded because they are transient and may be deleted at any time.
+     */
+    async getStableTestMemberNames() {
+        const [state, d] = await Promise.all([this.getOooApiState(), this.getDelegatesApiResponse()]);
+        const currentId = String(state.currentUserId);
+        const stable = d.members.filter(m => /sumit/i.test(m.label) && String(m.id) !== currentId);
+        expect(stable.length, 'At least one stable Sumit test user (excluding self) must be available').toBeGreaterThan(0);
+        return stable.map(m => m.label);
+    }
+
+    /** Returns the first stable test member name (see getStableTestMemberNames). */
+    async getFirstMemberName() {
+        const names = await this.getStableTestMemberNames();
+        return names[0];
+    }
 
     /** Returns the first available role label from /api/ooo/delegates. */
     async getFirstRoleName() {

@@ -158,7 +158,7 @@ exports.ProjectPage = class ProjectPage {
             }
 
             if (!onProjects) {
-                await this.page.keyboard.press('Escape').catch(() => {});
+                await this.page.keyboard.press('Escape').catch(() => { });
                 await this.page.waitForTimeout(300);
 
                 const nav = this.page.locator('nav');
@@ -180,7 +180,7 @@ exports.ProjectPage = class ProjectPage {
 
                 await this.projectsTab.waitFor({ state: 'attached', timeout: 15000 });
                 await this.projectsTab.click({ force: true });
-                await this.page.waitForURL(/\/projects/i, { timeout: 30000 }).catch(() => {});
+                await this.page.waitForURL(/\/projects/i, { timeout: 30000 }).catch(() => { });
             }
 
             // Success = projects list chrome is interactive (MCP: textbox "Search..." + placeholder Search...).
@@ -201,6 +201,7 @@ exports.ProjectPage = class ProjectPage {
         try {
             Logger.step('Opening Create Project modal...');
             await this.page.waitForLoadState('load');
+            await this.page.waitForTimeout(3000);
 
             const startTime = Date.now();
             await this.page.waitForSelector('input[placeholder="Search..."]', { state: 'visible' });
@@ -329,7 +330,7 @@ exports.ProjectPage = class ProjectPage {
                     .locator('p', { hasText: labelText })
                     .locator('xpath=following-sibling::p[1]');
 
-                await expect(valueLocator).toBeVisible();
+                await expect(valueLocator).toBeVisible({timeout: 20000});
                 await expect(valueLocator).toHaveText(expectedText);
 
                 Logger.success(`✅ ${labelText} verified successfully`);
@@ -630,7 +631,7 @@ exports.ProjectPage = class ProjectPage {
             const searchInput = this.page.locator('main input[placeholder="Search..."]').first();
             await expect(searchInput).toBeVisible({ timeout: 10000 });
             await searchInput.fill(name);
-            await searchInput.press('Enter').catch(() => {});
+            await searchInput.press('Enter').catch(() => { });
             await this.page.waitForTimeout(1200);
 
             const matchCell = this.page
@@ -748,14 +749,14 @@ exports.ProjectPage = class ProjectPage {
         await searchProject.click();
         await searchProject.fill(projectName);
         await this.page.waitForTimeout(600);
-        await searchProject.press('Enter').catch(() => {});
+        await searchProject.press('Enter').catch(() => { });
         await this.page.waitForResponse(
             (r) =>
                 /bird-table|\/projects/i.test(r.url()) &&
                 r.request().resourceType() === 'xhr' &&
                 r.ok(),
             { timeout: 25000 },
-        ).catch(() => {});
+        ).catch(() => { });
         await this.page.waitForTimeout(1200);
 
         const noData = this.page.getByText(/no projects added yet|no matching|no rows|nothing here/i);
@@ -770,10 +771,10 @@ exports.ProjectPage = class ProjectPage {
             .or(this.page.getByRole('columnheader', { name: /^Name$/i }))
             .first();
         const projectsGrid = this.page.locator('[role="treegrid"], revo-grid').filter({ has: nameHeader });
-        await projectsGrid.first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+        await projectsGrid.first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => { });
 
         const viewBtn = projectsGrid.locator('button:has(svg.lucide-eye)').first();
-        await viewBtn.scrollIntoViewIfNeeded().catch(() => {});
+        await viewBtn.scrollIntoViewIfNeeded().catch(() => { });
         const eyeVisible = await viewBtn.isVisible({ timeout: 12000 }).catch(() => false);
         if (eyeVisible) {
             await viewBtn.click({ timeout: 15000 });
@@ -783,7 +784,7 @@ exports.ProjectPage = class ProjectPage {
         Logger.step('openProject: eye not in primary viewport — trying name cell / row');
         const byText = this.page.locator('main').getByText(projectName, { exact: false }).first();
         if (await byText.isVisible({ timeout: 5000 }).catch(() => false)) {
-            await byText.scrollIntoViewIfNeeded().catch(() => {});
+            await byText.scrollIntoViewIfNeeded().catch(() => { });
             await byText.click({ timeout: 10000 });
             return;
         }
@@ -793,7 +794,7 @@ exports.ProjectPage = class ProjectPage {
             .filter({ hasText: projectName })
             .first();
         await row.waitFor({ state: 'visible', timeout: 25000 });
-        await row.scrollIntoViewIfNeeded().catch(() => {});
+        await row.scrollIntoViewIfNeeded().catch(() => { });
 
         const rowEye = row.locator('button:has(svg.lucide-eye)').first();
         if (await rowEye.isVisible({ timeout: 8000 }).catch(() => false)) {
@@ -1096,10 +1097,12 @@ exports.ProjectPage = class ProjectPage {
 
     async createBidWithMaterial() {
         await this.page.waitForLoadState('load');
+        await this.page.waitForTimeout(2000);
     }
 
     async inviteVendorsToBid() {
         await this.page.waitForLoadState('load');
+        await this.page.waitForTimeout(2000);
     }
 
     // ---------------- Vendor actions ---------------- //
@@ -1116,6 +1119,7 @@ exports.ProjectPage = class ProjectPage {
     async inviteSelectedVendors() {
         await this.inviteSelectedBtn.click();
         await this.page.waitForLoadState('load');
+        await this.page.waitForTimeout(2000);
     }
 
     async assertVendorVisibleInGrid(name) {

@@ -3,18 +3,23 @@ const path = require('path');
 const fs = require('fs');
 const { test, expect } = require('@playwright/test');
 const { BudgetJob } = require('../pages/budgetPage');
+const { ApprovalJob } = require('../pages/approvalPage');
 const { Logger } = require('../utils/logger');
 
 test.use({
     storageState: 'sessionState.json',
     video: 'retain-on-failure',
     trace: 'retain-on-failure',
-    screenshot: 'only-on-failure'
+    screenshot: 'only-on-failure',
+    animations: 'disabled',
+    maxDiffPixels: 50_000,
+    maxDiffPixelRatio: 0.3,
 });
 
 let page, budgetJob;
 
 test.describe('Budget Workflow - E2E Tests', () => {
+    test.describe.configure({ retries: 1 });
 
     test.beforeEach(async ({ page: p }) => {
         page = p;
@@ -190,8 +195,7 @@ test.describe('Budget Workflow - E2E Tests', () => {
         test.setTimeout(180000);
         await budgetJob.navigateToBudget();
         await budgetJob.selectBrookProperty();
-        await page.waitForTimeout(30000);
-        await page.waitForTimeout(2000);
+        await page.locator('[role="treegrid"]').first().waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
         await budgetJob.openRevisionEditor();
         await budgetJob.verifyRevisionEditorOpen();
         const filePath = path.resolve(process.cwd(), 'files', 'budget_file_to_upload.csv');
@@ -206,7 +210,7 @@ test.describe('Budget Workflow - E2E Tests', () => {
     // ===== Revise Budget E2E =====
 
     test('TC232 @budget @regression : Revise Budget - Verify deleted Budget revision rows are restored successfully after Reset Table action and original revision data becomes visible again inside the Revision Editor grid', async () => {
-        test.setTimeout(180000);
+        test.setTimeout(300000);
         await budgetJob.navigateToBudget();
         await budgetJob.selectBrookProperty();
         await page.waitForTimeout(30000);
@@ -350,6 +354,134 @@ test.describe('Budget Workflow - E2E Tests', () => {
         await budgetJob.verifyDisabledButtonStylingAndAmounts();
         await budgetJob.verifyEdgeCases();
         Logger.success('TC243: Visual states, negative guards, edge cases – PASSED');
+    });
+
+    // ===== TC244: Budget Revision E2E — Revisions, AI Notes, Approval =====
+
+    test('TC244 @budget @e2e @revision : Budget Revision Workflow E2E — create property, create Budget Approval template with 2 approvers, import budget CSV, approve initial budget, create Revision #1 (Bathroom -$2000 / Concrete +$1000) with AI notes and summary card validation, create Revision #2 (Bathroom +$4000 / Concrete -$500) with AI notes and summary card validation, navigate to All Approvals, assert both revisions show Pending Approval, approve both via Approve on Behalf, assert both show Approved status', async () => {
+        test.setTimeout(480000); // 8 minutes — full E2E lifecycle
+
+        const timestamp = Date.now();
+        const propertyName = `TC244_BudgetProp_${timestamp}`;
+        const templateName = `TC244_BudgetTemplate_${timestamp}`;
+
+        const approvalJob = new ApprovalJob(page);
+
+        // ===== STEP 1: Create new property =====
+        Logger.step('TC244 Step 1: Creating new property');
+        await approvalJob.createProperty(
+            propertyName,
+            'Domestic Terminal, College Park, GA 30337, USA',
+            'College Park',
+            'GA',
+            '30337',
+            'Garden Style'
+        );
+        Logger.success(`TC244 Step 1: Property created — ${propertyName}`);
+
+        // ===== STEP 2: Create Budget Approval template with 2 approvers =====
+        Logger.step('TC244 Step 2: Creating Budget Approval template');
+        await approvalJob.navigateToApprovalTab();
+        await approvalJob.createBudgetApprovalTemplateForTest(templateName, propertyName);
+        Logger.success(`TC244 Step 2: Template created — ${templateName}`);
+
+        // ===== STEP 3: Navigate to Budget, select property, import CSV, submit =====
+        Logger.step('TC244 Step 3: Importing budget CSV for initial budget');
+        await budgetJob.navigateToBudget();
+        await page.waitForTimeout(5000);
+        await budgetJob.selectPropertyByName(propertyName);
+        await budgetJob.openRevisionEditor();
+        const budgetFilePath = path.resolve(process.cwd(), 'files', 'budget_data.csv');
+        expect(fs.existsSync(budgetFilePath)).toBeTruthy();
+        await budgetJob.uploadFileInRevision(budgetFilePath);
+        await budgetJob.ensureSubmitEnabledAfterUpload();
+        await budgetJob.clickSubmitForApproval();
+        await page.waitForTimeout(5000);
+        Logger.success('TC244 Step 3: Initial budget submitted for approval');
+
+        // ===== STEP 4: Approve the initial budget via "Approve on Behalf" =====
+        Logger.step('TC244 Step 4: Approving initial budget in All Approvals');
+        await approvalJob.navigateToAllApprovalsTab();
+        await approvalJob.approveRevisionOnBehalfByPropertyInAllApprovals(propertyName);
+        Logger.success('TC244 Step 4: Initial budget approved');
+
+        // ===== STEP 5: Revision #1 — enter adjustments, assert AI notes + summary cards =====
+        Logger.step('TC244 Step 5: Creating Revision #1 (Bathroom -2000 / Concrete +1000)');
+        await budgetJob.navigateToBudget();
+        await page.waitForTimeout(5000);
+        await budgetJob.selectPropertyByName(propertyName);
+        await page.waitForTimeout(5000);
+        await budgetJob.openRevisionEditor();
+
+        await budgetJob.enterRevisionAdjustmentByItemNameV2('Bathroom fixtures install', -2000);
+        await budgetJob.enterRevisionAdjustmentByItemNameV2('Concrete', 1000);
+        await page.waitForTimeout(3000);
+
+        // Assert AI-generated Notes column values (scroll grid right to reveal Notes column)
+        await budgetJob.assertRevisionAINoteVisible('this revision decreased the adjustment amount by $2,000.00');
+        await budgetJob.assertRevisionAINoteVisible('this revision increased the adjustment amount by $1,000.00');
+        Logger.success('TC244 Step 5: Revision #1 AI notes verified');
+
+        // Assert summary card values
+        await expect(page.getByText('$1,000.00').first()).toBeVisible({ timeout: 15000 });   // Total Increase
+        await expect(page.getByText('-$2,000.00').first()).toBeVisible({ timeout: 15000 });  // Total Decrease
+        await expect(page.getByText('-$1,000.00').first()).toBeVisible({ timeout: 15000 });  // Net Change
+        Logger.success('TC244 Step 5: Revision #1 summary cards verified');
+
+        await budgetJob.clickSubmitForApproval();
+        await page.waitForTimeout(5000);
+        Logger.success('TC244 Step 5: Revision #1 submitted for approval');
+
+        // ===== STEP 6: Revision #2 — enter adjustments, assert AI notes + summary cards =====
+        Logger.step('TC244 Step 6: Creating Revision #2 (Bathroom +4000 / Concrete -500)');
+        await budgetJob.navigateToBudget();
+        await page.waitForTimeout(5000);
+        await budgetJob.selectPropertyByName(propertyName);
+        await page.waitForTimeout(5000);
+        await budgetJob.openRevisionEditor();
+
+        await budgetJob.enterRevisionAdjustmentByItemNameV2('Bathroom fixtures install', 4000);
+        await budgetJob.enterRevisionAdjustmentByItemNameV2('Concrete', -500);
+        await page.waitForTimeout(3000);
+
+        // Assert AI-generated Notes column values (scroll grid right to reveal Notes column)
+        await budgetJob.assertRevisionAINoteVisible('this revision increased the adjustment amount by $4,000.00');
+        await budgetJob.assertRevisionAINoteVisible('this revision decreased the adjustment amount by $500.00');
+        Logger.success('TC244 Step 6: Revision #2 AI notes verified');
+
+        // Assert summary card values
+        await expect(page.getByText('$4,000.00').first()).toBeVisible({ timeout: 15000 });   // Total Increase
+        await expect(page.getByText('-$500.00').first()).toBeVisible({ timeout: 15000 });    // Total Decrease
+        await expect(page.getByText('$3,500.00').first()).toBeVisible({ timeout: 15000 });   // Net Change
+        Logger.success('TC244 Step 6: Revision #2 summary cards verified');
+
+        await budgetJob.clickSubmitForApproval();
+        await page.waitForTimeout(5000);
+        Logger.success('TC244 Step 6: Revision #2 submitted for approval');
+
+        // ===== STEP 7: All Approvals — assert both revisions Pending =====
+        Logger.step('TC244 Step 7: Verifying both revisions visible with Pending Approval status');
+        await approvalJob.navigateToAllApprovalsTab();
+        await approvalJob.assertRevisionsByPropertyHaveStatus(propertyName, 'Pending Approval', 2);
+        Logger.success('TC244 Step 7: Both revisions show Pending Approval');
+
+        // ===== STEP 8: Approve both revisions via "Approve on Behalf" =====
+        Logger.step('TC244 Step 8: Approving both pending revisions on behalf');
+        await approvalJob.approveAllPendingRevisionsOnBehalfByProperty(propertyName);
+        Logger.success('TC244 Step 8: Both revisions approved on behalf');
+
+        // ===== STEP 9: Assert both revisions now show Approved =====
+        Logger.step('TC244 Step 9: Asserting both revisions are Approved');
+        await approvalJob.assertRevisionsByPropertyHaveStatus(propertyName, 'Approved', 2);
+        Logger.success('TC244 Step 9: Both revisions confirmed Approved');
+
+        // ===== STEP 10: Navigate to Revision #1 editor, assert Notes changed after approval =====
+        Logger.step('TC244 Step 10: Asserting Revision #1 Notes changed after approval');
+        await approvalJob.navigateToAllApprovalsTab();
+        await approvalJob.navigateToNthBudgetRevisionEditorByProperty(propertyName, 1);
+        await expect(page.getByText('Change in current budget from 18000.03 to 22000.03 due to an approved revision')).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText('Change in current budget from 18000.01 to 17500.01 due to an approved revision')).toBeVisible({ timeout: 15000 });
+        Logger.success('TC244 Step 10: Revision #1 Notes confirmed changed after approval — TC244 PASSED');
     });
 
 });

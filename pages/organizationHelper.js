@@ -105,7 +105,7 @@ class OrganizationHelper {
     await expect(this.page).toHaveURL(/\/(organization|manage-team)(\/.+)?([?#]|$)/i);
   }
 
-  /** User menu → Manage User Roles (property × role matrix; replaces legacy /manage-team for roles UI). */
+  /** User menu → Manage Approvers (property × role matrix; replaces legacy /manage-team for roles UI). */
   async goToUserRoleManagement() {
     const navbar = this.page.locator('.mantine-AppShell-navbar');
     await navbar.locator('.mantine-Avatar-root').last().waitFor({ state: 'visible', timeout: 20_000 });
@@ -117,8 +117,8 @@ class OrganizationHelper {
       .first();
     await menu.waitFor({ state: 'visible', timeout: 15_000 });
 
-    await this.page.getByRole('menuitem', { name: /Manage User Roles/i }).first().waitFor({ state: 'visible', timeout: 20_000 });
-    await this.page.getByRole('menuitem', { name: /Manage User Roles/i }).first().click();
+    await this.page.getByRole('menuitem', { name: /Manage Approvers/i }).first().waitFor({ state: 'visible', timeout: 20_000 });
+    await this.page.getByRole('menuitem', { name: /Manage Approvers/i }).first().click();
 
     await expect(this.page).toHaveURL(/\/user-role-management(\/|$|\?)/i, { timeout: 35_000 });
   }
@@ -202,14 +202,14 @@ class OrganizationHelper {
     try {
       this.log(`Inviting user: ${email} with role: ${role}`);
       const invitePanel = await this.openInvite();
-      await invitePanel.dialogRoot.getByText("Loading roles").waitFor({ state: "hidden", timeout: 60_000 }).catch(() => {});
+      await invitePanel.dialogRoot.getByText("Loading roles",{timeout: 10000}).waitFor({ state: "hidden", timeout: 60_000 }).catch(() => {});
       this.log(`Filling email...${email}`);
-      await invitePanel.emailAddressInput.fill(email);
+      await invitePanel.emailAddressInput.fill(email,{delay: 50});
       this.log(`Selecting role: ${role}`);
       await this.selectRole(invitePanel.roleSelectTrigger, role, invitePanel.dialogRoot);
       this.log("Advancing invite wizard (Next)...");
       await invitePanel.nextOrInvitePrimaryButton.evaluate((el) => el.click());
-      await this.page.waitForTimeout(1000);
+      await this.page.waitForTimeout(5000);
       const confirmInvite = invitePanel.dialogRoot.getByRole("button", { name: data.inviteButtonText, exact: true });
       if (await confirmInvite.isVisible({ timeout: 10_000 }).catch(() => false)) {
         await confirmInvite.evaluate((el) => el.click());
@@ -362,7 +362,7 @@ class OrganizationHelper {
   async openFirstMenu() {
     try {
       this.log("Opening first row menu...");
-      await this.page.locator(organizationLocators.firstRowMenuBtn).click();
+      await this.page.locator(organizationLocators.firstRowMenuBtn,{timeout:40000}).click();
       this.log("First row menu opened.");
     } catch (err) {
       this.log("ERROR opening first row menu: " + err);

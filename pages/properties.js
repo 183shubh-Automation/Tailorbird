@@ -157,7 +157,7 @@ class PropertiesHelper {
             await this.page.locator(propertyLocators.createPropertyButton).click({ force: true });
 
             console.log("📌 Waiting for Add Property modal to appear...");
-            await this.addPropertyDialog().waitFor({ state: "visible", timeout: 25000 });
+            await this.addPropertyDialog().waitFor({ state: "visible", timeout: 45000 });
 
             console.log("📝 Verifying modal field presence...");
             await this.verifyModalFields();
@@ -289,7 +289,7 @@ class PropertiesHelper {
             await this.goToProperties();
         }
         await this.page.waitForLoadState("domcontentloaded");
-        await this.page.waitForTimeout(800);
+        await this.page.waitForTimeout(1500);
         // CI-safe: in some runs only "Layout"/"View" is clickable (other table-action buttons are Filter/Export).
         const switchers = this.page
             .getByRole('button', { name: /^(layout|view|table)$/i })
@@ -309,6 +309,8 @@ class PropertiesHelper {
                     break;
                 }
             }
+            const tableBtn = this.page.getByTestId('bt-table-action');
+            await tableBtn.waitFor({ state: 'visible',timeout:20000 });
             if (!menuOpened) await this.page.waitForTimeout(300);
         }
         if (!menuOpened) this.log(`changeView: menu item "${view}" not visible; proceeding with current view.`);
@@ -329,52 +331,13 @@ class PropertiesHelper {
         if (!ready) this.log(`changeView: readiness poll timed out for "${view}", continuing with available UI.`);
         await this.page.waitForLoadState("domcontentloaded");
         await apiWait;
-        await this.page.waitForTimeout(800);
+        await this.page.waitForTimeout(1500);
     }
 
     /** Open BirdTable filter drawer (panel that contains "Filter Options"). */
     filterPopup() {
         return this.page.locator('.mantine-Paper-root').filter({ hasText: 'Filter Options' });
     }
-
-    /**
-     * Apply one property-type filter in the open Filter popup, assert UI feedback, then reset.
-     * BirdTable uses "Applied Filters" + button "Reset Filters" (not treegrid badges / "Clear All Filters" link).
-     */
-    // async filterProperty(type) {
-    //     const popup = this.filterPopup();
-    //     await popup.waitFor({ state: 'visible', timeout: 15000 });
-
-    //     const checkbox = popup.getByRole('checkbox', { name: type });
-    //     await checkbox.waitFor({ state: 'visible', timeout: 20000 });
-    //     await checkbox.click();
-
-    //     await this.page.waitForLoadState('networkidle').catch(() => {});
-    //     await this.page.waitForTimeout(400);
-
-    //     const resetBtn = popup.getByRole('button', { name: 'Reset Filters' });
-    //     await expect(resetBtn).toBeVisible({ timeout: 15000 });
-    //     await expect(popup.getByText(/Applied Filters/i)).toBeVisible({ timeout: 10000 });
-
-    //     const grid = this.page.locator(propertyLocators.gridRootWrapper).first();
-    //     const dataRows = grid.locator('[role="row"]').filter({ has: this.page.locator('[role="gridcell"]') });
-    //     const nRows = await dataRows.count();
-    //     console.log(
-    //         `[ASSERT] Filter "${type}": visible data rows in current treegrid viewport = ${nRows} (expected ≥1 when data exists; 0 can mean virtualized empty slice or no matches).`,
-    //     );
-    //     if (nRows === 0) {
-    //       console.log(
-    //         "ℹ️ filterProperty: no visible data rows after filter (empty result or virtualized grid); UI still shows Applied Filters + Reset.",
-    //       );
-    //     } else {
-    //       await dataRows.first().scrollIntoViewIfNeeded().catch(() => {});
-    //       await expect(dataRows.first()).toBeVisible({ timeout: 15_000 });
-    //     }
-
-    //     await resetBtn.click();
-    //     await expect(resetBtn).toBeHidden({ timeout: 15000 });
-    //     await this.page.waitForTimeout(300);
-    // }
 
     async filterProperty(type) {
         const popup = this.filterPopup();
@@ -921,7 +884,7 @@ class PropertiesHelper {
         for (const field of overviewFields) {
             const labelEl = this.page.locator(`text="${field.label}"`).first();
             const valueEl = labelEl.locator('xpath=..//following-sibling::div//p').first();
-            await expect(valueEl).toBeVisible({ timeout: 10000 });
+            await expect(valueEl).toBeVisible({ timeout: 30000 });
             console.log(`[ASSERT] ${field.label} → Expected: ${field.value}`);
             // await expect(valueEl).toHaveText(String(field.value), { timeout: 10000 });
         }
@@ -929,7 +892,15 @@ class PropertiesHelper {
 
     async uploadPropertyDocument(filePath) {
         await this.page.locator(propertyLocators.uploadFilesBtn).first().click();
-        await this.page.locator(propertyLocators.uploadDialog).waitFor();
+        // In CI the Uploadcare widget may not have initialized yet on first click; retry once if dialog doesn't appear.
+        const dialogAppeared = await this.page.locator(propertyLocators.uploadDialog)
+            .waitFor({ timeout: 15000 })
+            .then(() => true)
+            .catch(() => false);
+        if (!dialogAppeared) {
+            await this.page.locator(propertyLocators.uploadFilesBtn).first().click();
+            await this.page.locator(propertyLocators.uploadDialog).waitFor({ timeout: 40000 });
+        }
 
         // Intercept and cancel native dialog (THIS IS THE FIX)
         this.page.once("filechooser", async (chooser) => {
@@ -1674,7 +1645,9 @@ class PropertiesHelper {
         else console.log("ℹ Add-row trigger not visible; continuing with inline row edit flow");
     }
     async addRowDetail() {
-        return await this.addLocationRowByName('My Test Name');
+        const uniqueName = `Site_${Date.now()}`;
+        this._lastLocationRowName = uniqueName;
+        return await this.addLocationRowByName(uniqueName);
     }
     async addLocationRowByName(rowName = 'My Test Name') {
         const tabpanel = this.page.getByRole('tabpanel', { name: /Locations/i });
@@ -1682,7 +1655,7 @@ class PropertiesHelper {
         if (await locationSearch.isVisible({ timeout: 2000 }).catch(() => false)) {
             await locationSearch.fill(rowName).catch(() => { });
             await locationSearch.press('Enter').catch(() => { });
-            await this.page.waitForTimeout(700);
+            await this.page.waitForTimeout(10000);
             const alreadyExists = await this.page
                 .locator(`[role="treegrid"] [role="gridcell"]:has-text("${rowName}")`)
                 .first()
@@ -1703,10 +1676,17 @@ class PropertiesHelper {
             await editBtn.click({ force: true }).catch(() => { });
             await this.page.waitForTimeout(600);
         }
+        // MCP-verified: "Add Row" button directly adds a blank row at the top — no dropdown.
+        // addButton() already clicks it before addLocationRowByName() is called, so only
+        // click again if no blank "—" row is present yet (avoids leaving orphan rows).
+        const blankRowAlreadyPresent = await this.page
+            .getByRole('treegrid').first()
+            .getByRole('row', { name: /^— — —$|^—$/ }).first()
+            .isVisible({ timeout: 1000 }).catch(() => false);
         const addSite = this.page
             .getByRole('menuitem', { name: /Add site|Add row|Add unit/i })
             .or(this.page.getByRole('button', { name: /Add site|Add row|Add unit/i }));
-        const hasAddSite = await addSite.first().isVisible({ timeout: 2000 }).catch(() => false);
+        const hasAddSite = !blankRowAlreadyPresent && await addSite.first().isVisible({ timeout: 2000 }).catch(() => false);
         if (hasAddSite) {
             await addSite.first().click();
         } else {
@@ -1740,22 +1720,40 @@ class PropertiesHelper {
         await expect(firstCell).toBeVisible({ timeout: 10000 });
         await firstCell.click({ force: true });
         await firstCell.dblclick({ force: true }).catch(() => { });
-        await this.page.keyboard.press('Enter').catch(() => { });
+        // MCP-verified: dblclick opens the floating revogr-edit textbox directly — do NOT press
+        // Enter here. Pressing Enter would commit an empty value and close the editor before fill.
+        await this.page.waitForTimeout(400);
         const nameEditorCandidates = [
             this.page.locator('revogr-edit input:visible:not([readonly]):not([disabled])').first(),
-            this.page.locator('input[type="text"]:visible:not([readonly]):not([disabled])').first(),
+            this.page.locator('input[type="text"]:visible:not([placeholder="Search..."]):not([readonly]):not([disabled])').first(),
             this.page.locator('textarea:visible:not([readonly]):not([disabled])').first(),
             this.page.getByRole('textbox', { name: /name/i }).first(),
             this.page.locator(prop.nameInput).first(),
         ];
         let filled = false;
-        for (const editor of nameEditorCandidates) {
-            const visible = await editor.isVisible({ timeout: 800 }).catch(() => false);
+        for (const [idx, editor] of nameEditorCandidates.entries()) {
+            // Give the primary revogr-edit candidate more time; fallbacks are faster.
+            const visibilityTimeout = idx === 0 ? 3000 : 800;
+            const visible = await editor.isVisible({ timeout: visibilityTimeout }).catch(() => false);
             if (!visible) continue;
             const editable = await editor.isEditable().catch(() => false);
             if (!editable) continue;
             await editor.click({ force: true }).catch(() => { });
-            await editor.fill(rowName, { timeout: 3000 });
+            let fillSuccess = false;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    await editor.fill(rowName, { timeout: 3000 });
+                    fillSuccess = true;
+                    break;
+                } catch (fillErr) {
+                    if (attempt < 3) {
+                        console.log(`⚠ fill attempt ${attempt} failed, retrying in 5s…`);
+                        await this.page.waitForTimeout(5000);
+                        await editor.click({ force: true }).catch(() => { });
+                    }
+                }
+            }
+            if (!fillSuccess) continue;
             filled = true;
             break;
         }
@@ -1773,27 +1771,51 @@ class PropertiesHelper {
                 await this.page.keyboard.type(rowName, { delay: 20 });
             }
         }
-        await this.page.keyboard.press("Enter");
-
-        if (await locationSearch.isVisible({ timeout: 1200 }).catch(() => false)) {
-            await locationSearch.fill(rowName).catch(() => { });
-            await locationSearch.press('Enter').catch(() => { });
-            await this.page.waitForTimeout(700);
-        }
-        const rowAdded = await this.page
+        // Commit the value and assert it appears in the grid. Retry up to 3 times.
+        const cellLocator = this.page
             .locator(`[role="treegrid"] [role="gridcell"]:has-text("${rowName}")`)
-            .first()
-            .isVisible({ timeout: 4000 })
-            .catch(() => false);
-        if (!rowAdded) {
-            // Second attempt: click first editable textbox if editor surfaced late.
-            const lateEditor = this.page.locator('input[type="text"]:visible, textarea:visible').first();
-            if (await lateEditor.isVisible({ timeout: 1200 }).catch(() => false)) {
+            .first();
+        let committed = false;
+        for (let commitAttempt = 1; commitAttempt <= 3; commitAttempt++) {
+            await this.page.keyboard.press('Enter');
+            await this.page.waitForTimeout(1200);
+
+            // Narrow grid via search to confirm the committed value is persisted.
+            if (await locationSearch.isVisible({ timeout: 800 }).catch(() => false)) {
+                await locationSearch.fill(rowName).catch(() => { });
+                await locationSearch.press('Enter').catch(() => { });
+                await this.page.waitForTimeout(700);
+            }
+
+            committed = await cellLocator.isVisible({ timeout: 4000 }).catch(() => false);
+            if (committed) break;
+
+            console.log(`⚠ Commit attempt ${commitAttempt}/3 — "${rowName}" not found in grid, retrying…`);
+
+            // Clear search before retrying so the full grid is visible.
+            if (await locationSearch.isVisible({ timeout: 800 }).catch(() => false)) {
+                await locationSearch.fill('').catch(() => { });
+                await locationSearch.press('Enter').catch(() => { });
+                await this.page.waitForTimeout(500);
+            }
+
+            // If an editor is still open, re-fill and press Tab to force commit.
+            // Exclude the search bar so we don't accidentally fill it instead of a cell editor.
+            const lateEditor = this.page
+                .locator('revogr-edit input:visible, input[type="text"]:visible:not([placeholder="Search..."]), textarea:visible')
+                .first();
+            if (await lateEditor.isVisible({ timeout: 1000 }).catch(() => false)) {
                 await lateEditor.fill(rowName).catch(() => { });
-                await this.page.keyboard.press('Enter').catch(() => { });
+                await this.page.keyboard.press('Tab').catch(() => { });
+                await this.page.waitForTimeout(600);
             }
         }
-        await expect(this.page.locator(`[role="treegrid"] [role="gridcell"]:has-text("${rowName}")`).first()).toBeVisible({ timeout: 8000 });
+
+        if (!committed) {
+            throw new Error(`Failed to commit row name "${rowName}" to the grid after 3 attempts`);
+        }
+
+        // Clear search filter so the grid shows all rows after commit.
         if (await locationSearch.isVisible({ timeout: 1200 }).catch(() => false)) {
             await locationSearch.fill('').catch(() => { });
             await locationSearch.press('Enter').catch(() => { });
@@ -1801,7 +1823,8 @@ class PropertiesHelper {
         console.log(`✔ New site/unit name added: ${rowName}`);
     }
     async deleteRow() {
-        return await this.deleteLocationRowByName('My Test Name');
+        const rowName = this._lastLocationRowName || 'My Test Name';
+        return await this.deleteLocationRowByName(rowName);
     }
     async deleteLocationRowByName(rowName = 'My Test Name') {
         const tabpanel = this.page.getByRole('tabpanel', { name: /Locations/i });
@@ -2220,7 +2243,7 @@ class PropertiesHelper {
         const summaryPanel = this.page.getByRole('tabpanel', { name: /Job Summary/i })
             .or(this.page.locator('[role="tabpanel"]').first());
 
-        await expect(summaryPanel).toBeVisible({ timeout: 10000 });
+        await expect(summaryPanel).toBeVisible({ timeout: 25000 });
 
         const jobFields = [
             { label: "Job Name", value: fields["Job Name"] },

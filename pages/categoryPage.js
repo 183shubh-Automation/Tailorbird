@@ -395,7 +395,7 @@ class FinancialsCategoryPage {
     }
 
     async addCategoryRowDetail() {
-        return this.addCategoryRowByName('My Test Name');
+        return this.addCategoryRowByName('1002');
     }
 
     async deleteCategoryRowByName(rowName = 'My Test Name') {
@@ -461,7 +461,7 @@ class FinancialsCategoryPage {
     }
 
     async deleteCategoryRowDetail() {
-        return this.deleteCategoryRowByName('My Test Name');
+        return this.deleteCategoryRowByName('1002');
     }
 
     /** Reset Category destructive modal — scoped heading to avoid overlapping dialogs. */

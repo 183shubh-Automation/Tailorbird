@@ -741,6 +741,7 @@ exports.ProjectJob = class ProjectJob {
         try {
             Logger.step(`Updating price for bid row ${rowIndex} to $${newPrice}...`);
             await this.page.waitForLoadState('load');
+            await this.page.waitForTimeout(2000);
 
             const priceCell = this.page.locator(`revo-grid div[role="gridcell"][data-rgcol="5"][data-rgrow="${rowIndex}"]`).first();
             await priceCell.scrollIntoViewIfNeeded();

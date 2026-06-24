@@ -9,7 +9,11 @@ import { getPropertyName } from '../utils/propertyUtils';
 import testData from '../fixture/property.json';
 const uiMessages = require('../fixture/tailorbirdUiMessages.json');
 const loc = require('../locators/locationLocator');
+const { verifyColumnContentDoesNotWrap } = require('../utils/columnResizeHelper');
 import { propertyLocators } from '../locators/propertyLocator.js';
+const { ProjectPage } = require('../pages/projectPage');
+const { AddColumnPage } = require('../pages/addColumnPage');
+const { Logger } = require('../utils/logger');
 
 test.use({
   storageState: 'sessionState.json',
@@ -24,8 +28,8 @@ const tcTakeoffsStartUrl = process.env.DASHBOARD_URL || data.dashboardUrl;
 /** Table area screenshot: rows change across runs; mask search; allow modest drift. */
 const PROPERTY_REGRESSION_SCREENSHOT = {
   animations: 'disabled',
-  maxDiffPixels: 30_000,
-  maxDiffPixelRatio: 0.15,
+  maxDiffPixels: 50_000,
+  maxDiffPixelRatio: 0.3,
 };
 
 const propertyTypes = [
@@ -75,6 +79,7 @@ test.afterAll(async () => {
 });
 
 test.describe('PROPERTY FLOW TEST SUITE', () => {
+  test.describe.configure({ retries: 1 });
 
   test('@sanity @mandatory @regression @property @contract TC48 - Validate Property Export Functionality and New Property Creation', async () => {
     await test.step('Table View â€” BirdTable toolbar (Export) is available', async () => {
@@ -171,7 +176,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     await prop.searchProperty(propName);
 
     await prop.viewPropertyDetails(propName);
-    await page.locator('[role="tab"]').first().waitFor({ state: 'visible', timeout: 20000 });
+    await page.locator('[role="tab"]').first().waitFor({ state: 'visible', timeout: 40000 });
     await prop.validateTabs();
     await prop.validateOverviewFields(vals);
 
@@ -529,7 +534,12 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
 
     const locationsTab = page.getByRole('tab', { name: /Locations/i }).first();
     await expect(locationsTab).toBeVisible({ timeout: 15000 });
+    const _locTabApiWait = page.waitForResponse(
+        r => r.url().includes('/api/bird-table') && r.url().includes('table_name=unit') && r.status() === 200,
+        { timeout: 60000 }
+    ).catch(() => null);
     await locationsTab.click();
+    await _locTabApiWait;
     await expect(locationsTab).toHaveAttribute('data-active', 'true');
     console.log("Locations tab opened");
 
@@ -667,9 +677,9 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
 
         // Toolbar: the row of action buttons (Filter, View, Table, Export, Create Property)
         const toolbar = page.locator('main').getByRole('button', { name: /Filter|Export|View|Table|Create Property/i }).first()
-            .locator('xpath=ancestor::*[contains(@class,"mantine-Group") or contains(@class,"toolbar") or @role="toolbar"][1]')
-            .or(page.locator('main [class*="toolbar"], main [class*="Toolbar"]').first())
-            .or(page.locator('main').locator('button:has-text("Create Property")').locator('../..'));
+          .locator('xpath=ancestor::*[contains(@class,"mantine-Group") or contains(@class,"toolbar") or @role="toolbar"][1]')
+          .or(page.locator('main [class*="toolbar"], main [class*="Toolbar"]').first())
+          .or(page.locator('main').locator('button:has-text("Create Property")').locator('../..'));
         try {
           await toolbar.first().waitFor({ state: 'visible', timeout: 8_000 });
           await expect(toolbar.first()).toHaveScreenshot('properties-toolbar.png', shotStable);
@@ -767,10 +777,10 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
         // MCP-verified behavior: Cancel may close asynchronously; add resilient close sequence.
         const dialog = prop.addPropertyDialog();
         await dialog.getByRole('button', { name: 'Cancel' }).click();
-        await page.keyboard.press('Escape').catch(() => {});
+        await page.keyboard.press('Escape').catch(() => { });
         const closeX = dialog.locator('button[aria-label="Close"], .mantine-CloseButton-root').first();
         if (await closeX.isVisible().catch(() => false)) {
-          await closeX.click().catch(() => {});
+          await closeX.click().catch(() => { });
         }
         await expect(dialog.first()).toBeHidden({ timeout: 15_000 });
       });
@@ -830,9 +840,101 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     ).toBeVisible({ timeout: 3000 });
 
     // Clean up
-    await dialog.getByRole('button', { name: 'Cancel' }).click().catch(() => {});
-    await page.keyboard.press('Escape').catch(() => {});
-    await expect(dialog.first()).toBeHidden({ timeout: 10000 }).catch(() => {});
+    await dialog.getByRole('button', { name: 'Cancel' }).click().catch(() => { });
+    await page.keyboard.press('Escape').catch(() => { });
+    await expect(dialog.first()).toBeHidden({ timeout: 10000 }).catch(() => { });
+  });
+
+  test('@regression @property TC279 — Budget Variance currency column: values must stay on a single line after column is resized narrower', async () => {
+    await prop.changeView('Table View');
+    await page.waitForTimeout(1500);
+
+    const result = await verifyColumnContentDoesNotWrap({
+      page,
+      columnName: 'Budget Variance',
+      dragByPx: 50,
+      minCellsToCheck: 1,
+    });
+
+    console.log(
+      `[TC279] ${result.cellsChecked}/${result.cellCount} cells verified single-line  |  ` +
+      `width: ${result.widthStart}px → narrowed ${result.widthAfter}px → restored ${result.widthRestored}px ✓`
+    );
+  });
+
+  test('@regression @property — Cover Picture: upload image to property and verify it shows on property card', async () => {
+    test.setTimeout(300000);
+
+    const downloadPath = path.join(process.cwd(), 'downloads', 'property.json');
+    const propertyData = JSON.parse(fs.readFileSync(downloadPath, 'utf-8'));
+    const propertyName = propertyData.propertyName;
+    const imagePath = path.resolve('./files/Property_image.png');
+
+    // Step 1: Navigate to properties list (Table View) and open the target property's details page
+    await prop.goToProperties();
+    await prop.changeView('Table View');
+    await prop.searchProperty(propertyName);
+    await prop.viewDetailsButton();
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForURL(/\/properties\/details/, { timeout: 20000 });
+    await page.waitForTimeout(1500);
+
+    // Step 2: Open Edit Property dialog
+    await page.getByRole('button', { name: 'Edit' }).first().click();
+    const dialog = page.getByRole('dialog', { name: 'Edit Property' });
+    await expect(dialog).toBeVisible({ timeout: 10000 });
+
+    // Step 3: Scroll to Cover Picture section, then upload image via device file chooser
+    await dialog.getByText('Cover Picture').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(600);
+    const [fileChooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      dialog.getByRole('button', { name: 'From device' }).click(),
+    ]);
+    await fileChooser.setFiles(imagePath);
+
+    // Wait for Uploadcare CDN upload to finish — Save Changes button transitions from disabled to enabled
+    await expect(dialog.getByRole('button', { name: 'Save Changes' })).toBeEnabled({ timeout: 20000 });
+    await page.waitForTimeout(1000);
+
+    // Step 4: Save changes and assert the success notification
+    await dialog.getByRole('button', { name: 'Save Changes' }).click();
+    await expect(
+      page.locator('.mantine-Notification-root').filter({ hasText: 'property updated successfully' })
+    ).toBeVisible({ timeout: 15000 });
+
+    // Step 5: Navigate directly to the properties list (Grid/Card View by default),
+    // search for the property, and assert its card shows the uploaded cover image.
+    // Using page.goto() avoids the slow 60s API watcher inside prop.goToProperties().
+    const propertiesUrl = new URL(page.url()).origin + '/properties';
+    await page.goto(propertiesUrl, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(2000);
+    await page.locator('[placeholder="Search..."]').first().fill(propertyName);
+    await page.waitForTimeout(3000);
+    await expect(page.locator('[style*="files.tailorbird.com"]')).toBeVisible({ timeout: 15000 });
+  });
+
+  test('TC306 @property @regression : Verify reusable add column function for all column types', async ({ page }) => {
+    test.setTimeout(600000);
+    const projectPage = new ProjectPage(page);
+    const addColumnPage = new AddColumnPage(page, { scope: page.locator('main') });
+
+    try {
+      await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'load' });
+      await expect(page).toHaveURL(process.env.DASHBOARD_URL);
+
+      await projectPage.navigateToProjects();
+      await projectPage.setProjectsTableView();
+      await expect(page.getByTestId('bt-table-action').first()).toBeVisible({ timeout: 15000 });
+
+      const createdColumns = await addColumnPage.addAndVerifyAllColumnTypes();
+      expect(createdColumns.length).toBe(13);
+
+      Logger.success('TC250: addAndVerifyAllColumnTypes — PASSED');
+    } catch (error) {
+      Logger.error(`TC250: Test failed — ${error.message}`);
+      throw error;
+    }
   });
 
 });

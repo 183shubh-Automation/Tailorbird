@@ -141,12 +141,74 @@ exports.ApprovalJob = class ApprovalJob {
             await approval.createTemplateSubmit.click();
             await this.page.getByRole('button', { name: 'Create Template' }).first()
                 .waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
-            await this.page.waitForTimeout(400);
+            await this.page.waitForTimeout(600);
+
+            // Detect backend rejection (e.g. "already linked" property conflict).
+            const errorToast = this.page.locator('[role="alert"]').filter({ hasText: /already linked|already exists|duplicate/i });
+            if (await errorToast.isVisible({ timeout: 1500 }).catch(() => false)) {
+                const msg = (await errorToast.textContent().catch(() => '')).trim();
+                Logger.info(`submitCreateTemplate: server rejected — "${msg}"`);
+                throw new Error(`TEMPLATE_CONFLICT: ${msg}`);
+            }
+
             Logger.success('Template submitted');
             return true;
         } catch (error) {
             Logger.error('Error submitting template: ' + error.message);
             throw error;
+        }
+    }
+
+    /**
+     * Deletes existing templates whose names match a given prefix and type.
+     * The properties column in the Revogrid list does not expose property names as
+     * plain text, so matching by row text is unreliable. Instead, pass the name
+     * prefix used by the test suite (e.g. 'OOO_InvTemplate_') to target only
+     * templates created by prior runs of the same test.
+     *
+     * @param {string} namePrefix - Template name prefix to match (e.g. 'OOO_InvTemplate_')
+     * @param {string} templateType - Type label to also match (e.g. 'Invoice')
+     */
+    async deleteConflictingTemplatesForProperty(namePrefix, templateType = 'Invoice') {
+        try {
+            Logger.step(`Checking for existing "${templateType}" templates with prefix "${namePrefix}"...`);
+            await this.clearSearch();
+            await this.page.waitForTimeout(800);
+
+            const tree = this.page.locator('[role="treegrid"]');
+            const dataRows = tree.getByRole('row').filter({ has: this.page.locator('.revo-grid-cell-clear-btn') });
+
+            let deletedCount = 0;
+            const total = await dataRows.count();
+            // Iterate in reverse so indices stay stable after each deletion
+            for (let i = total - 1; i >= 0; i--) {
+                const row = dataRows.nth(i);
+                const rowText = (await row.textContent().catch(() => '')).toLowerCase();
+                if (!rowText.includes(templateType.toLowerCase())) continue;
+
+                const firstCell = row.locator('[role="gridcell"]').first();
+                const rawName = (await firstCell.textContent().catch(() => '')).trim();
+                // Strip the ✕ clear-button character that Revogrid appends
+                const templateName = rawName.replace(/✕.*$/, '').trim();
+                if (!templateName.startsWith(namePrefix)) continue;
+
+                Logger.info(`Deleting conflicting template: "${templateName}"`);
+                try {
+                    await this.deleteTemplate(templateName);
+                    deletedCount++;
+                    await this.page.waitForTimeout(500);
+                } catch (delErr) {
+                    Logger.info(`Could not delete "${templateName}": ${delErr.message}`);
+                }
+            }
+
+            if (deletedCount > 0) {
+                Logger.success(`Deleted ${deletedCount} conflicting template(s) with prefix "${namePrefix}"`);
+            } else {
+                Logger.info(`No conflicting templates found with prefix "${namePrefix}"`);
+            }
+        } catch (error) {
+            Logger.info(`deleteConflictingTemplatesForProperty: non-fatal — ${error.message}`);
         }
     }
 
@@ -868,14 +930,22 @@ exports.ApprovalJob = class ApprovalJob {
             const input2 = approverInputs.nth(2);
             await input2.waitFor({ state: 'visible', timeout: approverTimeout });
             await input2.click();
-            await this.page.waitForTimeout(500);
-            for (let k = 0; k < 3; k++) {
-                await this.page.keyboard.press('ArrowDown');
-                await this.page.waitForTimeout(150);
-            }
+            // await this.page.waitForTimeout(500);
+            // for (let k = 0; k < 3; k++) {
+            //     await this.page.keyboard.press('ArrowDown');
+            //     await this.page.waitForTimeout(150);
+            // }
+            // await this.page.keyboard.press('Enter');
+            // await this.page.waitForTimeout(800);
+            // Logger.success('Approver 3 added: selected from dropdown');
+            await this.page.waitForTimeout(300);
+            await input2.fill('sumit tailorbird', { timeout: approverTimeout });
+            await this.page.waitForTimeout(800);
+            await this.page.keyboard.press('ArrowDown');
+            await this.page.waitForTimeout(300);
             await this.page.keyboard.press('Enter');
             await this.page.waitForTimeout(800);
-            Logger.success('Approver 3 added: selected from dropdown');
+            Logger.success('Approver 3 added: sumit tailorbird');
         } catch (error) {
             Logger.error('Error adding approvers: ' + error.message);
             throw error;
@@ -1627,6 +1697,295 @@ exports.ApprovalJob = class ApprovalJob {
             return true;
         } catch (error) {
             Logger.error(`Error testing table structure: ${error.message}`);
+            throw error;
+        }
+    }
+
+    // ===================== TC244: Budget Revision E2E Helpers =====================
+
+    /**
+     * Creates a Budget Approval template with 2 approvers for TC244.
+     * Reuses existing clickCreateTemplate / fillTemplateName / selectTemplateType /
+     * addProperty / submitCreateTemplate — only adds a new composition method.
+     */
+    async createBudgetApprovalTemplateForTest(templateName, propertyName) {
+        try {
+            Logger.step(`Creating Budget Approval template "${templateName}" linked to "${propertyName}"`);
+            await this.navigateToApprovalTemplatesTab();
+            await this.clickCreateTemplate();
+            await this.fillTemplateName(templateName);
+            await this.selectTemplateType('budget');
+            await this.addProperty(propertyName);
+            await this.addTwoApproversForBudgetTest();
+            await this.submitCreateTemplate();
+            Logger.success(`Budget Approval template created: ${templateName}`);
+        } catch (error) {
+            Logger.error(`createBudgetApprovalTemplateForTest failed: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Adds exactly 2 approvers (Sumit Mishra then Sumit Harsh) to the open
+     * Create/Edit Template dialog.  Mirrors the pattern in addThreeApprovers().
+     */
+    async addTwoApproversForBudgetTest() {
+        const approverTimeout = 15000;
+        const approverInputs = approval.selectApproverInput;
+        try {
+            Logger.step('Adding approver 1/2: sumit mishra');
+            const input0 = approverInputs.nth(0);
+            await input0.waitFor({ state: 'visible', timeout: approverTimeout });
+            await input0.click();
+            await this.page.waitForTimeout(300);
+            await input0.fill('sumit mishra', { timeout: approverTimeout });
+            await this.page.waitForTimeout(800);
+            await this.page.keyboard.press('ArrowDown');
+            await this.page.waitForTimeout(300);
+            await this.page.keyboard.press('Enter');
+            await this.page.waitForTimeout(800);
+            Logger.success('Approver 1 added: sumit mishra');
+
+            // Check "Always Required" for approver row 1 so the rule triggers for any budget amount
+            await approval.alwaysRequiredCheckboxesInTemplateDialog.nth(0).click();
+            await this.page.waitForTimeout(300);
+            Logger.success('Always Required checked for approver 1');
+
+            Logger.step('Adding approver 2/2: sumit harsh');
+            const input1 = approverInputs.nth(1);
+            await input1.waitFor({ state: 'visible', timeout: approverTimeout });
+            await input1.click();
+            await this.page.waitForTimeout(300);
+            await input1.fill('sumit harsh', { timeout: approverTimeout });
+            await this.page.waitForTimeout(800);
+            await this.page.keyboard.press('ArrowDown');
+            await this.page.waitForTimeout(300);
+            await this.page.keyboard.press('Enter');
+            await this.page.waitForTimeout(800);
+            Logger.success('Approver 2 added: sumit harsh');
+
+            // Check "Always Required" for approver row 2 so the rule triggers for any budget amount
+            await approval.alwaysRequiredCheckboxesInTemplateDialog.nth(1).click();
+            await this.page.waitForTimeout(300);
+            Logger.success('Always Required checked for approver 2');
+        } catch (error) {
+            Logger.error('addTwoApproversForBudgetTest failed: ' + error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Navigates directly to the All Approvals page via URL to avoid property
+     * context filter that persists from the Budget page URL params.
+     */
+    async navigateToAllApprovalsTab() {
+        try {
+            Logger.step('Navigating to All Approvals tab');
+            await this.page.goto('/approvals/all-approvals', { waitUntil: 'load' });
+            await this.page.waitForTimeout(5000);
+            await this.page.locator('[role="treegrid"]').first()
+                .waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
+            await this.page.waitForTimeout(3000);
+            Logger.success('Navigated to All Approvals tab');
+        } catch (error) {
+            Logger.error('navigateToAllApprovalsTab failed: ' + error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Finds the first row in the All Approvals grid that matches propertyName
+     * and has "Pending" in its status text, then clicks "View Details" (eye icon)
+     * and clicks "Approve on Behalf" in the Approval Details dialog.
+     */
+    async approveRevisionOnBehalfByPropertyInAllApprovals(propertyName) {
+        try {
+            Logger.step(`Approving a pending revision on behalf for property: "${propertyName}"`);
+
+            // All Approvals grid truncates property names (removes timestamp suffix), so
+            // search using the base name only (e.g. "TC15_Budget_Test_Property" not "TC15_Budget_Test_Property_1234567890")
+            const searchName = propertyName.replace(/_\d+$/, '');
+
+            const treegrid = this.page.locator('[role="treegrid"]').first();
+            const dataRows = treegrid.locator('[role="row"]').filter({ has: this.page.locator('[role="gridcell"]') });
+            const count = await dataRows.count();
+
+            let targetIndex = -1;
+            for (let i = 0; i < count; i++) {
+                const rowText = (await dataRows.nth(i).textContent().catch(() => '')).toLowerCase();
+                if (rowText.includes(searchName.toLowerCase()) && rowText.includes('pending')) {
+                    targetIndex = i;
+                    break;
+                }
+            }
+
+            if (targetIndex < 0) {
+                throw new Error(`No pending revision found for property: "${propertyName}"`);
+            }
+
+            // Click the View Details (eye icon) button for this row.
+            // Try index match first; if out of range fall back to Y-coordinate match.
+            const eyeButtons = this.page.locator('button:has(svg.lucide-eye):visible');
+            const eyeCount = await eyeButtons.count();
+
+            if (eyeCount > 0 && targetIndex < eyeCount) {
+                await eyeButtons.nth(targetIndex).click();
+            } else if (eyeCount > 0) {
+                const targetRow = dataRows.nth(targetIndex);
+                const rowBox = await targetRow.boundingBox();
+                let clicked = false;
+                if (rowBox) {
+                    const rowCenterY = rowBox.y + rowBox.height / 2;
+                    for (let b = 0; b < eyeCount; b++) {
+                        const btnBox = await eyeButtons.nth(b).boundingBox();
+                        if (btnBox && Math.abs(btnBox.y + btnBox.height / 2 - rowCenterY) < 30) {
+                            await eyeButtons.nth(b).click();
+                            clicked = true;
+                            break;
+                        }
+                    }
+                }
+                if (!clicked) await eyeButtons.first().click();
+            } else {
+                throw new Error('No View Details (eye icon) buttons found in All Approvals grid');
+            }
+
+            // Approve in the Approval Details dialog
+            const dialog = this.page.getByRole('dialog').filter({ hasText: /Approval Details/i });
+            await expect(dialog).toBeVisible({ timeout: 20000 });
+            await this.page.waitForTimeout(2000);
+
+            const approveOnBehalfBtn = dialog.getByRole('button', { name: 'Approve on Behalf' });
+            await expect(approveOnBehalfBtn).toBeVisible({ timeout: 10000 });
+            await approveOnBehalfBtn.click();
+            await this.page.waitForTimeout(3000);
+
+            await dialog.waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
+            await this.page.waitForTimeout(2000);
+
+            Logger.success(`Approved revision on behalf for property: "${propertyName}"`);
+        } catch (error) {
+            Logger.error(`approveRevisionOnBehalfByPropertyInAllApprovals failed: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Approves ALL pending revisions for a given property via "Approve on Behalf".
+     * Reloads the All Approvals page between each approval to get fresh state.
+     */
+    async approveAllPendingRevisionsOnBehalfByProperty(propertyName) {
+        try {
+            Logger.step(`Approving ALL pending revisions on behalf for property: "${propertyName}"`);
+            // All Approvals grid truncates property names (removes timestamp suffix)
+            const searchName = propertyName.replace(/_\d+$/, '');
+            let approvedCount = 0;
+
+            for (let attempt = 0; attempt < 10; attempt++) {
+                // Reload to get fresh grid state after each approval
+                await this.page.reload({ waitUntil: 'load' });
+                await this.page.waitForTimeout(5000);
+                await this.page.locator('[role="treegrid"]').first()
+                    .waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
+                await this.page.waitForTimeout(3000);
+
+                // Check if any pending revisions remain for this property
+                const treegrid = this.page.locator('[role="treegrid"]').first();
+                const dataRows = treegrid.locator('[role="row"]').filter({ has: this.page.locator('[role="gridcell"]') });
+                const count = await dataRows.count();
+                let hasPending = false;
+                for (let i = 0; i < count; i++) {
+                    const rowText = (await dataRows.nth(i).textContent().catch(() => '')).toLowerCase();
+                    if (rowText.includes(searchName.toLowerCase()) && rowText.includes('pending')) {
+                        hasPending = true;
+                        break;
+                    }
+                }
+                if (!hasPending) break;
+
+                await this.approveRevisionOnBehalfByPropertyInAllApprovals(propertyName);
+                approvedCount++;
+            }
+
+            Logger.success(`Approved ${approvedCount} revision(s) on behalf for property: "${propertyName}"`);
+        } catch (error) {
+            Logger.error(`approveAllPendingRevisionsOnBehalfByProperty failed: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Asserts that at least expectedCount rows in the All Approvals grid match
+     * propertyName AND the expectedStatus string.
+     */
+    async assertRevisionsByPropertyHaveStatus(propertyName, expectedStatus, expectedCount) {
+        try {
+            Logger.step(`Asserting ≥${expectedCount} revision(s) for "${propertyName}" with status "${expectedStatus}"`);
+
+            // All Approvals grid truncates property names (removes timestamp suffix)
+            const searchName = propertyName.replace(/_\d+$/, '');
+
+            const treegrid = this.page.locator('[role="treegrid"]').first();
+            const dataRows = treegrid.locator('[role="row"]').filter({ has: this.page.locator('[role="gridcell"]') });
+            const count = await dataRows.count();
+            let matchCount = 0;
+
+            for (let i = 0; i < count; i++) {
+                const rowText = (await dataRows.nth(i).textContent().catch(() => '')).toLowerCase();
+                if (rowText.includes(searchName.toLowerCase()) &&
+                    rowText.includes(expectedStatus.toLowerCase())) {
+                    matchCount++;
+                }
+            }
+
+            expect(matchCount,
+                `Expected ≥${expectedCount} revision(s) with status "${expectedStatus}" for "${propertyName}", found ${matchCount}`
+            ).toBeGreaterThanOrEqual(expectedCount);
+
+            Logger.success(`✓ ${matchCount} revision(s) have status "${expectedStatus}" for "${propertyName}"`);
+        } catch (error) {
+            Logger.error(`assertRevisionsByPropertyHaveStatus failed: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Finds all Budget-type revision rows for propertyName in the All Approvals grid,
+     * then navigates to the editor URL of the Nth occurrence (0-based, most-recent first).
+     * Used in TC244 Step 10 to open Revision #1 (index=1) after both revisions are approved.
+     */
+    async navigateToNthBudgetRevisionEditorByProperty(propertyName, nthOccurrence) {
+        try {
+            Logger.step(`Navigating to budget revision editor #${nthOccurrence + 1} for property: "${propertyName}"`);
+            const searchName = propertyName.replace(/_\d+$/, '');
+
+            const treegrid = this.page.locator('[role="treegrid"]').first();
+            const dataRows = treegrid.locator('[role="row"]').filter({ has: this.page.locator('[role="gridcell"]') });
+            const count = await dataRows.count();
+
+            const matchingIndices = [];
+            for (let i = 0; i < count; i++) {
+                const rowText = (await dataRows.nth(i).textContent().catch(() => '')).toLowerCase();
+                if (rowText.includes(searchName.toLowerCase()) && rowText.includes('budget')) {
+                    matchingIndices.push(i);
+                }
+            }
+
+            if (matchingIndices.length <= nthOccurrence) {
+                throw new Error(`Expected ≥${nthOccurrence + 1} Budget revision(s) for "${propertyName}", found ${matchingIndices.length}`);
+            }
+
+            const targetRow = dataRows.nth(matchingIndices[nthOccurrence]);
+            const revisionLink = targetRow.locator('a[href*="budget-revision"]').first();
+            await expect(revisionLink).toBeVisible({ timeout: 10000 });
+
+            await revisionLink.click();
+            await this.page.waitForLoadState('domcontentloaded');
+            await this.page.waitForTimeout(3000);
+
+            Logger.success(`Navigated to budget revision editor #${nthOccurrence + 1} for "${propertyName}"`);
+        } catch (error) {
+            Logger.error(`navigateToNthBudgetRevisionEditorByProperty failed: ${error.message}`);
             throw error;
         }
     }
