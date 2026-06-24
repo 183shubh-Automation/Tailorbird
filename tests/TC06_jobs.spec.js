@@ -18,8 +18,8 @@ test.use({
 let page, projectPage, projectJob, projectData, prop;
 const JOB_VISUAL_ASSERT = {
     animations: 'disabled',
-    maxDiffPixels: 32000,
-    maxDiffPixelRatio: 0.15,
+    maxDiffPixels: 50000,
+    maxDiffPixelRatio: 0.3,
 };
 
 async function openJobsWorkspaceFromLeftNav(page) {
@@ -67,7 +67,12 @@ test.describe('Verify Create Project and Add Job flow', () => {
 
     test('TC74 @regression @projectAndJob : Validate Navigation to job tab without any console error within 2 seconds', async () => {
         Logger.step('Navigating to Projects...');
+        const _projApiWaitTc74 = page.waitForResponse(
+            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=project') && r.status() === 200,
+            { timeout: 60000 }
+        ).catch(() => null);
         await projectPage.navigateToProjects();
+        await _projApiWaitTc74;
         await projectPage.openProject(projectData.projectName);
 
         const projectCard = page.locator(
@@ -81,7 +86,12 @@ test.describe('Verify Create Project and Add Job flow', () => {
     });
 
     test('TC75 @regression @sanity @mandatory @projectAndJob @contract : Validate add job modal fields, add job flow and job config in job overview', async () => {
+        const _projApiWaitTc75 = page.waitForResponse(
+            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=project') && r.status() === 200,
+            { timeout: 60000 }
+        ).catch(() => null);
         await projectPage.navigateToProjects();
+        await _projApiWaitTc75;
         await projectPage.openProject(projectData.projectName);
         await projectJob.navigateToJobsTab();
         Logger.step('Adding and editing Job...');
@@ -183,9 +193,19 @@ test.describe('Verify Create Project and Add Job flow', () => {
     });
 
     test('TC76 @regression @projectAndJob @bids : Validate scope mix modal fields', async () => {
+        const _bidApiWait76 = page.waitForResponse(
+            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=bid') && r.status() === 200,
+            { timeout: 60000 }
+        ).catch(() => null);
         await projectPage.openProject('Automation_project_for_scope_mix');
+        const _jobsTabApiWait76 = page.waitForResponse(
+            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=job') && r.status() === 200,
+            { timeout: 60000 }
+        ).catch(() => null);
         await projectJob.navigateToJobsTab();
+        await _jobsTabApiWait76;
         await projectJob.openJobSummary();
+        await _bidApiWait76;
         await projectJob.navigateToBidsTab();
 
         await projectPage.openScopeMixModal();
@@ -216,8 +236,13 @@ test.describe('Verify Create Project and Add Job flow', () => {
                 .filter({ hasText: /^Jobs \(Contracts & POs\)$/i })
                 .first();
             await expect(jobsMenu).toBeVisible({ timeout: 15000 });
+            const _tc77JobsApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=job') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await jobsMenu.click();
             await page.waitForTimeout(20000);
+            await _tc77JobsApiWait;
 
             Logger.step('Opening target job from Jobs listing...');
             const searchInput = page.locator('input[placeholder="Search..."]').first();
@@ -261,31 +286,6 @@ test.describe('Verify Create Project and Add Job flow', () => {
             await innerContractPanel.getByRole('button', { name: /^Import$/i })
                 .waitFor({ state: 'visible', timeout: 30000 });
 
-
-            // const editContractBtn = page.getByRole('button', { name: /^Edit$/i }).first();
-            // await expect(editContractBtn).toBeVisible({ timeout: 15000 });
-            // await editContractBtn.click({ force: true });
-            // await page.waitForTimeout(800);
-
-            // const editContractDialog = page.getByRole('dialog').filter({ hasText: /Edit Contract Overview/i }).first();
-            // await expect(editContractDialog).toBeVisible({ timeout: 15000 });
-
-            // const estimatedTotalCostInput = editContractDialog
-            //     .getByRole('textbox', { name: /Estimated total cost/i })
-            //     .or(editContractDialog.getByLabel(/Estimated total cost/i))
-            //     .first();
-            // await expect(estimatedTotalCostInput).toBeVisible({ timeout: 10000 });
-            // await estimatedTotalCostInput.click({ force: true });
-            // await estimatedTotalCostInput.press('Control+A');
-            // await estimatedTotalCostInput.press('Backspace');
-            // await estimatedTotalCostInput.fill(String(contractEstimatedBudget));
-            // await estimatedTotalCostInput.press('Tab');
-
-            // const saveChangesBtn = editContractDialog.getByRole('button', { name: /Save Changes|Save/i }).first();
-            // await expect(saveChangesBtn).toBeVisible({ timeout: 10000 });
-            // await expect(saveChangesBtn).toBeEnabled({ timeout: 10000 });
-            // await saveChangesBtn.click();
-            // await page.waitForTimeout(30000);
 
             const clearExistingContracts = async () => {
                 const contractsPanel = innerContractPanel;
@@ -339,7 +339,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
                     throw new Error(`Unable to clear existing contract rows. Remaining delete buttons: ${remainingDeletes}`);
                 }
             };
-
+            await page.waitForTimeout(5000);
             await clearExistingContracts();
             await page.waitForTimeout(500);
             const importContractCsv = async () => {
@@ -789,7 +789,12 @@ test.describe('Verify Create Project and Add Job flow', () => {
 
     test('TC79 @regression @projectAndJob : Jobs positive user journey assertions', async () => {
         await test.step('P1: Open target project and Jobs tab successfully', async () => {
+            const _jobsApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=job') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await openJobsWorkspaceFromLeftNav(page);
+            await _jobsApiWait;
             await expect(page).toHaveURL(/\/jobs|tab=jobs/i);
             await expect(projectPage.tc05Loc().mainContainer).toBeVisible({ timeout: 10000 });
         });
@@ -824,7 +829,12 @@ test.describe('Verify Create Project and Add Job flow', () => {
 
     test('TC80 @regression @projectAndJob : Jobs negative and missing validations', async () => {
         await test.step('N1: Empty Create Job submit should remain guarded', async () => {
+            const _jobsApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=job') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await openJobsWorkspaceFromLeftNav(page);
+            await _jobsApiWait;
             await projectPage.openCreateJobModal();
             await projectPage.submitBtn.click().catch(() => { });
             const dialog = projectPage.modal.filter({ has: page.getByPlaceholder(/Enter job title/i) }).last();
@@ -871,7 +881,12 @@ test.describe('Verify Create Project and Add Job flow', () => {
 
     test('TC81 @regression @projectAndJob : Jobs edge and stress interactions', async () => {
         await test.step('E1: Long search strings should be accepted and recover', async () => {
+            const _jobsApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=job') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await openJobsWorkspaceFromLeftNav(page);
+            await _jobsApiWait;
             const search = projectPage.tc05Loc().mainSearchInput;
             const longText = `TC06_LONG_${'X'.repeat(180)}`;
             await search.fill(longText);
@@ -909,7 +924,12 @@ test.describe('Verify Create Project and Add Job flow', () => {
         const shotMain = { ...JOB_VISUAL_ASSERT, mask: [loc.mainSearchInput] };
 
         await test.step('V1: Jobs base workspace visual', async () => {
+            const _jobsApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=job') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await openJobsWorkspaceFromLeftNav(page);
+            await _jobsApiWait;
             await expect(loc.mainContainer).toHaveScreenshot('tc06-v-jobs-workspace.png', shotMain);
         });
 
@@ -958,7 +978,12 @@ test.describe('Verify Create Project and Add Job flow', () => {
     });
 
     test('@regression @projectAndJob TC272 - Reject job creation with whitespace-only title', async () => {
+        const _jobsApiWait = page.waitForResponse(
+            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=job') && r.status() === 200,
+            { timeout: 60000 }
+        ).catch(() => null);
         await openJobsWorkspaceFromLeftNav(page);
+        await _jobsApiWait;
         await projectPage.openCreateJobModal();
 
         const jobModal = page

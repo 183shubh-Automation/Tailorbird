@@ -1,5 +1,5 @@
 /**
- * TC18 — User Role Management + Organization tabs (MCP-aligned: `/user-role-management`, `/organization`).
+ * TC18 — Approvers Management + Organization tabs (MCP-aligned: `/user-role-management`, `/organization`).
  * Legacy `/manage-team` returns 404 on beta (MCP 2026-05-05).
  *
  * Prerequisite: `sessionState.json` from TC01 mandatory login.
@@ -24,6 +24,9 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
     test.use({
       storageState: "sessionState.json",
       viewport: { width: 1440, height: 900 },
+      animations: 'disabled',
+      maxDiffPixels: 50_000,
+      maxDiffPixelRatio: 0.3,
     });
 
     test.beforeEach(() => {
@@ -43,14 +46,14 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
       Logger.success("[MT-roles-pos-01] ✅ Direct user-role-management navigation with benchmark controls passed");
     });
 
-    test("TC36 @regression @manageTeam @roles Menu path Manage User Roles shows benchmark", async ({ page }) => {
-      Logger.info("[MT-roles-pos-02] Starting: Menu path navigation to Manage User Roles");
+    test("TC36 @regression @manageTeam @roles Menu path Manage Approvers shows benchmark", async ({ page }) => {
+      Logger.info("[MT-roles-pos-02] Starting: Menu path navigation to Manage Approvers");
       const userRoleManagement = new ManageTeamRolesHelper(page);
-      InteractionLogger.logNavigation(dashboardLandingUrl, "Dashboard — profile menu → Manage User Roles");
+      InteractionLogger.logNavigation(dashboardLandingUrl, "Dashboard — profile menu → Manage Approvers");
       await userRoleManagement.landManageTeamViaMenu(dashboardLandingUrl);
       Logger.info("[MT-roles-pos-02] Asserting: Roles benchmark is visible after menu navigation");
       await userRoleManagement.expectRolesBenchmarkVisible();
-      Logger.success("[MT-roles-pos-02] ✅ Menu path to Manage User Roles with benchmark visible passed");
+      Logger.success("[MT-roles-pos-02] ✅ Menu path to Manage Approvers with benchmark visible passed");
     });
 
     test("TC37 @regression @manageTeam @roles Role matrix exposes Properties / Location columns", async ({
@@ -184,15 +187,15 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
       Logger.success("[MT-roles-edge-02] ✅ Rapid Users ↔ Property access tab switching keeps shell stable passed");
     });
 
-    test("TC44 @regression @manageTeam @roles Breadcrumb shows User Role Management on matrix page", async ({
+    test("TC44 @regression @manageTeam @roles Breadcrumb shows Approvers Management on matrix page", async ({
       page,
     }) => {
-      Logger.info("[MT-roles-edge-03] Starting: Breadcrumb shows User Role Management on matrix page");
+      Logger.info("[MT-roles-edge-03] Starting: Breadcrumb shows Approvers Management on matrix page");
       const userRoleManagement = new ManageTeamRolesHelper(page);
       await userRoleManagement.gotoManageTeamRolesViaQuery();
-      Logger.info("[MT-roles-edge-03] Asserting: Breadcrumb displays 'User Role Management'");
+      Logger.info("[MT-roles-edge-03] Asserting: Breadcrumb displays 'Approvers Management'");
       await userRoleManagement.expectManageTeamBreadcrumb();
-      Logger.success("[MT-roles-edge-03] ✅ Breadcrumb shows User Role Management on matrix page passed");
+      Logger.success("[MT-roles-edge-03] ✅ Breadcrumb shows Approvers Management on matrix page passed");
     });
 
     test("TC45 @regression @manageTeam @roles Organization Property access differs from Users tab", async ({
@@ -221,9 +224,12 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
     test.use({
       storageState: { cookies: [], origins: [] },
       viewport: { width: 1440, height: 900 },
+      animations: 'disabled',
+      maxDiffPixels: 30_000,
+      maxDiffPixelRatio: 0.15,
     });
 
-    test("TC46 @regression @manageTeam @roles user-role-management without session shows AuthKit Sign in", async ({
+    test("TC46 @regression @manageTeam @roles Approvers-management without session shows AuthKit Sign in", async ({
       page,
     }) => {
       test.skip(!dashboardLandingUrl, "DASHBOARD_URL / dashboard missing");
@@ -279,8 +285,8 @@ test.describe("TC03 Manage Team Roles — Text Agent (live MCP browser scan)", (
       await test.step("STATE 1b | Known CTAs and labels — MCP-verified 2026-05-18", async () => {
         const main = page.locator("main");
 
-        InteractionLogger.logNavigation(rolesUrl, "Breadcrumb: User Role Management");
-        await expect(main.getByText("User Role Management", { exact: true })).toBeVisible({ timeout: 8_000 });
+        InteractionLogger.logNavigation(rolesUrl, "Breadcrumb: Approvers Management");
+        await expect(main.getByText("Approvers Management", { exact: true })).toBeVisible({ timeout: 8_000 });
 
         InteractionLogger.logButtonClick("Add Role", "Add Role");
         await expect(page.getByRole("button", { name: "Add Role" })).toBeVisible({ timeout: 8_000 });

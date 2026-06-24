@@ -1,5 +1,5 @@
 {
-  "_source": "ClientWrapper.tsx user Menu.Dropdown: Manage User Roles, Manage Organization, Profile, Logout; userSettingsMenu.ts hides org items for vendor users (Profile+Logout only). Re-probe beta after UI changes.",
+  "_source": "ClientWrapper.tsx user Menu.Dropdown: Manage Approvers, Manage Organization, Profile, Logout; userSettingsMenu.ts hides org items for vendor users (Profile+Logout only). Re-probe beta after UI changes.",
   "manageTeamPath": "/organization",
   "userMenuProfile": "Profile",
   "userMenuManageTeam": "Manage Team",

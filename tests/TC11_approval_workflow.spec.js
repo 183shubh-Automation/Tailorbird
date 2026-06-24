@@ -7,7 +7,10 @@ test.use({
     storageState: 'sessionState.json',
     video: 'retain-on-failure',
     trace: 'retain-on-failure',
-    screenshot: 'only-on-failure'
+    screenshot: 'only-on-failure',
+    animations: 'disabled',
+    maxDiffPixels: 50_000,
+    maxDiffPixelRatio: 0.3,
 });
 
 let page, approvalJob;
@@ -24,7 +27,12 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
         await page.waitForTimeout(10000);
         Logger.info('Dashboard loaded from stored session');
 
+        const _approvalApiWait = page.waitForResponse(
+            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.status() === 200,
+            { timeout: 60000 }
+        ).catch(() => null);
         await approvalJob.navigateToApprovalTab();
+        await _approvalApiWait;
         await approvalJob.waitForPageLoad();
         Logger.success('Setup complete - Navigated to Approval section');
     });
@@ -34,7 +42,12 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             Logger.step('TC198: Verifying My Approvals tab navigation and page structure');
 
             // Navigate to My Approvals
+            const _myApprovalApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.url().includes('filter_by_current_user') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await approvalJob.navigateToMyApprovalsTab();
+            await _myApprovalApiWait;
             await approvalJob.waitForPageLoad();
             Logger.info('Navigated to My Approvals tab');
 
@@ -62,7 +75,12 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
         try {
             Logger.step('TC199: Testing export data functionality in My Approvals');
 
+            const _myApprovalApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.url().includes('filter_by_current_user') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await approvalJob.navigateToMyApprovalsTab();
+            await _myApprovalApiWait;
             await approvalJob.waitForPageLoad();
 
             const rowCount = await approvalJob.getTableRowCount();
@@ -84,7 +102,12 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
         try {
             Logger.step('TC200: Testing Manage Columns dialog in My Approvals');
 
+            const _myApprovalApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.url().includes('filter_by_current_user') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await approvalJob.navigateToMyApprovalsTab();
+            await _myApprovalApiWait;
             await approvalJob.waitForPageLoad();
 
             // Click settings button
@@ -111,7 +134,12 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
         try {
             Logger.step('TC201: Testing Add Column button in My Approvals');
 
+            const _myApprovalApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.url().includes('filter_by_current_user') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await approvalJob.navigateToMyApprovalsTab();
+            await _myApprovalApiWait;
             await approvalJob.waitForPageLoad();
 
             // Add new column
@@ -130,7 +158,12 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
         try {
             Logger.step('TC202: Testing Filter button in My Approvals');
 
+            const _myApprovalApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.url().includes('filter_by_current_user') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await approvalJob.navigateToMyApprovalsTab();
+            await _myApprovalApiWait;
             await approvalJob.waitForPageLoad();
 
             // Click filter button
@@ -154,7 +187,12 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             Logger.step('TC203: Verifying All Approvals tab navigation and structure');
 
             // Navigate to All Approvals tab
+            const _allApprovalApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.url().includes('one_row_per_approval') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await approvalJob.navigateToAllApprovalsTab();
+            await _allApprovalApiWait;
             await approvalJob.waitForPageLoad();
             Logger.info('Navigated to All Approvals tab');
 
@@ -180,7 +218,12 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
         try {
             Logger.step('TC204: Testing search in All Approvals tab');
 
+            const _allApprovalApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.url().includes('one_row_per_approval') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await approvalJob.navigateToAllApprovalsTab();
+            await _allApprovalApiWait;
             await approvalJob.waitForPageLoad();
 
             const initialRowCount = await approvalJob.getTableRowCount();
@@ -208,7 +251,12 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
         try {
             Logger.step('TC205: Testing export in All Approvals tab');
 
+            const _allApprovalApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.url().includes('one_row_per_approval') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await approvalJob.navigateToAllApprovalsTab();
+            await _allApprovalApiWait;
             await approvalJob.waitForPageLoad();
 
             const rowCount = await approvalJob.getTableRowCount();
@@ -230,7 +278,12 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
         try {
             Logger.step('TC206: Testing Manage Columns in All Approvals');
 
+            const _allApprovalApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.url().includes('one_row_per_approval') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await approvalJob.navigateToAllApprovalsTab();
+            await _allApprovalApiWait;
             await approvalJob.waitForPageLoad();
 
             // Click settings
@@ -256,7 +309,12 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
         try {
             Logger.step('TC207: Testing Add Column in All Approvals');
 
+            const _allApprovalApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.url().includes('one_row_per_approval') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await approvalJob.navigateToAllApprovalsTab();
+            await _allApprovalApiWait;
             await approvalJob.waitForPageLoad();
 
             // Add new column
@@ -275,7 +333,12 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
         try {
             Logger.step('TC208: Testing Filter button in All Approvals');
 
+            const _allApprovalApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.url().includes('one_row_per_approval') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await approvalJob.navigateToAllApprovalsTab();
+            await _allApprovalApiWait;
             await approvalJob.waitForPageLoad();
 
             // Click filter
@@ -299,21 +362,36 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             Logger.step('TC209: E2E test - switching between tabs');
 
             // Start with My Approvals
+            const _myApprovalApiWait209a = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.url().includes('filter_by_current_user') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await approvalJob.navigateToMyApprovalsTab();
+            await _myApprovalApiWait209a;
             Logger.info('My Approvals active');
 
             const myApprovalsRowCount = await approvalJob.getTableRowCount();
             Logger.info('My Approvals rows: ' + myApprovalsRowCount);
 
             // Switch to All Approvals
+            const _allApprovalApiWait209b = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.url().includes('one_row_per_approval') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await approvalJob.navigateToAllApprovalsTab();
+            await _allApprovalApiWait209b;
             Logger.info('All Approvals active');
 
             const allApprovalsRowCount = await approvalJob.getTableRowCount();
             Logger.info('All Approvals rows: ' + allApprovalsRowCount);
 
             // Switch back to My Approvals
+            const _myApprovalApiWait209c = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.url().includes('filter_by_current_user') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await approvalJob.navigateToMyApprovalsTab();
+            await _myApprovalApiWait209c;
             Logger.success('Successfully navigated between tabs');
 
             Logger.success('TC209 passed: Cross-tab navigation working');
@@ -328,13 +406,23 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             Logger.step('TC210: E2E test - verifying page loaded across tabs');
 
             // Get My Approvals page loaded
+            const _myApprovalApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.url().includes('filter_by_current_user') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await approvalJob.navigateToMyApprovalsTab();
+            await _myApprovalApiWait;
             await approvalJob.waitForPageLoad();
             const myApprovalsHeaders = await approvalJob.getAllTableHeaders();
             Logger.info('My Approvals headers count: ' + myApprovalsHeaders.length);
 
             // Get All Approvals page loaded
+            const _allApprovalApiWait = page.waitForResponse(
+                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.url().includes('one_row_per_approval') && r.status() === 200,
+                { timeout: 60000 }
+            ).catch(() => null);
             await approvalJob.navigateToAllApprovalsTab();
+            await _allApprovalApiWait;
             await approvalJob.waitForPageLoad();
             const allApprovalsHeaders = await approvalJob.getAllTableHeaders();
             Logger.info('All Approvals headers count: ' + allApprovalsHeaders.length);
