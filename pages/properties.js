@@ -309,9 +309,11 @@ class PropertiesHelper {
                     break;
                 }
             }
-            const tableBtn = this.page.getByTestId('bt-table-action');
-            await tableBtn.waitFor({ state: 'visible',timeout:20000 });
-            if (!menuOpened) await this.page.waitForTimeout(300);
+            if (!menuOpened) {
+                const tableBtn = this.page.getByTestId('bt-table-action');
+                await tableBtn.waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+                await this.page.waitForTimeout(300);
+            }
         }
         if (!menuOpened) this.log(`changeView: menu item "${view}" not visible; proceeding with current view.`);
 
@@ -499,10 +501,9 @@ class PropertiesHelper {
         const matchingCell = this.page.locator(propertyLocators.propertyNameCell(name)).first();
         const exactFound = await matchingCell.isVisible({ timeout: 12_000 }).catch(() => false);
         if (!exactFound) {
-            const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             const cardName = this.page
                 .locator("main p")
-                .filter({ hasText: new RegExp(`^\\s*${escapedName}\\s*$`, "i") })
+                .filter({ has: this.page.getByText(name, { exact: true }) })
                 .first();
             await expect(cardName).toBeVisible({ timeout: 10_000 });
         } else {
@@ -861,7 +862,7 @@ class PropertiesHelper {
 
     async validateTabs(tabs = ["Overview", "Asset Viewer", "Takeoffs", "Locations"]) {
         for (const tab of tabs) {
-            const tabEl = this.page.getByRole("tab", { name: new RegExp(`^${tab}$`, "i") }).first();
+            const tabEl = this.page.getByRole("tab", { name: tab, exact: true }).first();
             await expect(tabEl).toBeVisible({ timeout: 15000 });
             console.log(`[ASSERT] Tab visible → ${tab}`);
         }
@@ -1528,10 +1529,9 @@ class PropertiesHelper {
         // Card layout fallback: clicking the property title/card opens details drawer/page.
         const searchValue = await this.page.locator(propertyLocators.searchInput).first().inputValue().catch(() => "");
         if (searchValue.trim()) {
-            const escaped = searchValue.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             const matchingCardTitle = this.page
                 .locator("main p")
-                .filter({ hasText: new RegExp(`^\\s*${escaped}\\s*$`, "i") })
+                .filter({ has: this.page.getByText(searchValue.trim(), { exact: true }) })
                 .first();
             if (await matchingCardTitle.isVisible({ timeout: 5000 }).catch(() => false)) {
                 await matchingCardTitle.click({ force: true });
@@ -1723,6 +1723,11 @@ class PropertiesHelper {
         // MCP-verified: dblclick opens the floating revogr-edit textbox directly — do NOT press
         // Enter here. Pressing Enter would commit an empty value and close the editor before fill.
         await this.page.waitForTimeout(400);
+        // Wait for the primary revogr-edit editor to appear and stabilize before interacting.
+        // On CI (slower machines) the 400ms blind wait is not enough — waitFor() retries until
+        // the element is actually in the DOM and visible.
+        await this.page.locator('revogr-edit input:not([readonly]):not([disabled])').first()
+            .waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
         const nameEditorCandidates = [
             this.page.locator('revogr-edit input:visible:not([readonly]):not([disabled])').first(),
             this.page.locator('input[type="text"]:visible:not([placeholder="Search..."]):not([readonly]):not([disabled])').first(),
@@ -1739,17 +1744,33 @@ class PropertiesHelper {
             const editable = await editor.isEditable().catch(() => false);
             if (!editable) continue;
             await editor.click({ force: true }).catch(() => { });
+            await this.page.waitForTimeout(150);
             let fillSuccess = false;
-            for (let attempt = 1; attempt <= 3; attempt++) {
+            if (idx === 0) {
+                // revogr-edit input: keyboard.type() is more resilient than fill() because it
+                // sends keystrokes to the focused element without re-querying the locator.
+                // fill() re-queries the locator internally and can time out if the grid
+                // re-renders the input between the visibility check and the fill action.
                 try {
-                    await editor.fill(rowName, { timeout: 3000 });
+                    await this.page.keyboard.press('Control+A');
+                    await this.page.keyboard.type(rowName, { delay: 30 });
                     fillSuccess = true;
-                    break;
-                } catch (fillErr) {
-                    if (attempt < 3) {
-                        console.log(`⚠ fill attempt ${attempt} failed, retrying in 5s…`);
-                        await this.page.waitForTimeout(5000);
-                        await editor.click({ force: true }).catch(() => { });
+                } catch {
+                    // keyboard approach failed, fall through to fill below
+                }
+            }
+            if (!fillSuccess) {
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                    try {
+                        await editor.fill(rowName, { timeout: 5000 });
+                        fillSuccess = true;
+                        break;
+                    } catch (fillErr) {
+                        if (attempt < 3) {
+                            console.log(`⚠ fill attempt ${attempt} failed, retrying in 3s…`);
+                            await this.page.waitForTimeout(3000);
+                            await editor.click({ force: true }).catch(() => { });
+                        }
                     }
                 }
             }
@@ -2030,7 +2051,7 @@ class PropertiesHelper {
 
         const optionLabel =
             type === 'unit' ? 'Units' : type === 'building' ? 'Buildings' : type;
-        const option = this.page.getByRole('option', { name: new RegExp(optionLabel, 'i') }).or(this.page.locator(prop.locationDropdownOption(type)));
+        const option = this.page.getByRole('option', { name: optionLabel }).or(this.page.locator(prop.locationDropdownOption(type)));
         await option.first().waitFor({ state: 'visible', timeout: 8000 });
         await option.first().click();
         await this.page.waitForLoadState('domcontentloaded').catch(() => { });
@@ -2060,7 +2081,7 @@ class PropertiesHelper {
         const tabpanel = this.page.getByRole('tabpanel', { name: 'Locations' });
         const requiredHeaders = ['Name', 'Building', 'Site'];
         for (const header of requiredHeaders) {
-            await expect(tabpanel.getByRole('columnheader', { name: new RegExp(header, 'i') })).toBeVisible({ timeout: 10000 });
+            await expect(tabpanel.getByRole('columnheader', { name: header })).toBeVisible({ timeout: 10000 });
         }
         // "Actions" column is optional in current UI depending on visible columns config.
         const actionsHeader = tabpanel.getByRole('columnheader', { name: /Actions/i });

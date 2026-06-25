@@ -35,21 +35,11 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('TC63 @regression @projectAndJob : Navigate to Projects & Jobs and verify page loads successfully within 2 seconds and zero console error', async ({ page }) => {
-    const _projApiWait = projectPage.page.waitForResponse(
-        r => r.url().includes('/api/bird-table') && r.url().includes('table_name=project') && r.status() === 200,
-        { timeout: 60000 }
-    ).catch(() => null);
     await projectPage.navigateToProjects();
-    await _projApiWait;
 });
 
 test('TC64 @regression @projectAndJob : User should be able to Open Create Project modal and verify all fields are visible', async () => {
-    const _projApiWait = projectPage.page.waitForResponse(
-        r => r.url().includes('/api/bird-table') && r.url().includes('table_name=project') && r.status() === 200,
-        { timeout: 60000 }
-    ).catch(() => null);
     await projectPage.navigateToProjects();
-    await _projApiWait;
     await projectPage.openCreateProjectModal();
     await projectPage.verifyModalFields();
 });
@@ -93,12 +83,7 @@ test('TC65 @regression @sanity @mandatory @projectAndJob @contract : User should
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(10000);
 
-    const _projApiWait = projectPage.page.waitForResponse(
-        r => r.url().includes('/api/bird-table') && r.url().includes('table_name=project') && r.status() === 200,
-        { timeout: 60000 }
-    ).catch(() => null);
     await projectPage.navigateToProjects();
-    await _projApiWait;
     await projectPage.openCreateProjectModal();
     const startDate = await projectPage.getStartDate();
     const endDate = await projectPage.getEndDate();
@@ -114,47 +99,27 @@ test('TC65 @regression @sanity @mandatory @projectAndJob @contract : User should
 });
 
 test('TC66 @regression @projectAndJob : User should be able to search project using partial name and verify matching results', async () => {
-    const _projApiWait = projectPage.page.waitForResponse(
-        r => r.url().includes('/api/bird-table') && r.url().includes('table_name=project') && r.status() === 200,
-        { timeout: 60000 }
-    ).catch(() => null);
     await projectPage.navigateToProjects();
-    await _projApiWait;
     await projectPage.setProjectsTableView();
     await projectPage.searchProjectInProjects('Automa_Test');
 });
 
 test('TC67 @regression @projectAndJob : User should be able to apply filter and export project', async () => {
-    const _projApiWait = projectPage.page.waitForResponse(
-        r => r.url().includes('/api/bird-table') && r.url().includes('table_name=project') && r.status() === 200,
-        { timeout: 60000 }
-    ).catch(() => null);
     await projectPage.navigateToProjects();
-    await _projApiWait;
     await projectPage.setProjectsTableView();
     await projectJob.applyProjectFilterAndExport('Test Property 1_Cottages on Elm', 'Automa_Test');
     // await projectJob.deleteFirstProjectRow();
 });
 
 test('TC68 @regression @projectAndJob : Validate cancel button closes without saving.', async () => {
-    const _projApiWait = projectPage.page.waitForResponse(
-        r => r.url().includes('/api/bird-table') && r.url().includes('table_name=project') && r.status() === 200,
-        { timeout: 60000 }
-    ).catch(() => null);
     await projectPage.navigateToProjects();
-    await _projApiWait;
     await projectPage.setProjectsTableView();
     await projectPage.openCreateProjectModal();
     await projectPage.verifyModalClosed();
 });
 
 test('TC69 @regression @projectAndJob : Validate Create Project form mandatory fields assertion, property dropdown options and date can be filled directly without using calender', async () => {
-    const _projApiWait = projectPage.page.waitForResponse(
-        r => r.url().includes('/api/bird-table') && r.url().includes('table_name=project') && r.status() === 200,
-        { timeout: 60000 }
-    ).catch(() => null);
     await projectPage.navigateToProjects();
-    await _projApiWait;
     await projectPage.openCreateProjectModal();
     await projectPage.validateMandatoryFields();
     await projectPage.propertyDropdownOptions();
@@ -434,12 +399,7 @@ test('TC72 @regression @projectAndJob : Edge behavior and state transition check
 });
 
 test('@regression @projectAndJob TC271 - Reject project creation with "      " name', async ({ page }) => {
-    const _projApiWait = projectPage.page.waitForResponse(
-        r => r.url().includes('/api/bird-table') && r.url().includes('table_name=project') && r.status() === 200,
-        { timeout: 60000 }
-    ).catch(() => null);
     await projectPage.navigateToProjects();
-    await _projApiWait;
     await projectPage.openCreateProjectModal();
 
     // Fill name with whitespace + dot; all other fields valid to isolate name validation
@@ -461,7 +421,7 @@ test('@regression @projectAndJob TC271 - Reject project creation with "      " n
     await page.waitForTimeout(500);
     await projectPage.propertyDropdown.fill(propertyName.slice(0, 20));
     await page.waitForTimeout(800);
-    const propOption = page.getByRole('option', { name: new RegExp(propertyName.slice(0, 20).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).first();
+    const propOption = page.getByRole('option', { name: propertyName.slice(0, 20) }).first();
     if (await propOption.isVisible({ timeout: 3000 }).catch(() => false)) {
         await propOption.click();
     }

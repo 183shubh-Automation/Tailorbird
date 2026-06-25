@@ -183,7 +183,7 @@ class OrganizationHelper {
             : roleName;
       await dialogScoped.getByRole("button", { name: data.inviteOrgRoleTriggerText }).click();
       await this.page.waitForTimeout(500);
-      const choicePop = this.page.locator(`[role="option"]`).filter({ hasText: new RegExp(`^${mapped}$`) }).first();
+      const choicePop = this.page.locator(`[role="option"]`).filter({ has: this.page.getByText(mapped, { exact: true }) }).first();
       await expect(choicePop, `Expected organization role option "${mapped}"`).toBeAttached({ timeout: 15_000 });
       await choicePop.evaluate((el) => el.click());
       await expect
@@ -350,8 +350,7 @@ class OrganizationHelper {
     try {
       this.log("Verifying organization user search empty state...");
       // Live copy (MCP beta 2026-05-05): `No users found for query '<search term>'` — never assert exact full string.
-      const emptyStatePattern = new RegExp(data.noResultsText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-      await expect(this.page.getByText(emptyStatePattern)).toBeVisible({ timeout: 15_000 });
+      await expect(this.page.getByText(data.noResultsText)).toBeVisible({ timeout: 15_000 });
       this.log("Empty search state verified.");
     } catch (err) {
       this.log("ERROR verifying no results: " + err);

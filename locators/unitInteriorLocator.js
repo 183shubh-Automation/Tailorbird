@@ -105,7 +105,7 @@ function unitInteriorLocators(page) {
             .getByRole('row')
             .filter({
                 has: page.getByRole('gridcell')
-                    .filter({ hasText: new RegExp(`^\\s*${num}\\s*$`) })
+                    .filter({ has: page.getByText(String(num), { exact: true }) })
             })
             .first(),
 
@@ -115,7 +115,7 @@ function unitInteriorLocators(page) {
             .getByRole('row')
             .filter({
                 has: page.getByRole('gridcell')
-                    .filter({ hasText: new RegExp(`^\\s*${num}\\s*$`) })
+                    .filter({ has: page.getByText(String(num), { exact: true }) })
             })
             .first()
             .getByRole('checkbox'),
@@ -126,7 +126,7 @@ function unitInteriorLocators(page) {
             .getByRole('row')
             .filter({
                 has: page.getByRole('gridcell')
-                    .filter({ hasText: new RegExp(`^\\s*${num}\\s*$`) })
+                    .filter({ has: page.getByText(String(num), { exact: true }) })
             })
             .first()
             .getByRole('button', { name: '›' }),
@@ -137,7 +137,7 @@ function unitInteriorLocators(page) {
             .getByRole('row')
             .filter({
                 has: page.getByRole('gridcell')
-                    .filter({ hasText: new RegExp(`^\\s*${num}\\s*$`) })
+                    .filter({ has: page.getByText(String(num), { exact: true }) })
             })
             .first()
             .getByRole('button', { name: 'Unit actions' }),

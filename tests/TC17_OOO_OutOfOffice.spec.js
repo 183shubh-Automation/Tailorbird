@@ -407,7 +407,7 @@ test.describe.serial('Out of Office — OOO suite', () => {
         await oooPage.loc.input_teamMember.click();
         await oooPage.loc.input_teamMember.fill(currentUserName.split(' ')[0]);
         await page.waitForTimeout(800);
-        const selfOption = page.getByRole('option', { name: new RegExp(currentUserName, 'i') });
+        const selfOption = page.getByRole('option', { name: currentUserName });
         expect(await selfOption.isVisible().catch(() => false), `"${currentUserName}" must NOT appear in dropdown`).toBe(false);
         Logger.info(`TC267: Self-delegation blocked ✓`);
 

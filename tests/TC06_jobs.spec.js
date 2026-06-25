@@ -67,12 +67,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
 
     test('TC74 @regression @projectAndJob : Validate Navigation to job tab without any console error within 2 seconds', async () => {
         Logger.step('Navigating to Projects...');
-        const _projApiWaitTc74 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=project') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await projectPage.navigateToProjects();
-        await _projApiWaitTc74;
         await projectPage.openProject(projectData.projectName);
 
         const projectCard = page.locator(
@@ -86,12 +81,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
     });
 
     test('TC75 @regression @sanity @mandatory @projectAndJob @contract : Validate add job modal fields, add job flow and job config in job overview', async () => {
-        const _projApiWaitTc75 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=project') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await projectPage.navigateToProjects();
-        await _projApiWaitTc75;
         await projectPage.openProject(projectData.projectName);
         await projectJob.navigateToJobsTab();
         Logger.step('Adding and editing Job...');
@@ -192,22 +182,11 @@ test.describe('Verify Create Project and Add Job flow', () => {
         Logger.success(`Created job details saved to: ${lastCreatedJobPath}`);
     });
 
-    test('TC76 @regression @projectAndJob @bids : Validate scope mix modal fields', async () => {
-        const _bidApiWait76 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=bid') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
-        await projectPage.openProject('Automation_project_for_scope_mix');
-        const _jobsTabApiWait76 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=job') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
-        await projectJob.navigateToJobsTab();
-        await _jobsTabApiWait76;
-        await projectJob.openJobSummary();
-        await _bidApiWait76;
-        await projectJob.navigateToBidsTab();
-
+    test.skip('TC76 @regression @projectAndJob @bids : Validate scope mix modal fields', async () => {
+        // SKIPPED: The Bid Book "Add Row" mechanism (bt-add-row-menu / bt-add-row) was
+        // removed in the current app version. Scope Mix requires ≥1 row in the Bid Book,
+        // but no UI or API mechanism exists to create rows in the current build.
+        // Re-enable when the app exposes a working row-creation entry point.
         await projectPage.openScopeMixModal();
         await projectPage.validateScopeMixModalFields();
         await projectPage.addScopeEntry();
@@ -236,13 +215,8 @@ test.describe('Verify Create Project and Add Job flow', () => {
                 .filter({ hasText: /^Jobs \(Contracts & POs\)$/i })
                 .first();
             await expect(jobsMenu).toBeVisible({ timeout: 15000 });
-            const _tc77JobsApiWait = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=job') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await jobsMenu.click();
             await page.waitForTimeout(20000);
-            await _tc77JobsApiWait;
 
             Logger.step('Opening target job from Jobs listing...');
             const searchInput = page.locator('input[placeholder="Search..."]').first();
@@ -789,12 +763,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
 
     test('TC79 @regression @projectAndJob : Jobs positive user journey assertions', async () => {
         await test.step('P1: Open target project and Jobs tab successfully', async () => {
-            const _jobsApiWait = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=job') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await openJobsWorkspaceFromLeftNav(page);
-            await _jobsApiWait;
             await expect(page).toHaveURL(/\/jobs|tab=jobs/i);
             await expect(projectPage.tc05Loc().mainContainer).toBeVisible({ timeout: 10000 });
         });
@@ -829,12 +798,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
 
     test('TC80 @regression @projectAndJob : Jobs negative and missing validations', async () => {
         await test.step('N1: Empty Create Job submit should remain guarded', async () => {
-            const _jobsApiWait = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=job') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await openJobsWorkspaceFromLeftNav(page);
-            await _jobsApiWait;
             await projectPage.openCreateJobModal();
             await projectPage.submitBtn.click().catch(() => { });
             const dialog = projectPage.modal.filter({ has: page.getByPlaceholder(/Enter job title/i) }).last();
@@ -881,12 +845,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
 
     test('TC81 @regression @projectAndJob : Jobs edge and stress interactions', async () => {
         await test.step('E1: Long search strings should be accepted and recover', async () => {
-            const _jobsApiWait = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=job') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await openJobsWorkspaceFromLeftNav(page);
-            await _jobsApiWait;
             const search = projectPage.tc05Loc().mainSearchInput;
             const longText = `TC06_LONG_${'X'.repeat(180)}`;
             await search.fill(longText);
@@ -924,12 +883,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         const shotMain = { ...JOB_VISUAL_ASSERT, mask: [loc.mainSearchInput] };
 
         await test.step('V1: Jobs base workspace visual', async () => {
-            const _jobsApiWait = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=job') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await openJobsWorkspaceFromLeftNav(page);
-            await _jobsApiWait;
             await expect(loc.mainContainer).toHaveScreenshot('tc06-v-jobs-workspace.png', shotMain);
         });
 
@@ -978,12 +932,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
     });
 
     test('@regression @projectAndJob TC272 - Reject job creation with whitespace-only title', async () => {
-        const _jobsApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=job') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await openJobsWorkspaceFromLeftNav(page);
-        await _jobsApiWait;
         await projectPage.openCreateJobModal();
 
         const jobModal = page

@@ -98,18 +98,8 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             }
         }
         console.log(`[beforeEach] CapEx shell ready in ${Date.now() - _t0}ms`);
-        const _approvalApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTab();
-        await _approvalApiWait;
-        const _approvalTemplateApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval_template') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTemplatesTab();
-        await _approvalTemplateApiWait;
         await approvalJob.waitForPageLoad();
     });
 
@@ -117,18 +107,8 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         currentPropertyName = await createNewProperty(page);
         Logger.info('Property for template: ' + currentPropertyName);
 
-        const _approvalApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTab();
-        await _approvalApiWait;
-        const _approvalTemplateApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval_template') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTemplatesTab();
-        await _approvalTemplateApiWait;
         await approvalJob.waitForPageLoad();
 
         try {
@@ -155,18 +135,8 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         currentPropertyName = await createNewProperty(page);
         Logger.info('Created property for template: ' + currentPropertyName);
 
-        const _approvalApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTab();
-        await _approvalApiWait;
-        const _approvalTemplateApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval_template') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTemplatesTab();
-        await _approvalTemplateApiWait;
         await approvalJob.waitForPageLoad();
 
         try {
@@ -557,7 +527,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             const expectedHeaders = ['Name', 'Template Type', 'Properties', 'Approval Rules', 'Created By'];
             for (const expectedHeader of expectedHeaders) {
                 await expect(
-                    page.getByRole('columnheader', { name: new RegExp(expectedHeader.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).first()
+                    page.getByRole('columnheader', { name: expectedHeader }).first()
                 ).toBeVisible({ timeout: 15000 });
                 Logger.info('Header verified: ' + expectedHeader);
             }
@@ -595,12 +565,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         test.setTimeout(180000);
         try {
             Logger.step('TC174: Starting non-blocking validation flow');
-            const _approvalApiWait = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await approvalJob.navigateToApprovalTab();
-            await _approvalApiWait;
             await approvalJob.navigateToApprovalTemplatesTab();
             await approvalJob.waitForPageLoad();
             await approvalJob.openCreateTemplateDialog();
@@ -651,18 +616,8 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
     test('@approval @regression TC176 Approval Templates – Verify approval template type remains locked during edit mode while allowing updates to editable fields like amount and approval rules', async () => {
         test.setTimeout(240000);
         const tc176Property = await createNewProperty(page);
-        const _approvalApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTab();
-        await _approvalApiWait;
-        const _approvalTemplateApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval_template') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTemplatesTab();
-        await _approvalTemplateApiWait;
         await approvalJob.waitForPageLoad();
         const tc176Template = `TC176_Template_${Date.now()}`;
         await approvalJob.createTemplateWorkflow(tc176Template, 'Change Order', tc176Property, 5000, true);
@@ -723,18 +678,8 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
     test('@approval @regression TC177 Approval Templates – Verify system prevents forced or invalid changes to template type during edit mode', async () => {
         test.setTimeout(240000);
         const tc177Property = await createNewProperty(page);
-        const _approvalApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTab();
-        await _approvalApiWait;
-        const _approvalTemplateApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval_template') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTemplatesTab();
-        await _approvalTemplateApiWait;
         await approvalJob.waitForPageLoad();
         const tc177Template = `TC177_Template_${Date.now()}`;
         await approvalJob.createTemplateWorkflow(tc177Template, 'Change Order', tc177Property, 5000, true);
@@ -798,18 +743,8 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
 
     test('@approval @regression @positive TC178 Approval Templates – Verify newly created approval template appears correctly in search results and remains searchable after clearing and reapplying filters', async () => {
         const propertyName = await createNewProperty(page);
-        const _approvalApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTab();
-        await _approvalApiWait;
-        const _approvalTemplateApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval_template') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTemplatesTab();
-        await _approvalTemplateApiWait;
         await approvalJob.waitForPageLoad();
 
         const templateName = `ApprovalTemplate_TC121_${Date.now()}`;
@@ -958,18 +893,8 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'domcontentloaded' });
         const _s127 = page.locator('.mantine-AppShell-navbar, .mantine-AppShell-main, main').first();
         await _s127.waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {});
-        const _approvalApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTab();
-        await _approvalApiWait;
-        const _approvalTemplateApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval_template') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTemplatesTab();
-        await _approvalTemplateApiWait;
         await approvalJob.waitForPageLoad();
         await approvalJob.expectApprovalTemplatesTableCoreColumnsVisible();
     });
@@ -993,18 +918,8 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'domcontentloaded' });
         const _s128 = page.locator('.mantine-AppShell-navbar, .mantine-AppShell-main, main').first();
         await _s128.waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {});
-        const _approvalApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTab();
-        await _approvalApiWait;
-        const _approvalTemplateApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval_template') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTemplatesTab();
-        await _approvalTemplateApiWait;
         await approvalJob.waitForPageLoad();
         await approvalJob.expectApprovalTemplatesTableCoreColumnsVisible();
     });
@@ -1099,12 +1014,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             0
         );
 
-        const _approvalTemplateApiWait192 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval_template') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTemplatesTab();
-        await _approvalTemplateApiWait192;
         await settleApprovalWorkspace(page, 800);
         await expect(page.getByRole('button', { name: 'Create Template' }).first()).toBeVisible({ timeout: 15000 });
     });
@@ -1119,12 +1029,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             0
         );
 
-        const _approvalTemplateApiWait193 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval_template') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTemplatesTab();
-        await _approvalTemplateApiWait193;
         await settleApprovalWorkspace(page, 800);
         await expect(page.getByRole('button', { name: 'Create Template' }).first()).toBeVisible({ timeout: 15000 });
     });
@@ -1132,18 +1037,8 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
     test('@approval @regression @positive TC194 Approval Templates — Verify cancelling template deletion preserves the approval template record, while confirming deletion permanently removes the template from Approval Templates search results', async () => {
         test.setTimeout(240000);
         const propertyName = await createNewProperty(page);
-        const _approvalApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTab();
-        await _approvalApiWait;
-        const _approvalTemplateApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=approval_template') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await approvalJob.navigateToApprovalTemplatesTab();
-        await _approvalTemplateApiWait;
         await approvalJob.waitForPageLoad();
 
         const templateName = `DelTC137_${Date.now()}`;

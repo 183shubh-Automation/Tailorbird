@@ -20,11 +20,35 @@ class SimpleApprovalPage {
     }
 
     async navigateToMyApprovalsTab() {
+        const approvalDataPromise = this.page.waitForResponse(
+            resp => resp.url().includes('/api/bird-table') &&
+                    resp.url().includes('table_name=approval') &&
+                    resp.url().includes('filter_by_current_user=true') &&
+                    resp.status() >= 200 && resp.status() < 300,
+            { timeout: 45000 }
+        ).catch(() => null);
+
         await this.loc.myApprovalsTab.click();
         await this.page.waitForURL('**/approvals/my-approvals**', { timeout: 15000 }).catch(() => {});
         await expect(this.loc.myApprovalsTab).toHaveAttribute('aria-selected', 'true', { timeout: 10000 });
-        await this.waitForPageLoad();
-        await this.page.waitForTimeout(8000);
+        // await this.waitForPageLoad();
+        await this.page.waitForTimeout(13000);
+
+        const resp = await approvalDataPromise;
+        if (resp) {
+            try {
+                const body = await resp.json();
+                if (!body.rows || body.rows.length === 0) {
+                    Logger.error('bird-table approval API returned empty rows — no approval data present');
+                } else {
+                    Logger.success(`bird-table approval API: ${body.rows.length} rows loaded`);
+                }
+            } catch {
+                Logger.info('Could not parse bird-table approval response body');
+            }
+        } else {
+            Logger.info('bird-table approval API response not captured within timeout');
+        }
     }
 
     async navigateToAllApprovalsTab() {

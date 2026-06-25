@@ -104,13 +104,25 @@ test.describe('Verify Invoice tab', () => {
 
         await projectPage.openProject(projectData.projectName);
         await projectJob.navigateToJobsTab();
+
+        // If the project from projectData.json has no jobs (standalone run without TC75),
+        // fall back to lastCreatedJob.json's project which has a job with a contract.
+        const noJobs = await page.getByText('No jobs added yet').isVisible().catch(() => false);
+        if (noJobs) {
+            const ljPath = path.join(__dirname, '../data/lastCreatedJob.json');
+            if (fs.existsSync(ljPath)) {
+                const lj = JSON.parse(fs.readFileSync(ljPath, 'utf8'));
+                if (lj?.projectName) {
+                    Logger.step(`beforeEach: "${projectData.projectName}" has no jobs — falling back to "${lj.projectName}"`);
+                    await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'load' });
+                    await projectPage.openProject(lj.projectName);
+                    await projectJob.navigateToJobsTab();
+                }
+            }
+        }
+
         await projectJob.openJobSummary();
-        const _invApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.navigateToInvoiceTab();
-        await _invApiWait;
         await page.waitForLoadState('load');
         await page.waitForTimeout(2000);
 
@@ -199,12 +211,7 @@ test.describe('Verify Invoice tab', () => {
     });
 
     test('TC103 @regression @changeOrderAndinvoice : Should confirm/save the invoice with budget category', async () => {
-        const _invDetailWait103 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.clickAddInvoice();
-        await _invDetailWait103;
 
         const testTitle = `Invoice_${Date.now()}`;
         await invoicePage.fillInvoiceTitle(testTitle);
@@ -283,24 +290,14 @@ test.describe('Verify Invoice tab', () => {
         await expect(page).toHaveURL(/tab=invoices/);
         Logger.success('Currently on Invoice tab.');
 
-        const _coApiWait107 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.navigateToChangeOrderTab();
-        await _coApiWait107;
 
         await page.waitForLoadState('load');
         await expect(page).toHaveURL(/tab=change-orders|tab=changeOrders|Change Order/i, { timeout: 20000 });
 
         Logger.success('Successfully navigated to Change Order tab.');
 
-        const _invApiWait2 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.navigateToInvoiceTab();
-        await _invApiWait2;
         await page.waitForLoadState('load');
 
         await expect(page).toHaveURL(/tab=invoices/);
@@ -336,12 +333,7 @@ test.describe('Verify Invoice tab', () => {
         Logger.info(`TC109: Initial invoice count: ${initialRowCount}`);
 
         await page.waitForTimeout(1000);
-        const _invDetailWait109a = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.clickAddInvoice();
-        await _invDetailWait109a;
         const title1 = `Invoice_Multi_1_${Date.now()}`;
         await invoicePage.fillInvoiceTitle(title1);
         await invoicePage.fillInvoiceDescription('First invoice');
@@ -360,12 +352,7 @@ test.describe('Verify Invoice tab', () => {
 
         await expect(invoicePage.addInvoiceButton).toBeVisible({ timeout: 10000 });
 
-        const _invDetailWait109b = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.clickAddInvoice();
-        await _invDetailWait109b;
         const title2 = `Invoice_Multi_2_${Date.now()}`;
         await invoicePage.fillInvoiceTitle(title2);
         await invoicePage.fillInvoiceDescription('Second invoice');
@@ -439,12 +426,7 @@ test.describe('Verify Invoice tab', () => {
         };
         Logger.info(`Creating invoice: ${testData.title}`);
 
-        const _invDetailWait112 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.clickAddInvoice();
-        await _invDetailWait112;
         await page.waitForTimeout(2000);
 
         const invoiceNumber = await invoicePage.getInvoiceNumber();
@@ -468,12 +450,7 @@ test.describe('Verify Invoice tab', () => {
         }
         Logger.success(`TC112: Budget category verified on ${categoryValues.length} rows: ${JSON.stringify(categoryValues)}`);
 
-        const _invListWait112 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.goBackToInvoiceList();
-        await _invListWait112;
 
         const isInList = await invoicePage.verifyInvoiceInList({ invoiceNumber: invoiceNumber });
         expect(isInList).toBeTruthy();
@@ -588,12 +565,7 @@ test.describe('Verify Invoice tab', () => {
         const initialCount = await invoicePage.getInvoiceCount();
         Logger.info(`TC117: Initial invoice count: ${initialCount}`);
 
-        const _invDetailWait117 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.clickAddInvoice();
-        await _invDetailWait117;
         await page.waitForTimeout(2000);
 
         const invoiceNumber = await invoicePage.getInvoiceNumber();
@@ -622,12 +594,7 @@ test.describe('Verify Invoice tab', () => {
         await page.waitForLoadState('load');
         await page.waitForTimeout(2000);
 
-        const _invListWait117 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.goBackToInvoiceList();
-        await _invListWait117;
 
         const isInList = await invoicePage.verifyInvoiceInList({ invoiceNumber: invoiceNumber });
         expect(isInList).toBeTruthy();
@@ -687,17 +654,7 @@ test.describe('Verify Invoice tab', () => {
             budgetCategory: 'Bathroom fixtures install'
         };
 
-        const _invDetailWait120 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
-        const _invListWait120 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice') && !r.url().includes('invoice_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         const result = await invoicePage.createCompleteInvoice(testData);
-        await _invDetailWait120;
-        await _invListWait120;
         expect(result.number).toBeTruthy();
         expect(result.budgetCategoriesSet).toBeGreaterThan(0);
         Logger.success(`TC120: Invoice ${result.number} created with budget category`);
@@ -717,12 +674,7 @@ test.describe('Verify Invoice tab', () => {
         await page.waitForTimeout(2000);
 
         // Click Add Invoice
-        const _invDetailWait121 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.clickAddInvoice();
-        await _invDetailWait121;
         await page.waitForTimeout(2000);
 
         // Get the auto-generated invoice number
@@ -734,12 +686,7 @@ test.describe('Verify Invoice tab', () => {
         Logger.success(`Auto-generated invoice number: ${invoiceNumber}`);
 
         // Close the form
-        const _invListWait121 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice') && !r.url().includes('invoice_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.goBackToInvoiceList();
-        await _invListWait121;
     });
 
     test('TC122 @regression @changeOrderAndinvoice : Should verify invoice form validation', async () => {
@@ -748,12 +695,7 @@ test.describe('Verify Invoice tab', () => {
         await page.waitForTimeout(2000);
 
         // Click Add Invoice
-        const _invDetailWait122 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.clickAddInvoice();
-        await _invDetailWait122;
         await page.waitForTimeout(2000);
 
         // Try to save without filling any fields (just the auto-generated number)
@@ -762,12 +704,7 @@ test.describe('Verify Invoice tab', () => {
         expect(invoiceNumber).toBeTruthy();
 
         // Go back - should still save with just the number
-        const _invListWait122 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice') && !r.url().includes('invoice_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.goBackToInvoiceList();
-        await _invListWait122;
 
         Logger.success('Invoice form validation verified - invoice can be created with just number.');
     });
@@ -788,17 +725,7 @@ test.describe('Verify Invoice tab', () => {
 
             Logger.info(`TC123: Creating invoice ${i + 1}/5: ${testData.title}`);
 
-            const _invDetailWaitLoop = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice_detail') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
-            const _invListWaitLoop = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice') && !r.url().includes('invoice_detail') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             const result = await invoicePage.createCompleteInvoice(testData);
-            await _invDetailWaitLoop;
-            await _invListWaitLoop;
 
             if (!result.number) {
                 test.skip(true, `TC123: Invoice ${i + 1} creation did not return number`);
@@ -891,19 +818,9 @@ test.describe('Verify Invoice tab', () => {
         });
 
         await test.step('N2 — Create Invoice then Go Back without saving fields', async () => {
-            const _invDetailWait126 = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice_detail') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await invoicePage.clickAddInvoice();
-            await _invDetailWait126;
             await expect(loc.invoiceNumberInput).toBeVisible({ timeout: 15000 });
-            const _invListWait126 = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice') && !r.url().includes('invoice_detail') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await invoicePage.goBackToInvoiceList();
-            await _invListWait126;
             await expect(page).toHaveURL(/tab=invoices/);
             await expect(loc.addInvoiceButton).toBeVisible({ timeout: 15000 });
         });
@@ -915,19 +832,9 @@ test.describe('Verify Invoice tab', () => {
         await invoicePage.waitForInvoiceWorkspaceSettled(5000);
 
         await test.step('E1 — Invoice ⇄ Change Orders churn', async () => {
-            const _coApiWait127 = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await invoicePage.navigateToChangeOrderTab();
-            await _coApiWait127;
             await page.waitForTimeout(3000);
-            const _invApiWait127 = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice') && !r.url().includes('invoice_detail') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await invoicePage.navigateToInvoiceTab();
-            await _invApiWait127;
             await page.waitForTimeout(3000);
             await expect(page).toHaveURL(/tab=invoices/);
         });
@@ -945,21 +852,11 @@ test.describe('Verify Invoice tab', () => {
         });
 
         await test.step('E3 — Create flow + expand line grid when controls exist', async () => {
-            const _invDetailWait127 = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice_detail') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await invoicePage.clickAddInvoice();
-            await _invDetailWait127;
             await expect(loc.invoiceNumberInput).toBeVisible({ timeout: 15000 });
             await expandInvoiceDetailsGridIfCollapsed(page);
             await page.waitForTimeout(800);
-            const _invListWait127 = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice') && !r.url().includes('invoice_detail') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await invoicePage.goBackToInvoiceList();
-            await _invListWait127;
             await expect(page).toHaveURL(/tab=invoices/);
         });
     });
@@ -979,12 +876,7 @@ test.describe('Verify Invoice tab', () => {
         });
 
         await test.step('V2 — Create invoice (Overview region)', async () => {
-            const _invDetailWait128 = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice_detail') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await invoicePage.clickAddInvoice();
-            await _invDetailWait128;
             await expect(loc.invoiceNumberInput).toBeVisible({ timeout: 15000 });
             await page.waitForTimeout(2000);
             await page.screenshot({ path: path.join(TC08_SNAPSHOT_DIR, 'invoice_create_view.png') });
@@ -1011,31 +903,16 @@ test.describe('Verify Invoice tab', () => {
         });
 
         await test.step('V5 — Change Orders tab', async () => {
-            const _invListWait128 = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice') && !r.url().includes('invoice_detail') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await invoicePage.goBackToInvoiceList();
-            await _invListWait128;
             await expect(page).toHaveURL(/tab=invoices/);
-            const _coApiWait128 = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await invoicePage.navigateToChangeOrderTab();
-            await _coApiWait128;
             await page.waitForTimeout(4000);
             await page.screenshot({ path: path.join(TC08_SNAPSHOT_DIR, 'invoice_group_scope.png') });
             await expect(loc.mainContainer).toHaveScreenshot('tc08-v-change-orders-tab.png', shotMain);
         });
 
         await test.step('V6 — Tab list (Invoice / Change Orders)', async () => {
-            const _invApiWait128 = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=invoice') && !r.url().includes('invoice_detail') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await invoicePage.navigateToInvoiceTab();
-            await _invApiWait128;
             await page.waitForTimeout(2000);
             const tablist = page.getByRole('tablist').first();
             await expect(tablist).toBeVisible({ timeout: 10000 });

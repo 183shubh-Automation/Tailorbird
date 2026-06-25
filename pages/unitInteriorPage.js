@@ -62,7 +62,7 @@ class UnitInteriorPage {
         InteractionLogger.logButtonClick(`Job ID link: ${jobIdText?.trim()}`, jobIdText?.trim() ?? '');
         await jobIdLink.click();
 
-        await this.page.waitForURL(new RegExp(`/jobs/${JOB_ID}`), { timeout: 30000 });
+        await this.page.waitForURL(url => url.href.includes(`/jobs/${JOB_ID}`), { timeout: 30000 });
         await this.page.waitForTimeout(1500);
         Logger.success(`[UnitInterior] Opened job detail for "${JOB_NAME}" (confirmed URL contains ${JOB_ID})`);
     }
@@ -209,7 +209,7 @@ class UnitInteriorPage {
         // finds the <div role="gridcell"> inside revo-grid's shadow root.
         const unitCell = unitsGrid
             .locator('div[role="gridcell"]')
-            .filter({ hasText: new RegExp(`^\\s*${unitNumber}\\s*$`) })
+            .filter({ has: this.page.getByText(String(unitNumber), { exact: true }) })
             .first();
 
         const cellVisible = await unitCell.isVisible({ timeout: 5000 }).catch(() => false);

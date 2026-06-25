@@ -1376,8 +1376,7 @@ exports.ProjectJob = class ProjectJob {
                 await expect(searchInputCell).toBeVisible({ timeout: 12000 });
                 await searchInputCell.fill(value);
                 await page.waitForTimeout(700);
-                const escapedValue = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const exactOption = page.getByRole('option', { name: new RegExp(`^${escapedValue}$`, 'i') }).first();
+                const exactOption = page.getByRole('option', { name: value, exact: true }).first();
                 if (await exactOption.isVisible({ timeout: 2000 }).catch(() => false)) {
                     await exactOption.click({ force: true });
                 } else {
@@ -1464,7 +1463,7 @@ exports.ProjectJob = class ProjectJob {
                 }
                 // Fallback: match by visible text content — getByRole uses accessible name
                 // (which may be "1 June 2026") not text, so filter by text instead.
-                const short = page.locator('button').filter({ hasText: new RegExp(`^${dayNum}$`) }).first();
+                const short = page.locator('button').filter({ has: page.getByText(String(dayNum), { exact: true }) }).first();
                 await expect(short).toBeVisible({ timeout: 10000 });
                 await short.click();
             };
@@ -1571,7 +1570,8 @@ exports.ProjectJob = class ProjectJob {
             const sovGridText = fmtGridNum(SOV_VALUE);
             const savedSovCell = contractsGrid
                 .locator(`div[role="gridcell"]`)
-                .filter({ hasText: new RegExp(`${sovGridText}|${SOV_VALUE}`) })
+                .filter({ hasText: sovGridText })
+                .or(contractsGrid.locator(`div[role="gridcell"]`).filter({ hasText: SOV_VALUE }))
                 .first();
             const sovOk = await savedSovCell.isVisible({ timeout: 3000 }).catch(() => false);
             if (!sovOk) {
@@ -1585,9 +1585,8 @@ exports.ProjectJob = class ProjectJob {
             const caAlt = String(CONTRACT_DATA.contractAmount);
             const savedCaCell = contractsGrid
                 .locator(`div[role="gridcell"]`)
-                .filter({
-                    hasText: new RegExp(`${caAlt}|${caGridText}|\\$\\s*${caAlt}`, 'i'),
-                })
+                .filter({ hasText: caGridText })
+                .or(contractsGrid.locator(`div[role="gridcell"]`).filter({ hasText: caAlt }))
                 .first();
             const caOk = await savedCaCell.isVisible({ timeout: 5000 }).catch(() => false);
             if (!caOk) {

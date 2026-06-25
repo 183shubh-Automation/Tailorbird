@@ -47,7 +47,7 @@ const projectJobLocators = (page) => ({
     jobCancelBtn: page.locator('button:has-text("Cancel")'),
     jobSubmitBtn: page.getByRole('button', { name: /add job/i }),
     jobTypeOption: (type) =>
-        page.getByRole('option', { name: new RegExp(type, 'i') }),
+        page.getByRole('option', { name: type }),
 
     viewDetailsButton: page.locator('button[title="View Details"]'),
     editButton: page.getByRole('button', { name: 'Edit' }),

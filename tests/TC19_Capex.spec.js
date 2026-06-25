@@ -22,12 +22,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
 
     test.beforeEach(async ({ page }) => {
         capex = new CapexPage(page);
-        const _capexApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=capex_tracker') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await capex.goto();
-        await _capexApiWait;
     });
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1249,6 +1244,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
     });
 
     test('TC306 @capex @regression — Property column data persists after hiding all default columns and page refresh', async ({ page }) => {
+        test.setTimeout(420000); // 7 min — 3× getPropertyColumnValues + refreshCapexPage runs slow headless
         const capex = new CapexPage(page);
 
         await capex.goto();
@@ -1281,12 +1277,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
                 `Property column values after hiding columns must match before hiding.\nBefore: ${propertyDataBeforeHide.join(', ')}\nAfter:  ${propertyDataAfterHide.join(', ')}`
             ).toEqual(propertyDataBeforeHide);
 
-            const _capexRefreshWait306 = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=capex_tracker') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await capex.refreshCapexPage();
-            await _capexRefreshWait306;
 
             const propertyDataAfterRefresh = await capex.getPropertyColumnValues();
             expect(

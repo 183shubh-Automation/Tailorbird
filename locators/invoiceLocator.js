@@ -76,7 +76,7 @@ function invoiceLocators(page) {
         budgetCategoryCells: page.locator('[role="gridcell"][data-rgcol]').filter({ hasText: /^-$|Construction|Electrical|Plumbing|HVAC|Finishes|Landscaping|Roofing|Carpentry/ }),
         budgetCategorySearchInput: page.getByPlaceholder('Search or type to create...'),
         budgetCategoryListbox: page.getByRole('listbox'),
-        budgetCategoryOption: (text) => page.getByRole('option', { name: new RegExp(text, 'i') }),
+        budgetCategoryOption: (text) => page.getByRole('option', { name: text }),
         budgetCategoryFirstOption: page.getByRole('option').first(),
 
         // Invoice Amount Grid Cell Locators

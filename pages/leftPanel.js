@@ -263,7 +263,7 @@ module.exports = {
         await page.waitForTimeout(500);
         await page.locator('nav').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
 
-        let directParent = page.locator('nav a.mantine-NavLink-root').filter({ hasText: new RegExp(`^${label}$`) }).first();
+        let directParent = page.locator('nav a.mantine-NavLink-root').filter({ has: page.getByText(label, { exact: true }) }).first();
         let directExists = await directParent.count() > 0;
         if (!directExists) {
             directParent = page.locator('nav a.mantine-NavLink-root').filter({ hasText: label }).first();
@@ -280,7 +280,7 @@ module.exports = {
             }
             await page.locator('nav').first().scrollIntoViewIfNeeded();
             await page.waitForTimeout(500);
-            directParent = page.locator('nav a.mantine-NavLink-root, nav a').filter({ hasText: new RegExp(`^${label}$`) }).first();
+            directParent = page.locator('nav a.mantine-NavLink-root, nav a').filter({ has: page.getByText(label, { exact: true }) }).first();
             directExists = await directParent.count() > 0;
             if (!directExists) {
                 throw new Error(`Section not found: ${label}`);

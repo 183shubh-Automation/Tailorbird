@@ -534,12 +534,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
 
     const locationsTab = page.getByRole('tab', { name: /Locations/i }).first();
     await expect(locationsTab).toBeVisible({ timeout: 15000 });
-    const _locTabApiWait = page.waitForResponse(
-        r => r.url().includes('/api/bird-table') && r.url().includes('table_name=unit') && r.status() === 200,
-        { timeout: 60000 }
-    ).catch(() => null);
     await locationsTab.click();
-    await _locTabApiWait;
     await expect(locationsTab).toHaveAttribute('data-active', 'true');
     console.log("Locations tab opened");
 

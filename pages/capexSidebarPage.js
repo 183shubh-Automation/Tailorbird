@@ -34,7 +34,7 @@ class CapexSidebarPage {
                 throw e;
             }
         }
-        await expect(this.page).toHaveURL(new RegExp(`financials/capex\\?propertyId=${propertyId}`));
+        await expect(this.page).toHaveURL(url => url.href.includes(`financials/capex?propertyId=${propertyId}`));
         await this.waitForCapexShellReady();
     }
 

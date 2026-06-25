@@ -29,58 +29,33 @@ test.describe('Vendors Directory - E2E', () => {
     });
 
     test('TC244 @vendor @sanity : Verify user can navigate successfully to the Vendor Directory workspace, validate breadcrumb visibility, and ensure the Vendor module loads without console, UI, or application errors', async () => {
-        const _vendorApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=organization') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await vendorPage.goToDirectory();
-        await _vendorApiWait;
         await vendorPage.assertBreadcrumbAndNoErrors();
         Logger.success('TC244 passed');
     });
 
     test('TC245 @vendor @regression : Verify Vendor Directory workspace loads successfully with Invite Vendor action, vendor search functionality, vendor grid rendering, and accessible View Details workflow for vendor records', async () => {
-        const _vendorApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=organization') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await vendorPage.goToDirectory();
-        await _vendorApiWait;
         await vendorPage.assertDirectoryPageUI();
         Logger.success('TC245 passed');
     });
 
     test('TC246 @vendor @regression : Verify user can search vendor records successfully using filter keywords, view filtered vendor results correctly, and restore the complete Vendor Directory grid after clearing search filters', async () => {
-        const _vendorApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=organization') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await vendorPage.goToDirectory();
-        await _vendorApiWait;
         await vendorPage.waitForDirectoryReady();
         await vendorPage.searchAndAssertFiltered('TOM');
         Logger.success('TC246 passed');
     });
 
     test('TC247 @vendor @regression : Verify user can manage Vendor Directory table views, add custom columns, access Manage Columns configuration, and export vendor data successfully without affecting grid functionality', async () => {
-        const _vendorApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=organization') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await vendorPage.goToDirectory();
-        await _vendorApiWait;
         await vendorPage.waitForDirectoryReady();
         await vendorPage.viewColumnExportFlow();
         Logger.success('TC247 passed');
     });
 
     test('TC248 @vendor @regression : Verify user can open Vendor Details successfully from Vendor Directory grid and validate Overview tab content, vendor information rendering, and details page accessibility', async () => {
-        const _vendorApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=organization') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await vendorPage.goToDirectory();
-        await _vendorApiWait;
         await vendorPage.waitForDirectoryReady();
         await vendorPage.openFirstVendorDetails();
         await vendorPage.assertOverviewTabContent();
@@ -88,12 +63,7 @@ test.describe('Vendors Directory - E2E', () => {
     });
 
     test('TC249 @vendor @regression : Verify user can edit vendor details successfully from Vendor Details workspace and save updated vendor information without validation, navigation, or data persistence issues', async () => {
-        const _vendorApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=organization') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await vendorPage.goToDirectory();
-        await _vendorApiWait;
         await vendorPage.waitForDirectoryReady();
         await vendorPage.openFirstVendorDetails();
         await vendorPage.editVendorAndSave();
@@ -101,12 +71,7 @@ test.describe('Vendors Directory - E2E', () => {
     });
 
     test('TC250 @vendor @regression : Verify Vendor Activity tab loads successfully, activity data remains accessible, and tab switching works correctly across Vendor Details workspaces without breaking page state', async () => {
-        const _vendorApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=organization') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await vendorPage.goToDirectory();
-        await _vendorApiWait;
         await vendorPage.waitForDirectoryReady();
         await vendorPage.openFirstVendorDetails();
         await vendorPage.assertActivityTabAndSwitch();
@@ -114,12 +79,7 @@ test.describe('Vendors Directory - E2E', () => {
     });
 
     test('TC251 @vendor @regression : Verify user can navigate back successfully from Vendor Details workspace to Vendor Directory grid while preserving Vendor Directory accessibility and navigation flow continuity', async () => {
-        const _vendorApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=organization') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await vendorPage.goToDirectory();
-        await _vendorApiWait;
         await vendorPage.waitForDirectoryReady();
         await vendorPage.openFirstVendorDetails();
         await vendorPage.navigateBackToDirectory();
@@ -127,24 +87,14 @@ test.describe('Vendors Directory - E2E', () => {
     });
 
     test('TC252 @vendor @regression : Verify Invite Vendor form displays proper validation behavior for incomplete, invalid, or missing vendor invitation details before submission', async () => {
-        const _vendorApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=organization') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await vendorPage.goToDirectory();
-        await _vendorApiWait;
         await vendorPage.waitForDirectoryReady();
         await vendorPage.assertInviteFormValidation();
         Logger.success('TC252 passed');
     });
 
     test('TC253 @vendor @sanity : Verify user can complete the full Vendor Invitation workflow successfully by entering organization details, contact information, and submitting a valid vendor invitation request from Vendor Directory workspace', async () => {
-        const _vendorApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=organization') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await vendorPage.goToDirectory();
-        await _vendorApiWait;
         await vendorPage.waitForDirectoryReady();
         const orgName = `AutoVendor_${Date.now()}`;
         await vendorPage.inviteVendorComplete(orgName, 'Test Contact', 'test@example.com');
@@ -158,12 +108,7 @@ test.describe('Vendors Directory - E2E', () => {
     // ─────────────────────────────────────────────────────────────────────────
 
     test('TC258 @vendor @regression : Verify invite form enforces all required-field rules keeping Create-Vendor button disabled for partial or invalid inputs, and Edit-Vendor dialog opens with Save-Changes disabled until valid edits are detected, with Cancel cleanly dismissing the dialog', async () => {
-        const _vendorApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=organization') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await vendorPage.goToDirectory();
-        await _vendorApiWait;
         await vendorPage.waitForDirectoryReady();
 
         // ── 1. Open invite dialog → Create Vendor button must be disabled ──
@@ -220,12 +165,7 @@ test.describe('Vendors Directory - E2E', () => {
     });
 
     test('TC259 @vendor @regression : Verify Filter panel exposes Service-Area text input and trade checkboxes, real-time trade-filter reduces and restores the grid, zero-result keyword search reaches empty state, and special-character queries do not trigger error alerts', async () => {
-        const _vendorApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=organization') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await vendorPage.goToDirectory();
-        await _vendorApiWait;
         await vendorPage.waitForDirectoryReady();
 
         // ── 1. Open filter panel → structural assertions ──
@@ -305,12 +245,7 @@ test.describe('Vendors Directory - E2E', () => {
     });
 
     test('TC260 @vendor @regression : Verify Manage-Columns drawer lists all 14 columns including 4 scroll-hidden ones, column-header click applies sort and reverses on second click, and browser Back from Vendor-Details restores the directory with Invite-New-Vendor button visible', async () => {
-        const _vendorApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=organization') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await vendorPage.goToDirectory();
-        await _vendorApiWait;
         await vendorPage.waitForDirectoryReady();
 
         // ── 1. Open Table → Hide/Show columns → Manage Columns drawer ──
@@ -386,12 +321,7 @@ test.describe('Vendors Directory - E2E', () => {
     test('TC261 @vendor @visual : Capture visual baselines — directory toolbar, filter panel open, invite dialog empty state, vendor-detail Overview tab, Activity tab with metrics, and Manage-Columns drawer — saving all PNGs to committed_ui_snapshots', async () => {
         if (!fs.existsSync(TC14_SNAPSHOT_DIR)) fs.mkdirSync(TC14_SNAPSHOT_DIR, { recursive: true });
 
-        const _vendorApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=organization') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await vendorPage.goToDirectory();
-        await _vendorApiWait;
         await vendorPage.waitForDirectoryReady();
 
         // ── 1. Directory page at rest ──

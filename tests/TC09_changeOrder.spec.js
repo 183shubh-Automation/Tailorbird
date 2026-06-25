@@ -216,12 +216,7 @@ test.describe('Verify Change order tab', () => {
         await projectPage.openProject(projectData.projectName);
         await projectJob.navigateToJobsTab();
         await projectJob.openJobSummary();
-        const _coApiWait = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.navigateToChangeOrderTab();
-        await _coApiWait;
         await page.waitForLoadState('load');
         await page.waitForTimeout(2000);
 
@@ -363,12 +358,7 @@ test.describe('Verify Change order tab', () => {
         await page.waitForTimeout(2000);
 
         // Click on Add Change Order button
-        const _coDetailWait136 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.clickAddChangeOrder();
-        await _coDetailWait136;
 
         // Fill change order data
         const changeOrderData = {
@@ -410,12 +400,7 @@ test.describe('Verify Change order tab', () => {
             };
             Logger.info(`Creating change order with amount: $${changeOrderAmount}`);
 
-            const _coDetailWait138 = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order_detail') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             const result = await invoicePage.createCompleteChangeOrder(testData);
-            await _coDetailWait138;
 
             // Verify the change order was created
             expect(result.number).toBeTruthy();
@@ -470,12 +455,7 @@ test.describe('Verify Change order tab', () => {
         await page.waitForTimeout(2000);
 
         // Click on Add Change Order button
-        const _coDetailWait140 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.clickAddChangeOrder();
-        await _coDetailWait140;
         await page.waitForTimeout(2000);
 
         // Get the auto-generated change order number
@@ -487,12 +467,7 @@ test.describe('Verify Change order tab', () => {
         Logger.success(`Auto-generated change order number: ${changeOrderNumber}`);
 
         // Go back without saving
-        const _coListWait140 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.goBackToChangeOrderList();
-        await _coListWait140;
     });
 
     test('TC141 @regression @changeOrderAndinvoice : Should verify all change order form fields are visible', async () => {
@@ -501,12 +476,7 @@ test.describe('Verify Change order tab', () => {
         await page.waitForTimeout(2000);
 
         // Click on Add Change Order button
-        const _coDetailWait141 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.clickAddChangeOrder();
-        await _coDetailWait141;
         await page.waitForTimeout(2000);
 
         // Verify all form fields using page object method
@@ -522,12 +492,7 @@ test.describe('Verify Change order tab', () => {
         Logger.success('All change order form fields are visible.');
 
         // Go back without saving
-        const _coListWait141 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.goBackToChangeOrderList();
-        await _coListWait141;
     });
 
     test('TC142 @regression @changeOrderAndinvoice : Should verify change order list displays correct columns', async () => {
@@ -580,12 +545,7 @@ test.describe('Verify Change order tab', () => {
         await page.waitForTimeout(3000);
         await page.reload({ waitUntil: 'load' });
         await page.waitForLoadState('domcontentloaded');
-        const _coApiWait2 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.navigateToChangeOrderTab();
-        await _coApiWait2;
         await page.waitForTimeout(2000);
 
         const isInList = await invoicePage.verifyChangeOrderInList({ number: result.number });
@@ -630,46 +590,26 @@ test.describe('Verify Change order tab', () => {
 
     test('TC146 @regression @negativeCO @changeOrderAndinvoice : Negative — discard new change order via Go Back without saving', async () => {
         await settleChangeOrderWorkspace(page, 2000);
-        const _coDetailWait146 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.clickAddChangeOrder();
-        await _coDetailWait146;
         await page.waitForTimeout(800);
         await expect(page.locator('dialog, [role="dialog"]').filter({ hasText: /Change Order|Overview/i }).first()).toBeVisible({
             timeout: 20000,
         });
-        const _coListWait146 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.goBackToChangeOrderList();
-        await _coListWait146;
         await settleChangeOrderWorkspace(page, 1500);
         await expect(coCreateButton(page)).toBeVisible({ timeout: 15000 });
     });
 
     test('TC147 @regression @negativeCO @changeOrderAndinvoice : Negative — Escape closes create flow when dialog is open', async () => {
         await settleChangeOrderWorkspace(page, 2000);
-        const _coDetailWait147 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.clickAddChangeOrder();
-        await _coDetailWait147;
         const dlg = page.locator('dialog, [role="dialog"]').filter({ hasText: /Change Order|Overview/i }).first();
         await dlg.waitFor({ state: 'visible', timeout: 20000 });
         await page.keyboard.press('Escape');
         await page.waitForTimeout(600);
         const stillOpen = await dlg.isVisible({ timeout: 2000 }).catch(() => false);
         if (stillOpen) {
-            const _coListWait147 = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await invoicePage.goBackToChangeOrderList().catch(() => {});
-            await _coListWait147;
         }
         await expect(coCreateButton(page)).toBeVisible({ timeout: 15000 });
     });
@@ -706,12 +646,7 @@ test.describe('Verify Change order tab', () => {
 
     test('TC150 @regression @edgeCO @changeOrderAndinvoice : Edge — very long title preserves input (no silent truncate on UI)', async () => {
         await settleChangeOrderWorkspace(page, 2000);
-        const _coDetailWait150 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.clickAddChangeOrder();
-        await _coDetailWait150;
         const titleInput = page.getByPlaceholder('Enter title');
         await titleInput.waitFor({ state: 'visible', timeout: 20000 });
         const longTitle = `CO_LONG_${'L'.repeat(120)}`;
@@ -720,12 +655,7 @@ test.describe('Verify Change order tab', () => {
         await expect(titleInput).not.toHaveValue('');
         const v = await titleInput.inputValue().catch(() => '');
         expect(v.length).toBeGreaterThanOrEqual(32);
-        const _coListWait150 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.goBackToChangeOrderList();
-        await _coListWait150;
     });
 
     test('TC151 @regression @missingCO @changeOrderAndinvoice : Missing path — clear search restores list chrome', async () => {
@@ -751,12 +681,7 @@ test.describe('Verify Change order tab', () => {
 
     test('TC153 @regression @positiveCO @changeOrderAndinvoice : Positive — create shell exposes overview, grid workflow, Review Changes, Go Back', async () => {
         await settleChangeOrderWorkspace(page, 2500);
-        const _coDetailWait153 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.clickAddChangeOrder();
-        await _coDetailWait153;
         const dlg = page
             .locator('dialog,[role="dialog"]')
             .filter({ hasText: /Change Order Details|Overview/i })
@@ -776,12 +701,7 @@ test.describe('Verify Change order tab', () => {
         await expect(reviewChanges).toBeVisible({ timeout: 15000 });
         await expect(page.getByRole('button', { name: 'Go Back' })).toBeVisible({ timeout: 10000 });
 
-        const _coListWait153 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.goBackToChangeOrderList();
-        await _coListWait153;
         await expect(coCreateButton(page)).toBeVisible({ timeout: 15000 });
         await expect(page).toHaveURL(/change|order|jobs/i);
     });
@@ -795,12 +715,7 @@ test.describe('Verify Change order tab', () => {
             description: 'TC112 end-to-end list verification after createCompleteChangeOrder',
             amount: amt,
         };
-        const _coDetailWait154 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         const result = await invoicePage.createCompleteChangeOrder(testData);
-        await _coDetailWait154;
         expect(result.number, 'Change order number should be captured').toBeTruthy();
         expect(result.number).toMatch(/Change Order #\d+/);
         expect(result.fieldsVerified, 'Dialog fields should match before confirm').toBe(true);
@@ -813,32 +728,17 @@ test.describe('Verify Change order tab', () => {
 
     test('TC155 @regression @negativeCO @changeOrderAndinvoice : Negative — Review Changes disabled before grid edits (when applicable)', async () => {
         await settleChangeOrderWorkspace(page, 2000);
-        const _coDetailWait155 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.clickAddChangeOrder();
-        await _coDetailWait155;
         const reviewChanges = page.getByRole('button', { name: /Review Changes/i });
         await expect(reviewChanges).toBeVisible({ timeout: 20000 });
         if (!(await reviewChanges.isDisabled())) {
             Logger.info('TC155: Review Changes is enabled on open (prefilled grid/build); asserting go-back navigation only.');
-            const _coListWait155a = page.waitForResponse(
-                r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order') && r.status() === 200,
-                { timeout: 60000 }
-            ).catch(() => null);
             await invoicePage.goBackToChangeOrderList();
-            await _coListWait155a;
             await expect(coCreateButton(page)).toBeVisible({ timeout: 15000 });
             return;
         }
         await expect(reviewChanges).toBeDisabled();
-        const _coListWait155b = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.goBackToChangeOrderList();
-        await _coListWait155b;
         await expect(coCreateButton(page)).toBeVisible({ timeout: 15000 });
     });
 
@@ -867,12 +767,7 @@ test.describe('Verify Change order tab', () => {
     test('TC157 @regression @edgeCO @changeOrderAndinvoice : Edge — reload job Change Orders workspace remains usable', async () => {
         await settleChangeOrderWorkspace(page, 2000);
         await page.reload({ waitUntil: 'load' });
-        const _coApiWait3 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.navigateToChangeOrderTab();
-        await _coApiWait3;
         await settleChangeOrderWorkspace(page, 3000);
         await expect(coCreateButton(page)).toBeVisible({ timeout: 25000 });
         await expect(page).toHaveURL(/change|order|jobs|invoices/i);
@@ -880,12 +775,7 @@ test.describe('Verify Change order tab', () => {
 
     test('TC158 @regression @edgeCO @changeOrderAndinvoice : Edge — long description preserves input without silent clear', async () => {
         await settleChangeOrderWorkspace(page, 2000);
-        const _coDetailWait158 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.clickAddChangeOrder();
-        await _coDetailWait158;
         const descriptionInput = page.getByPlaceholder('Enter description');
         await descriptionInput.waitFor({ state: 'visible', timeout: 20000 });
         const longBody = `${'D'.repeat(400)}_TC116`;
@@ -894,24 +784,14 @@ test.describe('Verify Change order tab', () => {
         const v = await descriptionInput.inputValue();
         expect(v.length).toBeGreaterThanOrEqual(200);
         expect(v).toContain('TC116');
-        const _coListWait158 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.goBackToChangeOrderList();
-        await _coListWait158;
         await expect(coCreateButton(page)).toBeVisible({ timeout: 15000 });
     });
 
     test('TC159 @regression @positiveCO @changeOrderAndinvoice : Positive — grid Change Order Amount commits and verifies in dialog', async () => {
         test.setTimeout(180_000);
         await settleChangeOrderWorkspace(page, 2000);
-        const _coDetailWait159 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order_detail') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.clickAddChangeOrder();
-        await _coDetailWait159;
         const amount = getRandomAmount();
         const expectedDigits = String(amount).replace(/\D/g, '');
         const title = `CO_Amt_${Date.now()}`;
@@ -936,12 +816,7 @@ test.describe('Verify Change order tab', () => {
         const cellDigits = ((await firstAmt.textContent()) || '').replace(/\D/g, '');
         expect(cellDigits).toContain(expectedDigits);
 
-        const _coListWait159 = page.waitForResponse(
-            r => r.url().includes('/api/bird-table') && r.url().includes('table_name=change_order') && r.status() === 200,
-            { timeout: 60000 }
-        ).catch(() => null);
         await invoicePage.goBackToChangeOrderList();
-        await _coListWait159;
         await expect(coCreateButton(page)).toBeVisible({ timeout: 15000 });
     });
 

@@ -60,7 +60,7 @@ function bidLocators(page) {
         bidDocumentsSubtext:  page.locator('p', { hasText: 'Files and documents related to this bid' }),
         // Returns the value paragraph paired with the given label paragraph
         overviewFieldValue:   (label) =>
-            page.locator('p', { hasText: new RegExp(`^${label}$`) })
+            page.locator(`p:text-is("${label}")`)
                 .locator('..')
                 .locator('p')
                 .last(),

@@ -135,7 +135,7 @@ class CapexColumnPersistencePage {
      */
     async clickColumnSortButton(columnName) {
         const header = this.l.columnHeaders
-            .filter({ hasText: new RegExp(`^${columnName}$`) })
+            .filter({ has: this.page.getByText(columnName, { exact: true }) })
             .first();
         await header.hover().catch(() => {});
         await this.page.waitForTimeout(300);
@@ -212,7 +212,7 @@ class CapexColumnPersistencePage {
      */
     async resizeColumn(columnName, deltaX) {
         const header = this.l.columnHeaders
-            .filter({ hasText: new RegExp(`^${columnName}$`) })
+            .filter({ has: this.page.getByText(columnName, { exact: true }) })
             .first();
         const box = await header.boundingBox();
         if (!box) {

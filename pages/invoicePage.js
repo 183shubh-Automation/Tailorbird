@@ -334,7 +334,7 @@ class InvoicePage {
                 Logger.info('No Group-by SegmentedControl found — skipping tab selection.');
                 return;
             }
-            const label = ctrl.locator('label').filter({ hasText: new RegExp(`Group by ${groupBy}`, 'i') });
+            const label = ctrl.locator('label').filter({ hasText: `Group by ${groupBy}` });
             const labelVisible = await label.isVisible({ timeout: 3000 }).catch(() => false);
             if (!labelVisible) {
                 Logger.info(`"Group by ${groupBy}" label not visible — skipping.`);
@@ -761,7 +761,7 @@ class InvoicePage {
                 let selectedOption = null;
                 for (let i = 0; i < optionCount; i++) {
                     const optText = await allOptions.nth(i).textContent();
-                    if (optText && !/clear selection/i.test(optText) && new RegExp(categoryText, 'i').test(optText)) {
+                    if (optText && !/clear selection/i.test(optText) && optText.toLowerCase().includes(categoryText.toLowerCase())) {
                         selectedOption = allOptions.nth(i);
                         break;
                     }
@@ -788,7 +788,7 @@ class InvoicePage {
                             arrowPresses++;
                             continue;
                         }
-                        if (new RegExp(categoryText, 'i').test(optText)) break;
+                        if (optText.toLowerCase().includes(categoryText.toLowerCase())) break;
                         arrowPresses++;
                     }
                     for (let k = 0; k < arrowPresses; k++) {
@@ -971,7 +971,7 @@ class InvoicePage {
                 }
 
                 if (numberText) {
-                    const row = this.page.locator('[role="row"], tr').filter({ hasText: new RegExp(`\\b${escapedForRegex}\\b`) }).first();
+                    const row = this.page.locator('[role="row"], tr').filter({ hasText: numberText }).first();
                     if (await row.isVisible({ timeout: 8000 }).catch(() => false)) {
                         return true;
                     }
@@ -1401,7 +1401,7 @@ class InvoicePage {
     async getChangeOrderDetailsStats() {
         const getValueFromGridColumn = async (grid, headerTexts) => {
             for (const text of headerTexts) {
-                const header = grid.locator('[role="columnheader"]').filter({ hasText: new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).first();
+                const header = grid.locator('[role="columnheader"]').filter({ hasText: text }).first();
                 if (!(await header.isVisible({ timeout: 1500 }).catch(() => false))) continue;
                 const colIndex = await header.evaluate((el) => el.getAttribute('data-rgcol') || el.getAttribute('aria-colindex') || el.cellIndex).catch(() => '');
                 const col = colIndex !== '' && colIndex !== undefined ? String(colIndex) : null;
@@ -1706,7 +1706,26 @@ class InvoicePage {
             const budgetColIndexRaw = await budgetCategoryHeader
                 .evaluate((el) => el.getAttribute('data-rgcol') || el.getAttribute('aria-colindex') || '')
                 .catch(() => '');
-            const budgetColIndex = String(budgetColIndexRaw || '5');
+
+            // When the attribute is unavailable on CI, determine column position by counting headers
+            let budgetColIndex = budgetColIndexRaw;
+            let budgetHeaderPos = -1;
+            if (!budgetColIndex) {
+                const allGridHeaders = grid.locator('[role="columnheader"]');
+                const headerCount = await allGridHeaders.count();
+                for (let hi = 0; hi < headerCount; hi++) {
+                    const headerText = (await allGridHeaders.nth(hi).textContent().catch(() => '')).trim();
+                    if (/Budget Category/i.test(headerText)) {
+                        budgetHeaderPos = hi;
+                        const attrVal = await allGridHeaders.nth(hi).evaluate(
+                            el => el.getAttribute('data-rgcol') || el.getAttribute('aria-colindex') || ''
+                        ).catch(() => '');
+                        if (attrVal) budgetColIndex = attrVal;
+                        break;
+                    }
+                }
+            }
+            Logger.info(`Budget Category column — attr index: "${budgetColIndex}", header position: ${budgetHeaderPos}`);
 
             const dataRows = grid.locator('[role="row"][data-rgrow]');
             // Wait for at least the first row to render its cells before counting (CI can be slow)
@@ -1736,22 +1755,37 @@ class InvoicePage {
                     continue;
                 }
 
-                const catCell = row
-                    .locator(`[role="gridcell"][data-rgcol="${budgetColIndex}"], [role="gridcell"][aria-colindex="${budgetColIndex}"]`)
-                    .first();
+                let catCell;
+                if (budgetColIndex) {
+                    catCell = row
+                        .locator(`[role="gridcell"][data-rgcol="${budgetColIndex}"], [role="gridcell"][aria-colindex="${budgetColIndex}"]`)
+                        .first();
+                } else if (budgetHeaderPos >= 0) {
+                    catCell = row.locator('[role="gridcell"]').nth(budgetHeaderPos);
+                } else {
+                    Logger.info(`Row ${rowIdx}: Cannot determine budget category cell, skipping`);
+                    continue;
+                }
                 const cellVisible = await catCell.isVisible({ timeout: 5000 }).catch(() => false);
                 if (!cellVisible) {
                     Logger.info(`Row ${rowIdx}: Budget category cell not visible, skipping`);
                     continue;
                 }
                 await catCell.scrollIntoViewIfNeeded().catch(() => null);
-                await catCell.dblclick({ timeout: 5000, force: true });
 
                 const searchInput = this.invoiceLocators.budgetCategorySearchInput;
-                // Wait for the editor to actually appear instead of a blind timeout.
-                const inputVisible = await searchInput
-                    .isVisible({ timeout: 5000 })
-                    .catch(() => false);
+                let inputVisible = false;
+                for (let clickRetry = 0; clickRetry < 3 && !inputVisible; clickRetry++) {
+                    if (clickRetry > 0) {
+                        await this.page.keyboard.press('Escape').catch(() => {});
+                        await this.page.waitForTimeout(2000);
+                    }
+                    let dblclickOk = true;
+                    await catCell.dblclick({ timeout: 3000, force: true }).catch(() => { dblclickOk = false; });
+                    inputVisible = await searchInput.isVisible({ timeout: 3000 }).catch(() => false);
+                    // If dblclick succeeded but editor still didn't open, this row can't be edited — stop retrying
+                    if (dblclickOk && !inputVisible) break;
+                }
 
                 if (!inputVisible) {
                     Logger.info(`Row ${rowIdx}: Budget category editor did not open, skipping`);
@@ -1773,7 +1807,7 @@ class InvoicePage {
                 let selectedOption = null;
                 for (let i = 0; i < optionCount; i++) {
                     const optText = await allOptions.nth(i).textContent();
-                    if (optText && !/clear selection/i.test(optText) && new RegExp(categoryText, 'i').test(optText)) {
+                    if (optText && !/clear selection/i.test(optText) && optText.toLowerCase().includes(categoryText.toLowerCase())) {
                         selectedOption = allOptions.nth(i);
                         Logger.info(`Row ${rowIdx}: Targeting option: "${optText}"`);
                         break;
@@ -1793,6 +1827,12 @@ class InvoicePage {
                 await this.page.waitForTimeout(500);
                 expect(selectedOption).toBeTruthy();
 
+                // Set up API listener before selecting the option so we capture the cell-save response
+                const cellUpdatePromise = this.page.waitForResponse(
+                    (resp) => resp.url().includes('/api/bird-table/cells') && resp.status() >= 200 && resp.status() < 300,
+                    { timeout: 12000 }
+                ).catch(() => null);
+
                 try {
                     await selectedOption.click({ timeout: 3000 });
                 } catch {
@@ -1804,7 +1844,7 @@ class InvoicePage {
                             arrowPresses++;
                             continue;
                         }
-                        if (new RegExp(categoryText, 'i').test(optText)) break;
+                        if (optText.toLowerCase().includes(categoryText.toLowerCase())) break;
                         arrowPresses++;
                     }
                     for (let k = 0; k < arrowPresses; k++) {
@@ -1814,8 +1854,16 @@ class InvoicePage {
                     await this.page.keyboard.press('Enter');
                 }
 
-                // Wait for the cell text at this position to actually update, instead of a fixed sleep.
-                await this.page.waitForTimeout(6000);
+                // Wait for API confirmation that the cell was saved, or fall back to a shorter DOM wait
+                const cellUpdateResp = await cellUpdatePromise;
+                if (cellUpdateResp) {
+                    Logger.success(`Row ${rowIdx}: Cell update API confirmed (${cellUpdateResp.status()})`);
+                    // Brief pause so the grid re-renders after the save before we touch the next row
+                    await this.page.waitForTimeout(1500);
+                } else {
+                    Logger.info(`Row ${rowIdx}: Cell update API not captured — waiting for DOM update`);
+                    await this.page.waitForTimeout(3000);
+                }
                 const cellValue = (await catCell.textContent().catch(() => ''))?.trim() || '';
 
                 expect(cellValue).toBeTruthy();
@@ -2213,8 +2261,35 @@ class InvoicePage {
         try {
             Logger.step('Creating complete invoice...');
 
+            // Set up API interception before navigation so it captures the invoice detail page load
+            const invoiceDetailApiPromise = this.page.waitForResponse(
+                (resp) => {
+                    const url = resp.url();
+                    const ok = resp.status() >= 200 && resp.status() < 300;
+                    return ok && (
+                        (url.includes('bird-table') && url.includes('invoice')) ||
+                        (url.includes('/api/') && url.includes('invoice') && !url.includes('/invoices/'))
+                    );
+                },
+                { timeout: 20000 }
+            ).catch(() => null);
+
             await this.clickAddInvoice();
-            await this.page.waitForTimeout(2000);
+
+            // Wait for invoice details page header — confirms the page is fully open before proceeding
+            await this.page.locator('text=Overview').first().waitFor({ state: 'visible', timeout: 20000 });
+            Logger.info('Invoice details page header (Overview) visible — page confirmed open');
+
+            // Log API validation result
+            const invoiceDetailApiResp = await invoiceDetailApiPromise;
+            if (invoiceDetailApiResp) {
+                Logger.success(`Invoice detail API: ${invoiceDetailApiResp.status()} ${invoiceDetailApiResp.url()}`);
+            } else {
+                Logger.info('Invoice detail API response not captured — may load from cache or different endpoint');
+            }
+
+            // Wait for the invoice details grid to settle so cells are interactive before any edits
+            await this.page.locator('[role="treegrid"]').first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
 
             // Handle the "Group by Unit" / "Group by Scope" segmented control added in the new UI.
             await this.selectInvoiceGroupByTab(invoiceData.groupBy || 'scope');

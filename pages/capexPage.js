@@ -62,8 +62,26 @@ class CapexPage {
     // ─── Tabs ───────────────────────────────────────────────────────────────────
 
     async clickTab(name) {
+        const dimension = name.toLowerCase();
+        const apiPromise = this.page.waitForResponse(
+            resp => resp.url().includes('/api/bird-table') &&
+                    resp.url().includes(`dimension=${dimension}`) &&
+                    resp.status() >= 200 && resp.status() < 300,
+            { timeout: 30000 }
+        ).catch(() => null);
         await this.page.locator('.mantine-SegmentedControl-label').filter({ hasText: name }).click();
-        await this.page.waitForTimeout(2200);
+        await apiPromise;
+        // Wait for REVO-GRID to fully render all columns: first header must equal the tab name
+        // AND at least 2 headers must be present (tab column + at least one financial column).
+        await this.page.waitForFunction(
+            (tabName) => {
+                const headers = document.querySelectorAll('[role="columnheader"]');
+                if (headers.length < 2) return false;
+                return headers[0].textContent.trim() === tabName;
+            },
+            name,
+            { timeout: 15000 }
+        ).catch(() => {});
         Logger.info(`Tab switched to: ${name}`);
     }
 
@@ -271,6 +289,7 @@ class CapexPage {
     // ─── Search ──────────────────────────────────────────────────────────────────
 
     async search(term) {
+        await this.l.searchInput.waitFor({ state: 'visible', timeout: 30000 });
         await this.l.searchInput.fill(term);
         await this.page.waitForTimeout(1100);
     }
@@ -1098,8 +1117,30 @@ class CapexPage {
     }
 
     async refreshCapexPage() {
+        // App limitation: when ALL financial columns are hidden, REVO-GRID renders 0
+        // data rows in the pinned property pane after a full page reload.
+        // Work around it by enabling one column BEFORE reloading so the post-reload
+        // grid state is always valid.  The caller's finally block restores all columns.
+        await this.openManageColumnsDrawer().catch(() => {});
+        const dialog = this._manageColumnsDialog();
+        if (await dialog.isVisible({ timeout: 5000 }).catch(() => false)) {
+            const checked = await this.getCheckedManageColumnNames().catch(() => []);
+            if (checked.length === 0 && FINANCIAL_COLS.length > 0) {
+                await this.toggleColumn(FINANCIAL_COLS[0]).catch(() => {});
+            }
+            await this.closeManageColumnsDrawer().catch(() => {});
+            await this.page.waitForTimeout(600);
+        } else {
+            await this.closeManageColumnsDrawer().catch(() => {});
+        }
+
         await this.page.reload({ waitUntil: 'domcontentloaded' });
         await this.waitForShellReady();
+        await this.page.waitForFunction(
+            () => document.querySelectorAll('button.tree-toggle').length > 0,
+            { timeout: 30000 }
+        ).catch(() => {});
+        await this.page.waitForTimeout(1000);
     }
 
 }

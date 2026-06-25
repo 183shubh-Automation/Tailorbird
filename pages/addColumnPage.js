@@ -269,7 +269,7 @@ class AddColumnPage {
         return {
             iso: `${yyyy}-${mm}-${dd}`,
             us: `${mm}/${dd}/${yyyy}`,
-            cellPattern: new RegExp(`${mm}.*${dd}.*${yyyy}|${yyyy}.*${mm}.*${dd}`, 'i'),
+            cellPattern: new RegExp(`${mm}.*${dd}.*${yyyy}|${yyyy}.*${mm}.*${dd}`, 'i'), // nosemgrep: detect-non-literal-regexp — mm/dd/yyyy are purely numeric strings from Date(), no user input; OR pattern cannot be expressed as a static literal
             targetDate,
         };
     }
@@ -315,7 +315,7 @@ class AddColumnPage {
 
         await calendarDialog
             .locator('button')
-            .filter({ hasText: new RegExp(`^${targetDate.getDate()}$`) })
+            .filter({ has: this.page.getByText(String(targetDate.getDate()), { exact: true }) })
             .first()
             .click();
     }

@@ -17,7 +17,7 @@ const {
 } = require("../pages/manageTeamRolesHelper");
 
 const dashboardLandingUrl = process.env.DASHBOARD_URL || orgUrls.dashboardUrl;
-const tailorbirdOrigin = process.env.BASE_URL || new URL(dashboardLandingUrl).origin;
+const tailorbirdOrigin = process.env.BASE_URL
 
 test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
   test.describe("Authenticated (sessionState)", () => {
@@ -91,12 +91,9 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
       InteractionLogger.logVisibility("Built-in or E2E role column header", true);
       await expect(
         page
-          .getByRole("columnheader", {
-            name: new RegExp(
-              `${roleManagementUiLabels.builtInRoleEditor}|${roleManagementUiLabels.builtInRoleViewOnly}|E2E`,
-              "i",
-            ),
-          })
+          .getByRole("columnheader", { name: roleManagementUiLabels.builtInRoleEditor })
+          .or(page.getByRole("columnheader", { name: roleManagementUiLabels.builtInRoleViewOnly }))
+          .or(page.getByRole("columnheader", { name: 'E2E' }))
           .first(),
       ).toBeVisible({ timeout: 30_000 });
       Logger.success("[MT-roles-pos-05] ✅ Built-in / automation roles visible as column headers passed");

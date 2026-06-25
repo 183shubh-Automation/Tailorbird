@@ -197,7 +197,7 @@ class OOOPage {
         // children of the day button (a leaf node), finding nothing.
         const todayBtn = this.page
             .locator('.mantine-DateInput-day:not([data-disabled="true"])')
-            .filter({ hasText: new RegExp(`^${todayDay}$`) })
+            .filter({ has: this.page.getByText(todayDay, { exact: true }) })
             .first();
         await todayBtn.waitFor({ state: 'visible', timeout: 5000 });
         await todayBtn.click();

@@ -88,7 +88,7 @@ test.describe('Tailorbird Left Panel Flow - Modular', () => {
                     const link = page.locator('nav .mantine-NavLink-root').filter({ hasText: item.label }).first();
                     await link.waitFor({ state: 'visible', timeout: 20000 });
                     await link.click();
-                    await expect(page).toHaveURL(new RegExp(item.path), { timeout: 15000 });
+                    await expect(page).toHaveURL(url => url.href.includes(item.path), { timeout: 15000 });
                     InteractionLogger.logAssertion('MenuURLNav', item.label, item.path, page.url(), true);
                     Logger.success(`[TC22-S1] ✔ "${item.label}" → ${page.url()}`);
                 });
@@ -115,7 +115,7 @@ test.describe('Tailorbird Left Panel Flow - Modular', () => {
                     const link = page.locator('nav .mantine-NavLink-root').filter({ hasText: item.label }).first();
                     await link.waitFor({ state: 'visible', timeout: 10000 });
                     await link.click();
-                    await expect(page).toHaveURL(new RegExp(item.path), { timeout: 15000 });
+                    await expect(page).toHaveURL(url => url.href.includes(item.path), { timeout: 15000 });
                     InteractionLogger.logAssertion('MenuURLNav', item.label, item.path, page.url(), true);
                     Logger.success(`[TC22-S2] ✔ "${item.label}" → ${page.url()}`);
                 });
@@ -137,7 +137,7 @@ test.describe('Tailorbird Left Panel Flow - Modular', () => {
                     const link = page.locator('nav .mantine-NavLink-root').filter({ hasText: item.label }).first();
                     await link.waitFor({ state: 'visible', timeout: 10000 });
                     await link.click();
-                    await expect(page).toHaveURL(new RegExp(item.path), { timeout: 15000 });
+                    await expect(page).toHaveURL(url => url.href.includes(item.path), { timeout: 15000 });
                     InteractionLogger.logAssertion('MenuURLNav', item.label, item.path, page.url(), true);
                     Logger.success(`[TC22-S3] ✔ "${item.label}" → ${page.url()}`);
                 });
@@ -162,7 +162,7 @@ test.describe('Tailorbird Left Panel Flow - Modular', () => {
                     const menuItem = more.locator('[role="menuitem"]').filter({ hasText: item.label }).first();
                     await menuItem.waitFor({ state: 'visible', timeout: 10000 });
                     await menuItem.click();
-                    await expect(page).toHaveURL(new RegExp(item.path), { timeout: 15000 });
+                    await expect(page).toHaveURL(url => url.href.includes(item.path), { timeout: 15000 });
                     InteractionLogger.logAssertion('MenuURLNav', item.label, item.path, page.url(), true);
                     Logger.success(`[TC22-S4] ✔ "${item.label}" → ${page.url()}`);
                 });
@@ -350,12 +350,12 @@ test.describe('Tailorbird Left Panel Flow - Modular', () => {
             );
 
             await expect(
-                menu.getByRole('menuitem', { name: new RegExp(`^${uiBenchmark.userMenuProfile}$`, 'i') }),
+                menu.getByRole('menuitem', { name: uiBenchmark.userMenuProfile, exact: true }),
                 `FAIL: Missing "${uiBenchmark.userMenuProfile}" menuitem — got ${JSON.stringify(items)}. Update fixture or app.`,
             ).toBeVisible({ timeout: 5_000 });
 
             await expect(
-                menu.getByRole('menuitem', { name: new RegExp(`^${uiBenchmark.userMenuLogout}$`, 'i') }),
+                menu.getByRole('menuitem', { name: uiBenchmark.userMenuLogout, exact: true }),
                 `FAIL: Missing "${uiBenchmark.userMenuLogout}" — got ${JSON.stringify(items)}.`,
             ).toBeVisible({ timeout: 5_000 });
 
@@ -518,7 +518,7 @@ test.describe('TC02 Menu — Single-org user assertions', () => {
         const expectedPresent = ['Manage Approvers', 'Manage Organization', 'Profile', 'Logout'];
         for (const label of expectedPresent) {
             await expect(
-                menu.getByRole('menuitem', { name: new RegExp(`^${label}$`, 'i') }),
+                menu.getByRole('menuitem', { name: label, exact: true }),
                 `FAIL: Expected "${label}" to be visible in single-org user menu. Got: ${JSON.stringify(items)}`,
             ).toBeVisible({ timeout: 5_000 });
             Logger.info(`[TC23] ✅ Present: "${label}"`);

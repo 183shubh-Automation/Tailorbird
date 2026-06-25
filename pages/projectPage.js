@@ -596,7 +596,7 @@ exports.ProjectPage = class ProjectPage {
             Logger.info(`First row text → "${text}"`);
 
             Logger.info(`Searching for project containing: "${name}"`);
-            await expect(firstRowNameCell).toContainText(new RegExp(name, "i"));
+            await expect(firstRowNameCell).toContainText(name, { ignoreCase: true });
 
             Logger.success(`Search successful → Found project containing: "${name}"`);
         } catch (e) {
@@ -636,7 +636,7 @@ exports.ProjectPage = class ProjectPage {
 
             const matchCell = this.page
                 .locator('[role="treegrid"] [role="gridcell"], [role="grid"] [role="gridcell"]')
-                .filter({ hasText: new RegExp(name, 'i') })
+                .filter({ hasText: name })
                 .first();
 
             await expect(matchCell).toBeVisible({ timeout: 15000 });
@@ -922,14 +922,14 @@ exports.ProjectPage = class ProjectPage {
         const endInput = jobModal.getByRole('textbox', { name: 'End Date' });
 
         await jobTypeDropdown.click();
-        await this.page.getByRole('option', { name: new RegExp(jobType, 'i') }).click();
+        await this.page.getByRole('option', { name: jobType }).click();
         await this.page.waitForTimeout(500);
         await expect(jobTypeDropdown).toHaveValue(jobType);
         Logger.info(`Selected job type: ${jobType}`);
 
         if (financialType) {
             await financialTypeDropdown.click();
-            await this.page.getByRole('option', { name: new RegExp(financialType, 'i') }).first().click();
+            await this.page.getByRole('option', { name: financialType }).first().click();
             Logger.info(`Selected financial type: ${financialType}`);
         }
 
@@ -952,7 +952,7 @@ exports.ProjectPage = class ProjectPage {
             await vendorDropdown.click();
             await vendorDropdown.fill(vendor);
             await this.page.waitForTimeout(400);
-            await this.page.getByRole('option', { name: new RegExp(vendor, 'i') }).first().click();
+            await this.page.getByRole('option', { name: vendor }).first().click();
             Logger.info(`Selected vendor: ${vendor}`);
         }
 
@@ -1162,6 +1162,7 @@ exports.ProjectPage = class ProjectPage {
     }
 
     async openScopeMixModal() {
+        await expect(this.scopeMixBtn.first()).toBeEnabled({ timeout: 30000 });
         await this.scopeMixBtn.first().click();
         await expect(this.scopeModal).toBeVisible();
     }

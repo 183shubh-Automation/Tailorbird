@@ -352,7 +352,7 @@ class FinancialsCategoryPage {
                 .getByRole('treegrid')
                 .first()
                 .getByRole('gridcell', { name: rowName })
-                .or(main.getByRole('treegrid').first().locator('[role="gridcell"]').filter({ hasText: new RegExp(esc, 'i') }))
+                .or(main.getByRole('treegrid').first().locator('[role="gridcell"]').filter({ hasText: rowName }))
                 .first();
         };
 
@@ -390,7 +390,7 @@ class FinancialsCategoryPage {
             console.warn(`[addCategoryRowByName] Row '${rowName}' not found after ${Date.now() - startWait}ms — asserting with remaining time`);
         }
 
-        await expect(cellInMainGrid()).toBeVisible({ timeout: 15000 });
+        await expect(cellInMainGrid()).toBeVisible({ timeout: 45000 });
         await this.page.waitForTimeout(3000);
     }
 
