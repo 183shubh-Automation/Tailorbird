@@ -68,12 +68,7 @@ test.beforeEach(async ({ page: testPage }) => {
 
     // Start from Jobs listing (no hardcoded job ID in the URL)
     Logger.info('[beforeEach] Navigating to Jobs listing via BASE_URL');
-    const _jobsListApiWait = page.waitForResponse(
-        r => r.url().includes('/api/bird-table') && r.url().includes('table_name=job') && r.status() === 200,
-        { timeout: 60000 }
-    ).catch(() => null);
     await page.goto(`${process.env.BASE_URL}/jobs`, { waitUntil: 'domcontentloaded', timeout: 120000 });
-    await _jobsListApiWait;
     await page.evaluate(() => {
         document.querySelectorAll('main, .mantine-AppShell-navbar').forEach(el => {
             el.style.zoom = '70%';
@@ -82,12 +77,7 @@ test.beforeEach(async ({ page: testPage }) => {
     await page.waitForTimeout(2000);
 
     // Search → open job → Contracts tab → Units sub-tab
-    const _contractApiWait = page.waitForResponse(
-        r => r.url().includes('/api/bird-table') && r.url().includes('table_name=contract') && r.status() === 200,
-        { timeout: 60000 }
-    ).catch(() => null);
     await po.navigateToUnitsTabFromJobsList();
-    await _contractApiWait;
 });
 
 test.afterAll(() => {
