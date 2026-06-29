@@ -101,7 +101,7 @@ exports.BudgetJob = class BudgetJob {
             await items.nth(bestIdx).click();
             await this.page.waitForLoadState('domcontentloaded').catch(() => {});
             await Promise.race([
-                this.page.waitForLoadState('networkidle'),
+                this.page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {}),
                 this.page.waitForTimeout(15000),
             ]);
             await this.page.waitForTimeout(2000);
@@ -571,11 +571,11 @@ exports.BudgetJob = class BudgetJob {
             enabled = await btn.isEnabled().catch(() => false);
             if (!enabled) {
                 await this.page.reload({ waitUntil: 'load' });
-                await this.page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+                await this.page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {});
                 await this.page.waitForTimeout(2000);
                 if (await budget.propertyDropdownButton.isVisible({ timeout: 3000 }).catch(() => false)) {
                     await this.selectBrookProperty();
-                    await this.page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+                    await this.page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {});
                     await this.page.waitForTimeout(2000);
                 }
                 btn = budget.reviseBudgetsBtn;
@@ -847,7 +847,7 @@ exports.BudgetJob = class BudgetJob {
             .first();
 
         await this.page.waitForURL(/financials\/budget|budget-revision/i, { timeout: 45000 }).catch(() => {});
-        await this.page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+        await this.page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {});
 
         let uploadRoot;
         const urlHasRevisionPath = /budget-revision/i.test(this.page.url());
@@ -925,7 +925,7 @@ exports.BudgetJob = class BudgetJob {
                     }
                 }
                 await this.page.waitForTimeout(450);
-                await this.page.waitForLoadState('networkidle').catch(() => {});
+                await this.page.waitForLoadState('domcontentloaded').catch(() => {});
             }
             return false;
         };
@@ -1418,7 +1418,7 @@ exports.BudgetJob = class BudgetJob {
 
     async getFirstRowCategoryValue(context = 'any') {
         await this.page.waitForTimeout(2000);
-        await this.page.waitForLoadState('networkidle').catch(() => {});
+        await this.page.waitForLoadState('domcontentloaded').catch(() => {});
 
         const headerSelectors = context === 'main'
             ? ['[role="columnheader"]:has-text("Category Code")', '[role="columnheader"]:has-text("Category")']
@@ -1518,7 +1518,7 @@ exports.BudgetJob = class BudgetJob {
         }
         await opt.first().scrollIntoViewIfNeeded();
         await opt.first().click({ timeout: 10000 });
-        await this.page.waitForLoadState('networkidle').catch(() => {});
+        await this.page.waitForLoadState('domcontentloaded').catch(() => {});
         await this.page.waitForTimeout(1200);
         // NOTE: Do NOT press Escape here — when the selection navigates to a revision editor
         // page (/budget-revision/.../editor), Escape triggers "Go Back" and leaves the page.
@@ -1532,7 +1532,7 @@ exports.BudgetJob = class BudgetJob {
         // MCP-confirmed (2026-05-19): revision editor is a Mantine Drawer (role="dialog")
         // with outer mantine-Drawer-root at height:0/top:viewport-height (fixed-position children).
         // Anchor on revision controls to distinguish from toasts/portals.
-        await this.page.waitForLoadState('networkidle').catch(() => {});
+        await this.page.waitForLoadState('domcontentloaded').catch(() => {});
         await this.page.waitForTimeout(1500);
 
         const revisionDialog = this.page.getByRole('dialog').filter({
@@ -1568,7 +1568,7 @@ exports.BudgetJob = class BudgetJob {
         } else {
             await this.page.waitForURL('**/financials/budget**', { timeout: 20000 }).catch(() => {});
         }
-        await this.page.waitForLoadState('networkidle').catch(() => {});
+        await this.page.waitForLoadState('domcontentloaded').catch(() => {});
 
         await expect(budget.reviseBudgetsBtn).toBeDisabled({ timeout: 15000 });
         Logger.success('Overview: Revise Budgets disabled while draft version is selected (cannot start another revision)');
@@ -1590,7 +1590,7 @@ exports.BudgetJob = class BudgetJob {
             if (!/draft/i.test(trimmed)) {
                 await options.nth(i).click();
                 await this.page.keyboard.press('Escape').catch(() => {});
-                await this.page.waitForLoadState('networkidle').catch(() => {});
+                await this.page.waitForLoadState('domcontentloaded').catch(() => {});
                 await this.page.waitForTimeout(1200);
                 return trimmed;
             }

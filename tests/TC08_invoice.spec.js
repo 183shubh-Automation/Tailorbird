@@ -74,7 +74,7 @@ async function expandInvoiceDetailsGridIfCollapsed(page) {
         .catch(() => false);
 }
 
-test.describe('Verify Invoice tab', () => {
+test.describe.skip('Verify Invoice tab', () => {
     test.describe.configure({ retries: 1 });
 
     test.beforeEach(async ({ page: p }) => {

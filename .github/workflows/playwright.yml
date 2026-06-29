@@ -30,7 +30,7 @@ jobs:
 
       # Run all remaining tests except mandatory
       - name: Run remaining tests
-        run: npx playwright test --grep "TC285|TC287|TC288|TC301|TC123|TC226|TC23|Login with existing user"
+        run: npx playwright test --grep-invert "@mandatory" --workers=4
 
       - name: Upload Playwright report
         if: always()
