@@ -24,7 +24,7 @@ const CATEGORY_VISUAL_ASSERT = {
 };
 
 // Entire suite skipped for now: Financials/Category screen load is too slow for routine runs. Re-enable when acceptable.
-test.describe('Verify category tab', () => {
+test.describe.skip('Verify category tab', () => {
 
     test.beforeEach(async ({ page: p }) => {
         page = p;

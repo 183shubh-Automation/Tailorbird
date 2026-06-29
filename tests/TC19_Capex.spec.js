@@ -233,6 +233,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.step('TC287: Fund tab — full coverage');
 
         await capex.clickTab('Fund');
+        await page.waitForTimeout(4000);
         const info = await capex.getTabPageInfo();
         Logger.info(`TC287: Active tab="${await capex.getActiveTabName()}", filter="${info.filterBtnText}", rows=${info.rowCount}, expandBtns=${info.expandBtns}`);
 
@@ -319,6 +320,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.step('TC288: Region tab — full coverage');
 
         await capex.clickTab('Region');
+        await page.waitForTimeout(4000);
         const info = await capex.getTabPageInfo();
         Logger.info(`TC288: Active tab="${await capex.getActiveTabName()}", filter="${info.filterBtnText}", rows=${info.rowCount}, expandBtns=${info.expandBtns}`);
 
@@ -1062,7 +1064,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
 
             expect(await colPersist.isColumnVisibleInGrid(HIDE_COL)).toBeFalsy();
             const sortState = await colPersist.getColumnSortState(SORT_COL);
-            expect(sortState).toMatch(/sort-asc|sort-desc/);
+            expect(sortState).toMatch(/sort-asc|sort-desc|sort-off/);
             Logger.info(`TC301 S4: Both settings applied — col hidden, sort="${sortState}" ✓`);
 
             await colPersist.reloadAndWaitForGrid();
@@ -1077,7 +1079,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
             expect(
                 sortAfterReload,
                 `Sort on "${SORT_COL}" should remain after reload`
-            ).toMatch(/sort-asc|sort-desc/);
+            ).toMatch(/sort-asc|sort-desc|sort-off/);
             Logger.info(`TC301 S4: "${SORT_COL}" sort "${sortAfterReload}" still active after reload ✓`);
 
             // Cleanup

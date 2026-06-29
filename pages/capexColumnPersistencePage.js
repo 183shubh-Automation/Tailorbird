@@ -85,9 +85,19 @@ class CapexColumnPersistencePage {
         }
         await this.openManageColumnsDrawer();
         const dialog = this.l.manageColumnsDialog;
+        // Register before the click so we don't miss a fast response. Column visibility
+        // is persisted via PUT /api/table-view-config. Without awaiting this, the method
+        // can return before the server saves the change, leaving hidden state cross-session.
+        const savePromise = this.page.waitForResponse(
+            r => r.url().includes('/api/table-view-config') &&
+                 r.request().method() === 'PUT' &&
+                 r.status() >= 200 && r.status() < 300,
+            { timeout: 10000 }
+        ).catch(() => null);
         await dialog.locator('p').filter({ hasText: columnName }).first().click();
         await this.page.waitForTimeout(700);
         await this.closeManageColumnsDrawer();
+        await savePromise;
         await this.l.columnHeaders.filter({ hasText: columnName }).first()
             .waitFor({ state: 'hidden', timeout: 6000 })
             .catch(() => {});
@@ -105,9 +115,19 @@ class CapexColumnPersistencePage {
         }
         await this.openManageColumnsDrawer();
         const dialog = this.l.manageColumnsDialog;
+        // Same PUT wait as hideColumn — ensures the restore is persisted server-side
+        // before the method returns. Without this, TC301 S4 cleanup logs "shown" but the
+        // server retains the hidden state, breaking TC287/TC288/TC291 in the next session.
+        const savePromise = this.page.waitForResponse(
+            r => r.url().includes('/api/table-view-config') &&
+                 r.request().method() === 'PUT' &&
+                 r.status() >= 200 && r.status() < 300,
+            { timeout: 10000 }
+        ).catch(() => null);
         await dialog.locator('p').filter({ hasText: columnName }).first().click();
         await this.page.waitForTimeout(700);
         await this.closeManageColumnsDrawer();
+        await savePromise;
         await this.l.columnHeaders.filter({ hasText: columnName }).first()
             .waitFor({ state: 'visible', timeout: 6000 })
             .catch(() => {});
@@ -132,6 +152,11 @@ class CapexColumnPersistencePage {
      * Clicks the .sort-btn inside a column header to cycle the sort state.
      * Hovers the header first so any hover-only button becomes clickable,
      * then uses JS click as reliable fallback for the internal button.
+     *
+     * GHA: the sort is persisted via PUT /api/table-view-config. If we return before
+     * that request completes, a fast page.reload() will load the pre-save state and the
+     * sort will appear as 'sort-off'. We register a waitForResponse BEFORE the click so
+     * we catch the request even if it fires synchronously in the click handler.
      */
     async clickColumnSortButton(columnName) {
         const header = this.l.columnHeaders
@@ -139,6 +164,13 @@ class CapexColumnPersistencePage {
             .first();
         await header.hover().catch(() => {});
         await this.page.waitForTimeout(300);
+        // Register before the click to avoid a race where the PUT fires before we set up the listener.
+        const savePromise = this.page.waitForResponse(
+            resp => resp.url().includes('/api/table-view-config') &&
+                    resp.request().method() === 'PUT' &&
+                    resp.status() >= 200 && resp.status() < 300,
+            { timeout: 15000 }
+        ).catch(() => null);
         // The .sort-btn lives inside .header-actions-panel which has pointer-events:none
         // at rest; hovering the header switches it to pointer-events:auto via React's
         // onMouseEnter handler. Click without force so Playwright waits for that state.
@@ -149,7 +181,10 @@ class CapexColumnPersistencePage {
                 .filter(r => r.querySelectorAll('[role="gridcell"]').length >= 7).length > 0,
             { timeout: 6000 }
         ).catch(() => {});
-        await this.page.waitForTimeout(600);
+        // Wait for server-side persistence before returning; without this, a fast reload
+        // (TC301) will race the PUT and load the un-sorted config from the server.
+        await savePromise;
+        await this.page.waitForTimeout(300);
     }
 
     /**

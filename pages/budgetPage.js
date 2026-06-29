@@ -474,12 +474,36 @@ exports.BudgetJob = class BudgetJob {
 
     async deleteColumnInManageColumns(columnName) {
         const dialog = budget.manageColumnsDialog;
-        const colRow = dialog.locator('div').filter({ hasText: columnName });
-        const deleteBtn = colRow.locator('button').nth(1);
-        await deleteBtn.click();
-        await this.page.waitForTimeout(500);
+        // .first() anchors to one element — without it the multi-element locator makes
+        // button indices unpredictable when nested divs all match the same text.
+        const colRow = dialog.locator('div').filter({ hasText: columnName }).first();
+
+        // GHA: the trash button in Manage Columns has CSS pointer-events:none at rest
+        // and only becomes interactive on :hover. Without hovering, Playwright's
+        // synthesised click dispatches at the element's coordinates but the event falls
+        // through to the background — the confirmation dialog never appears.
+        await colRow.hover().catch(() => {});
+        await this.page.waitForTimeout(300);
+
+        // Target the trash icon by SVG class instead of positional nth(1) — positional
+        // selectors break if button count or order changes. Falls back to nth(1) if the
+        // icon class doesn't match (future-proofing for icon library changes).
+        const trashBtn = colRow.locator(
+            'button:has(svg.lucide-trash-2), button:has(svg[class*="lucide-trash"])'
+        ).first();
+        if (await trashBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+            await trashBtn.click();
+        } else {
+            await colRow.locator('button').nth(1).click();
+        }
+
+        // Explicit wait for the confirmation dialog — gives a meaningful assertion
+        // failure rather than the 55s default actionTimeout if dialog never appears.
+        await expect(budget.deleteBtn).toBeVisible({ timeout: 10000 });
         await budget.deleteBtn.click();
-        await this.page.waitForTimeout(1000);
+        // Wait for the Manage Columns dialog to remove the row — the backend delete
+        // is async and the 1s fixed wait is too short on both local and GHA.
+        await expect(dialog.getByText(columnName)).not.toBeVisible({ timeout: 10000 });
         Logger.success(`Deleted column "${columnName}" from Manage Columns`);
     }
 

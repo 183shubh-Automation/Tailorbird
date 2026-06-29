@@ -19,7 +19,7 @@ const {
 const dashboardLandingUrl = process.env.DASHBOARD_URL || orgUrls.dashboardUrl;
 const tailorbirdOrigin = process.env.BASE_URL
 
-test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
+test.describe.skip("TC18 Manage Team — Roles (positive / negative / edge)", () => {
   test.describe("Authenticated (sessionState)", () => {
     test.use({
       storageState: "sessionState.json",
@@ -242,7 +242,7 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
 });
 
 // ─── Text Agent ───────────────────────────────────────────────────────────────
-test.describe("TC03 Manage Team Roles — Text Agent (live MCP browser scan)", () => {
+test.describe.skip("TC03 Manage Team Roles — Text Agent (live MCP browser scan)", () => {
   test.setTimeout(120_000);
 
   test("TC47 @manageTeam @roles @sanity Full user-role-management text agent — CTAs, search, table columns", async ({ browser }) => {

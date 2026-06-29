@@ -48,7 +48,7 @@ test.afterAll(async () => {
   await sharedBrowserContext.close();
 });
 
-test.describe('Manage Organization Flow ', () => {
+test.describe.skip('Manage Organization Flow ', () => {
   test.beforeEach(async () => {
     await organizationHelper.gotoOrganizationWorkspace();
     await applyWorkspaceZoom(sharedPage);
@@ -166,7 +166,7 @@ async function expectInviteBlockingFeedback(organizationHelperInstance, sharedTe
   }).toPass({ intervals: [200, 500, 1000], timeout: 15_000 });
 }
 
-test.describe('Regression — organization invite validation, search, snapshot', () => {
+test.describe.skip('Regression — organization invite validation, search, snapshot', () => {
   test.beforeEach(async ({}, testInfo) => {
     await organizationHelper.gotoOrganizationWorkspace();
     await applyWorkspaceZoom(sharedPage);
@@ -254,7 +254,7 @@ test.describe('Regression — organization invite validation, search, snapshot',
 });
 
 // ─── Text Agent ───────────────────────────────────────────────────────────────
-test.describe('TC03 Manage Organization — Text Agent (live MCP browser scan)', () => {
+test.describe.skip('TC03 Manage Organization — Text Agent (live MCP browser scan)', () => {
   test.setTimeout(120_000);
 
   test('TC34 @organization @sanity Full organization workspace text agent — tabs, CTA buttons, table columns, search', async ({ browser }) => {

@@ -71,16 +71,20 @@ class CapexPage {
         ).catch(() => null);
         await this.page.locator('.mantine-SegmentedControl-label').filter({ hasText: name }).click();
         await apiPromise;
-        // Wait for REVO-GRID to fully render all columns: first header must equal the tab name
-        // AND at least 2 headers must be present (tab column + at least one financial column).
+        // GHA: revo-grid renders columns progressively — the tab-name column (index 0) appears
+        // before the financial columns. Waiting for only 2 headers allows getColumnHeaders()
+        // to be called before 'Original Budget' and other financial columns are in the DOM.
+        // We wait for 'Original Budget' specifically as it is the first financial column and
+        // its presence guarantees all earlier columns are rendered.
         await this.page.waitForFunction(
             (tabName) => {
-                const headers = document.querySelectorAll('[role="columnheader"]');
+                const headers = Array.from(document.querySelectorAll('[role="columnheader"]'));
                 if (headers.length < 2) return false;
-                return headers[0].textContent.trim() === tabName;
+                if (headers[0].textContent.trim() !== tabName) return false;
+                return headers.some(h => h.textContent.trim() === 'Original Budget');
             },
             name,
-            { timeout: 15000 }
+            { timeout: 20000 }
         ).catch(() => {});
         Logger.info(`Tab switched to: ${name}`);
     }
@@ -621,6 +625,24 @@ class CapexPage {
                 .filter(r => r.querySelectorAll('[role="gridcell"]').length >= 7).length > 1,
             { timeout: 12000 }
         ).catch(() => {});
+        // GHA: the Properties KPI card updates asynchronously after the filter change.
+        // Grid rows appear before the KPI re-renders, so we wait for a valid numeric
+        // value to avoid reading null or a loading placeholder that parses to NaN.
+        await this.page.waitForFunction(
+            () => {
+                const paras = Array.from(document.querySelectorAll('p'));
+                for (let i = 0; i < paras.length; i++) {
+                    if (paras[i].textContent.trim() === 'Properties') {
+                        for (let j = i + 1; j < Math.min(i + 6, paras.length); j++) {
+                            const txt = (paras[j].textContent || '').trim();
+                            if (txt && txt !== 'Properties' && /^\d+$/.test(txt)) return true;
+                        }
+                    }
+                }
+                return false;
+            },
+            { timeout: 10000 }
+        ).catch(() => {});
         await this.page.waitForTimeout(600);
     }
 
@@ -1100,6 +1122,7 @@ class CapexPage {
         const rowCount = await this.getDataRowCount();
         const expandBtns = await this.l.treeExpandBtns.count();
         const topRowPencils = await this.getTopRowPencilCount();
+        await this.page.waitForTimeout(4000);
         return { headers, filterBtnText, kpi, rowCount, expandBtns, topRowPencils };
     }
 

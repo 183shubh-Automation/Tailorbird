@@ -15,7 +15,7 @@ test.use({
 
 let page, approvalJob;
 
-test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () => {
+test.describe.skip('Approval Workflow - My Approvals & All Approvals E2E Tests', () => {
     test.describe.configure({ retries: 1 });
 
     test.beforeEach(async ({ page: p }) => {

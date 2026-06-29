@@ -1730,6 +1730,19 @@ class InvoicePage {
             const dataRows = grid.locator('[role="row"][data-rgrow]');
             // Wait for at least the first row to render its cells before counting (CI can be slow)
             await dataRows.first().waitFor({ state: 'visible', timeout: 12000 }).catch(() => {});
+            // GHA: after fillInvoiceDetails(), the grid can briefly re-render (reactive form).
+            // Row visibility alone is not enough — the revo-grid edit handlers are only registered
+            // after all cells are fully painted. Wait for >= 2 gridcells in the first data row
+            // before starting any dblclick attempts.
+            await this.page.waitForFunction(
+                () => {
+                    const rows = document.querySelectorAll('[role="row"][data-rgrow]');
+                    if (!rows[0]) return false;
+                    return rows[0].querySelectorAll('[role="gridcell"]').length >= 2;
+                },
+                { timeout: 10000 }
+            ).catch(() => {});
+            await this.page.waitForTimeout(400);
             const rowCount = await dataRows.count();
             expect(rowCount).toBeGreaterThan(0);
             Logger.info(`Invoice grid has ${rowCount} data rows (Budget Category column index: ${budgetColIndex})`);
@@ -1746,8 +1759,19 @@ class InvoicePage {
 
             for (let rowIdx = 0; rowIdx < rowCount; rowIdx++) {
                 const row = dataRows.nth(rowIdx);
-                const rowBox = await row.boundingBox();
-                if (!rowBox) continue;
+                // GHA: revo-grid virtual scroll recycles DOM nodes after interactions (e.g. opening
+                // a dropdown to select a budget category). row.boundingBox() triggers Playwright's
+                // auto-wait (up to actionTimeout=55s) when the node is detached, causing TC123 to
+                // timeout across 5 invoices. page.evaluate() queries the live DOM synchronously and
+                // returns false immediately for missing/zero-size rows — no auto-wait involved.
+                const rowVisible = await this.page.evaluate((idx) => {
+                    const rows = Array.from(document.querySelectorAll('[role="row"][data-rgrow]'));
+                    const r = rows[idx];
+                    if (!r) return false;
+                    const rect = r.getBoundingClientRect();
+                    return rect.width > 0 && rect.height > 0;
+                }, rowIdx).catch(() => false);
+                if (!rowVisible) continue;
 
                 const firstCellText = await row.locator('[role="gridcell"]').first().textContent().catch(() => '');
                 if (/^total$/i.test(firstCellText?.trim())) {
@@ -1782,8 +1806,11 @@ class InvoicePage {
                     }
                     let dblclickOk = true;
                     await catCell.dblclick({ timeout: 3000, force: true }).catch(() => { dblclickOk = false; });
-                    inputVisible = await searchInput.isVisible({ timeout: 3000 }).catch(() => false);
-                    // If dblclick succeeded but editor still didn't open, this row can't be edited — stop retrying
+                    // GHA: revo-grid edit handler can be slow to initialize after the grid re-renders
+                    // following fillInvoiceDetails(). 3s is too short on a loaded browser — use 8s so
+                    // a legitimate slow-open is not misidentified as non-editable.
+                    inputVisible = await searchInput.isVisible({ timeout: 8000 }).catch(() => false);
+                    // If dblclick succeeded but editor still didn't open after 8s, row is not editable.
                     if (dblclickOk && !inputVisible) break;
                 }
 
@@ -1947,8 +1974,16 @@ class InvoicePage {
 
             for (let rowIdx = 0; rowIdx < rowCount; rowIdx++) {
                 const row = dataRows.nth(rowIdx);
-                const rowBox = await row.boundingBox();
-                if (!rowBox) continue;
+                // Same virtual-scroll guard as fillBudgetCategoryInInvoice: use page.evaluate()
+                // to avoid Playwright auto-wait timeout on recycled (detached) DOM nodes.
+                const rowVisible = await this.page.evaluate((idx) => {
+                    const rows = Array.from(document.querySelectorAll('[role="row"][data-rgrow]'));
+                    const r = rows[idx];
+                    if (!r) return false;
+                    const rect = r.getBoundingClientRect();
+                    return rect.width > 0 && rect.height > 0;
+                }, rowIdx).catch(() => false);
+                if (!rowVisible) continue;
 
                 const firstCellText = await row.locator('[role="gridcell"]').first().textContent().catch(() => '');
                 if (/^total$/i.test(firstCellText?.trim())) continue;

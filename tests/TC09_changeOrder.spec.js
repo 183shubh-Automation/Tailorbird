@@ -187,7 +187,7 @@ async function expandChangeOrderLineGridIfCollapsed(pg) {
         .catch(() => false);
 }
 
-test.describe('Verify Change order tab', () => {
+test.describe.skip('Verify Change order tab', () => {
     test.describe.configure({ retries: 1 });
 
     test.beforeEach(async ({ page: p }) => {

@@ -102,7 +102,7 @@ test.describe('Tailorbird Login Flow', () => {
 
     await test.step('Perform login', async () => {
       Logger.step('Using credentials from .env...');
-      await login.login(process.env.ONE_ORG_TEST_EMAIL, process.env.NEW_TEST_PASSWORD);
+      await login.login(process.env.VENDOR_EMAIL, process.env.VENDOR_PASSWORD);
     });
 
     await test.step('Store Session', async () => {

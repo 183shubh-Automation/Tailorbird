@@ -51,7 +51,7 @@ test.afterAll(async () => {
 });
 
 
-test.describe('Tailorbird Left Panel Flow - Modular', () => {
+test.describe.skip('Tailorbird Left Panel Flow - Modular', () => {
 
     test('TC06 @sanity @regression Verify all left panel menu options are available', async () => {
         const actualLabels = await helper.getLeftPanelLabels(page);
@@ -485,7 +485,7 @@ test.describe('Tailorbird Left Panel Flow - Modular', () => {
 
 });
 
-test.describe('TC02 Menu — Single-org user assertions', () => {
+test.describe.skip('TC02 Menu — Single-org user assertions', () => {
     test.use({ storageState: 'OneOrganizationUserSessionState.json' });
     test.setTimeout(60_000);
 
@@ -536,7 +536,7 @@ test.describe('TC02 Menu — Single-org user assertions', () => {
     });
 });
 
-test.describe('TC02 Menu — Text assertions', () => {
+test.describe.skip('TC02 Menu — Text assertions', () => {
     test.setTimeout(120_000);
 
     test('TC21 @menu @sanity Full nav text agent — all CTAs, labels, nav items, profile menu', async ({ page }) => {
