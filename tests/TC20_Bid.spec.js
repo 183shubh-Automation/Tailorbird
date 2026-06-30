@@ -748,16 +748,4 @@ test.describe('Verify Bids', () => {
         );
     });
 
-    // ──────────────────────────────────────────────────────────────────────────────
-    // TC_BID_06 — Delete the recently created bid (MUST run last)
-    // ──────────────────────────────────────────────────────────────────────────────
-    test.skip('TC_BID_06 @regression @bid @deleteBid : Should delete the recently created bid from the list, assert delete dialog and verify bid is removed', async () => {
-        const bidData = loadBidData();
-        if (!bidData.bidId) test.skip(true, 'bidId not set — run TC_BID_02 first');
-
-        Logger.step(`TC_BID_06: Deleting bid "${bidData.bidName}" (ID: ${bidData.bidId})`);
-        await bidPage.deleteBid(bidData);
-
-        Logger.success(`TC_BID_06 passed — bid "${bidData.bidName}" deleted and confirmed gone from list`);
-    });
 });

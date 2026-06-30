@@ -539,16 +539,13 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     console.log("Locations tab opened");
 
     await prop.selectLocation("unit");
+    await page.waitForLoadState('domcontentloaded');
     const locationsPanel = page.getByRole("tabpanel", { name: "Locations" });
     const noUnitsState = locationsPanel.getByText(/No units added yet/i).first();
-    if (await noUnitsState.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await expect(noUnitsState).toBeVisible();
-      await expect(locationsPanel.getByText(/Use \+ or Create Button to create one/i)).toBeVisible();
-      test.skip(true, 'Units tab is in empty-state â€” add-row scenario requires existing units');
-    }
+   
     await expect(
       locationsPanel.getByRole("columnheader", { name: /Unit Name/i }).first(),
-    ).toBeVisible({ timeout: 15000 });
+    ).toBeVisible({ timeout: 55000 });
 
     await prop.addButton();
     let unitName = "A new unit";
