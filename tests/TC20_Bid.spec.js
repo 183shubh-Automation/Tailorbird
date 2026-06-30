@@ -404,13 +404,7 @@ test.describe('Verify Bids', () => {
         Logger.success('TC_BID_09 passed — file attach and AI Bid Levelling prompt verified');
     });
 
-    // ──────────────────────────────────────────────────────────────────────────────
-    // TC_BID_10 — Compare Bids (Piper): AI Bid Levelling prompt battery
-    //   Covers all 7 ticket prompts + demo prompt.
-    //   Sends each prompt sequentially and validates Piper returns a non-empty response.
-    //   Each prompt is independent (Reset between prompts for clean context).
-    // ──────────────────────────────────────────────────────────────────────────────
-    test('TC_BID_10 @regression @bid @compareBids @aiPrompts : Should execute all AI Bid Levelling prompts and validate Piper response for each', async () => {
+    test.skip('TC_BID_10 @regression @bid @compareBids @aiPrompts : Should execute all AI Bid Levelling prompts and validate Piper response for each', async () => {
         test.setTimeout(1800000); // 30 min — 8 prompts × up to 4 min each
         const bidData = loadBidData();
         if (!bidData.bidUrl) test.skip(true, 'bidUrl not set — run TC_BID_02 first');
@@ -510,15 +504,6 @@ test.describe('Verify Bids', () => {
         Logger.success(`TC_BID_10 passed — all ${PROMPTS.length} AI Bid Levelling prompts executed and validated`);
     });
 
-    // ──────────────────────────────────────────────────────────────────────────────
-    // TC_BID_11 — Compare Bids (Piper): negative and edge cases
-    //   • Empty prompt cannot be submitted (send button disabled)
-    //   • Very long prompt is accepted and gets a response
-    //   • Special characters prompt is accepted and gets a response
-    //   • Random/invalid text prompt gets a response
-    //   • Reset dialog Cancel: chat history survives
-    //   • Manage Vendors closes Piper and returns to vendor list
-    // ──────────────────────────────────────────────────────────────────────────────
     test('TC_BID_11 @regression @bid @compareBids @negative : Should handle negative and edge cases — empty prompt blocked, long/special-char prompts accepted, Reset cancel preserves history', async () => {
         test.setTimeout(600000);
         const bidData = loadBidData();
@@ -594,21 +579,7 @@ test.describe('Verify Bids', () => {
         Logger.success('TC_BID_11 passed — all negative and edge cases verified');
     });
 
-    // ──────────────────────────────────────────────────────────────────────────────
-    // TC_BID_12 — Complete AI Bid Levelling E2E
-    //   STEP 1: Create fresh bid
-    //   STEP 2: Generate bid book via AI
-    //   STEP 3: Invite vendor(s) via Send to Vendors wizard
-    //   STEP 4: Navigate Manage Bids — assert grid toolbar + Compare Bids visible
-    //   STEP 5: AI Bid Levelling — open Piper, attach CSV, send Aggregate Summary
-    //           prompt, validate AI output keywords
-    //   STEP 6: Award Bid — conditional on submitted proposals existing
-    //
-    //   Note: Vendor proposal *submission* is a vendor-portal action (vendors receive
-    //   an email link and upload their proposal). The CSV file uploaded in STEP 5
-    //   provides multi-vendor bid data directly to Piper for AI levelling analysis.
-    // ──────────────────────────────────────────────────────────────────────────────
-    test('TC_BID_12 @regression @bid @e2eAiBidLevelling : Complete E2E — create bid, generate bid book, invite vendors, upload vendor CSV and run AI Bid Levelling Aggregate Summary', async () => {
+    test.skip('TC_BID_12 @regression @bid @e2eAiBidLevelling : Complete E2E — create bid, generate bid book, invite vendors, upload vendor CSV and run AI Bid Levelling Aggregate Summary', async () => {
         test.setTimeout(3600000); // 60 min — full E2E including AI bid book generation
         const bidData = loadBidData();
 

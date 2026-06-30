@@ -33,6 +33,7 @@ function projectJobLocators(page) {
         dateButtonByAriaLabel: (ariaLabel) => page.locator(`button[aria-label="${ariaLabel}"]`),
 
         bidsTab: page.getByRole('tab', { name: 'Bids' }),
+        jobSummaryTab: page.getByRole('tab', { name: 'Job Summary' }),
         bidsTabPanel: page.getByRole('tabpanel', { name: 'Bids' }),
         addRowMenu: page.getByRole('tabpanel', { name: 'Bids' }).getByTestId('bt-add-row-menu'),
         addRowBtn: page.getByRole('tabpanel', { name: 'Bids' }).getByTestId('bt-add-row').first(),

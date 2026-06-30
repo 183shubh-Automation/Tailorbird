@@ -882,7 +882,7 @@ exports.ProjectJob = class ProjectJob {
     async deleteExistingBids() {
         try {
             Logger.step('Checking for existing bids to delete...');
-            await this.locators.bidsTab.click();
+            await this.locators.jobSummaryTab.click();
             await this.page.waitForLoadState('load');
             await this.page.waitForTimeout(2000);
 
