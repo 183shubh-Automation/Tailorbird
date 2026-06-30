@@ -15,6 +15,7 @@ const { ApprovalJob } = require('../pages/approvalPage');
 const { InvoicePage } = require('../pages/invoicePage');
 const { Logger } = require('../utils/logger');
 
+
 test.use({
     storageState: 'sessionState.json',
     video: 'retain-on-failure',
@@ -45,8 +46,11 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
         const state = 'GA';
         const zip = '30337';
         const propertyType = PROPERTY_TYPES[Math.floor(Math.random() * PROPERTY_TYPES.length)];
+        templateDialog: page
+            .getByRole('dialog')
+            .filter({ has: page.getByPlaceholder('Enter template name') }),
 
-        await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'load' });
+            await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'load' });
         await expect(page).toHaveURL(process.env.DASHBOARD_URL);
         await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(1500);
@@ -137,7 +141,7 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
         await projectPage.submitJob();
         // After creation the app navigates to the job detail page; wait for that
         // navigation to complete before validating, since submitJob() has no waitForURL.
-        await page.waitForURL(/\/jobs\/\d+/, { timeout: 20000 }).catch(() => {});
+        await page.waitForURL(/\/jobs\/\d+/, { timeout: 20000 }).catch(() => { });
         await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(1500);
 
@@ -279,11 +283,18 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
         await approvalJob.selectTemplateType('Invoice');
         await approvalJob.addProperty(propertyName);
         Logger.info(`TC-OOO-SETUP: Template dialog — name="${templateName}", type=Invoice, property="${propertyName}" ✓`);
-
+        const approverTimeout = 15000;
         const APPROVER_TIMEOUT = 15000;
+        const templateDialog = page.locator('[role="dialog"]').filter({
+            has: page.getByPlaceholder('Enter template name'),
+        });
         const approverInputs = page.getByPlaceholder('Select approver');
         const approvers = ['sumit mishra', 'sumit test', 'Sumit Harsh'];
         for (let i = 0; i < approvers.length; i++) {
+            const amountFields = templateDialog.getByPlaceholder('Enter Amount');
+            const amountField = amountFields.nth(0);
+            await amountField.waitFor({ state: 'visible', timeout: approverTimeout });
+            await amountField.click();
             const input = approverInputs.nth(i);
             await input.waitFor({ state: 'visible', timeout: APPROVER_TIMEOUT });
             await input.click();

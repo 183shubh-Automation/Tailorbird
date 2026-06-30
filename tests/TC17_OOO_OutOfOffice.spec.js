@@ -28,6 +28,7 @@ test.describe.serial('Out of Office — OOO suite', () => {
 
     test.beforeEach(async ({ page }) => {
         oooPage = new OOOPage(page);
+
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'domcontentloaded' });
 
         // Ensure OOO is inactive — retry once on transient network/server failure.
@@ -269,6 +270,14 @@ test.describe.serial('Out of Office — OOO suite', () => {
         await approvalJob.fillTemplateName(budgetTemplateName);
         await approvalJob.selectTemplateType('Budget');
         await approvalJob.addProperty(propertyName);
+        const approverTimeout = 15000;
+        const createTemplateDialog = page.locator('[role="dialog"]').filter({
+            has: page.getByPlaceholder('Enter template name'),
+        });
+        const amountFields = createTemplateDialog.getByPlaceholder('Enter Amount');
+        const amountField = amountFields.nth(0);
+        await amountField.waitFor({ state: 'visible', timeout: approverTimeout });
+        await amountField.click();
         // Use the 3 stable Sumit test users as approvers (same 4 that appear when typing "sum").
         // These are long-lived test accounts; yopmail users are excluded as they may be deleted.
         const stableMembers266 = await oooPage.getStableTestMemberNames();
@@ -276,6 +285,7 @@ test.describe.serial('Out of Office — OOO suite', () => {
         const APPROVERS_266 = stableMembers266.slice(0, 3);
         const approverInputs266 = page.getByPlaceholder('Select approver');
         for (let i = 0; i < APPROVERS_266.length; i++) {
+
             const fullName = APPROVERS_266[i];
             const partial = fullName.trim().split(/\s+/)[0]; // First word as filter (e.g. "Sumit", "test")
             const inp = approverInputs266.nth(i);
@@ -288,6 +298,10 @@ test.describe.serial('Out of Office — OOO suite', () => {
             await option.waitFor({ state: 'visible', timeout: 10000 });
             await option.click();
             await page.waitForTimeout(800);
+            const amountFields = createTemplateDialog.getByPlaceholder('Enter Amount');
+            const amountField = amountFields.nth(0);
+            await amountField.waitFor({ state: 'visible', timeout: approverTimeout });
+            await amountField.click();
             Logger.info(`TC266: Approver row ${i + 1} — "${fullName}" ✓`);
         }
         await approvalJob.fillAmount(1000);
@@ -335,7 +349,7 @@ test.describe.serial('Out of Office — OOO suite', () => {
 
         // Step 6: Assert NOT in My Approvals (routed to delegate role due to OOO)
         await page.goto(`${origin}/approvals/my-approvals`, { waitUntil: 'domcontentloaded' });
-        await page.waitForSelector('input[placeholder="Search..."]:not([data-disabled="true"])', { timeout: 30000 }).catch(() => {});
+        await page.waitForSelector('input[placeholder="Search..."]:not([data-disabled="true"])', { timeout: 30000 }).catch(() => { });
         let myRows = 0;
         if (await page.$('input[placeholder="Search..."]:not([data-disabled="true"])')) {
             await approvalPage.searchApprovals(propertyName);
