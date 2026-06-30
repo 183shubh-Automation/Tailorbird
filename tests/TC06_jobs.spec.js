@@ -182,7 +182,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         Logger.success(`Created job details saved to: ${lastCreatedJobPath}`);
     });
 
-    test.skip('TC76 @regression @projectAndJob @bids : Validate scope mix modal fields', async () => {
+    test('TC76 @regression @projectAndJob @bids : Validate scope mix modal fields', async () => {
         // SKIPPED: The Bid Book "Add Row" mechanism (bt-add-row-menu / bt-add-row) was
         // removed in the current app version. Scope Mix requires ≥1 row in the Bid Book,
         // but no UI or API mechanism exists to create rows in the current build.
@@ -730,16 +730,15 @@ test.describe('Verify Create Project and Add Job flow', () => {
         }
     });
 
-
     // Writes tabs disabled state for TC08 / TC09; run after `npm run Test:mandatory` when executing invoice/CO suites (see `npm run Test:depsForInvoiceCo`).
     test('TC78 @regression @projectAndJob @mandatory : Check if Invoice and Change Order tabs are disabled - persist for spec 8 and 9', async () => {
         Logger.step('Checking if Invoice and Change Order tabs are disabled...');
         await projectPage.openProject(projectData.projectName);
         await projectJob.navigateToJobsTab();
         await projectJob.openJobSummary();
-        await projectJob.navigateToBidsTab();
-        await projectJob.minimizeManageVendors();
-        // await page.waitForTimeout(30000);
+        // await projectJob.navigateToBidsTab();
+        // await projectJob.minimizeManageVendors();
+        // // await page.waitForTimeout(30000);
         await page.waitForTimeout(15000);
 
         const changeOrdersTab = page.getByRole('tab', { name: 'Change Orders' });
