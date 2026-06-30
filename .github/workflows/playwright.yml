@@ -26,7 +26,7 @@ jobs:
 
       # Run mandatory tests first in serial
       - name: Run @mandatory tests
-        run: npx playwright test tests/TC01_login.spec.js --workers=4
+        run: npx playwright test tests/TC01_login.spec.js --workers=1
 
       # Run all remaining tests except mandatory
       - name: Run remaining tests

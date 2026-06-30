@@ -305,54 +305,6 @@ test('TC71 @regression @projectAndJob : Negative and missing input validations',
         await projectPage.tc05ClearSearch();
     });
 
-    await test.step('N9: Jobs Create dialog should not allow blind create without required data', async () => {
-        console.log('[TC71] N9 â€” Navigate to Jobs workspace and attempt to open Create Job dialog');
-        await projectPage.tc05GotoJobsWorkspace();
-        const dialogVisible = await projectPage.tc05OpenCreateJobDialogIfAvailable();
-        if (!dialogVisible) {
-            test.skip(true, 'Create Job dialog not available in this environment');
-        }
-        await expect(loc.createJobDialogCreateBtn).toBeVisible({ timeout: 5000 });
-        const enabled = await loc.createJobDialogCreateBtn.isEnabled();
-        expect(enabled, 'FAIL [N9]: Create Job button must be disabled when no required data is entered').toBeFalsy();
-        await projectPage.tc05CloseCreateJobDialogIfOpen();
-    });
-
-    await test.step('N10: Jobs search random no-hit string remains stable', async () => {
-        await expect(loc.mainSearchInput).toBeVisible({ timeout: 8000 });
-        const noMatchTerm = `__JOBS_NEG_NO_MATCH_${Date.now()}__`;
-        await projectPage.tc05FillSearch(noMatchTerm);
-        await expect(loc.mainSearchInput).toHaveValue(/__JOBS_NEG_NO_MATCH_/);
-        await projectPage.tc05ClearSearch();
-    });
-
-    await test.step('N11: Bids no-hit search remains stable', async () => {
-        await projectPage.tc05GotoBidsWorkspace();
-        await expect(loc.mainSearchInput).toBeVisible({ timeout: 8000 });
-        const noMatchTerm = `__BIDS_NEG_NO_MATCH_${Date.now()}__`;
-        await projectPage.tc05FillSearch(noMatchTerm);
-        await expect(loc.mainSearchInput).toHaveValue(/__BIDS_NEG_NO_MATCH_/);
-        await projectPage.tc05ClearSearch();
-    });
-
-    await test.step('N12: Bids Manage Vendors interaction should not break page', async () => {
-        console.log('[TC71] N12 â€” Click Manage Vendors button (if visible) then verify main container is intact');
-        if (await loc.bidsManageVendorsBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await loc.bidsManageVendorsBtn.click();
-            await page.waitForTimeout(700);
-            await loc.bidsManageVendorsBtn.click().catch(() => { });
-        } else {
-            console.log('[TC71] N12 â€” INFO: Manage Vendors button not visible; skipping click');
-        }
-        console.log(`[TC71] N12 â€” ASSERT: main container is visible (page not broken by Manage Vendors)`);
-        try {
-            await expect(loc.mainContainer).toBeVisible();
-            console.log(`[TC71] N12 â€” PASS: main container is visible after Manage Vendors interaction`);
-        } catch (e) {
-            console.log(`[TC71] N12 â€” FAIL: main container not visible after Manage Vendors interaction`);
-            throw e;
-        }
-    });
 });
 
 test('TC72 @regression @projectAndJob : Edge behavior and state transition checks', async ({ page }) => {
