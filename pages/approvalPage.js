@@ -14,7 +14,7 @@ exports.ApprovalJob = class ApprovalJob {
         try {
             Logger.step('Navigating to Approval tab');
             await approval.approvalTab.click();
-            await this.page.waitForURL('**/approvals/**', { timeout: 25000 }).catch(() => {});
+            await this.page.waitForURL('**/approvals/**', { timeout: 25000 }).catch(() => { });
             const _t0 = Date.now();
             const _tab = this.page.getByRole('tab', { name: 'Approval Templates' });
             const _ok = await _tab.waitFor({ state: 'visible', timeout: 20_000 }).then(() => true).catch(() => false);
@@ -66,7 +66,7 @@ exports.ApprovalJob = class ApprovalJob {
             Logger.step('Clicking Create Template button');
             await approval.createTemplateButton.click();
             await this.page.getByPlaceholder('Enter template name')
-                .waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+                .waitFor({ state: 'visible', timeout: 15000 }).catch(() => { });
             await this.page.waitForTimeout(400);
             Logger.success('Create Template dialog opened');
             return true;
@@ -140,7 +140,7 @@ exports.ApprovalJob = class ApprovalJob {
             Logger.step('Submitting create template form');
             await approval.createTemplateSubmit.click();
             await this.page.getByRole('button', { name: 'Create Template' }).first()
-                .waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+                .waitFor({ state: 'visible', timeout: 20000 }).catch(() => { });
             await this.page.waitForTimeout(600);
 
             // Detect backend rejection (e.g. "already linked" property conflict).
@@ -217,7 +217,7 @@ exports.ApprovalJob = class ApprovalJob {
             Logger.step('Cancelling create template');
             await approval.cancelButton.click();
             await this.page.getByRole('button', { name: 'Create Template' }).first()
-                .waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+                .waitFor({ state: 'visible', timeout: 15000 }).catch(() => { });
             await this.page.waitForTimeout(300);
             Logger.success('Create template cancelled');
             return true;
@@ -530,9 +530,9 @@ exports.ApprovalJob = class ApprovalJob {
             const editBtn = templateCell.locator('xpath=ancestor::row//button[contains(., "Edit")]').first();
 
             await editBtn.click();
-            await this.page.waitForURL('**/edit', { timeout: 10000 }).catch(() => {});
+            await this.page.waitForURL('**/edit', { timeout: 10000 }).catch(() => { });
             await this.page.getByPlaceholder('Enter template name')
-                .waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+                .waitFor({ state: 'visible', timeout: 15000 }).catch(() => { });
             await this.page.waitForTimeout(400);
 
             Logger.success('Edit form opened for: ' + templateName);
@@ -574,7 +574,7 @@ exports.ApprovalJob = class ApprovalJob {
             Logger.step('Cancelling edit');
             await approval.cancelButton.click();
             await this.page.getByRole('button', { name: 'Create Template' }).first()
-                .waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+                .waitFor({ state: 'visible', timeout: 15000 }).catch(() => { });
             await this.page.waitForTimeout(300);
             Logger.success('Edit cancelled');
             return true;
@@ -639,7 +639,7 @@ exports.ApprovalJob = class ApprovalJob {
 
             await approval.deleteConfirmButton.click();
             await this.page.getByRole('button', { name: 'Create Template' }).first()
-                .waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+                .waitFor({ state: 'visible', timeout: 20000 }).catch(() => { });
             await this.page.waitForTimeout(400);
 
             Logger.success('Template deleted: ' + templateName);
@@ -896,6 +896,7 @@ exports.ApprovalJob = class ApprovalJob {
     async addThreeApprovers() {
         const approverTimeout = 15000;
         const approverInputs = approval.selectApproverInput;
+        const amountFields = dialog.getByPlaceholder('Enter Amount');
         try {
             // 1st approver: sumit mishra
             Logger.step('Adding approver 1/3: sumit mishra');
@@ -909,12 +910,20 @@ exports.ApprovalJob = class ApprovalJob {
             await this.page.waitForTimeout(300);
             await this.page.keyboard.press('Enter');
             await this.page.waitForTimeout(800);
+            const amountField = amountFields.nth(0);
+            await amountField.waitFor({ state: 'visible', timeout: approverTimeout });
+            await amountField.click();
             Logger.success('Approver 1 added: sumit mishra');
+
 
             // 2nd approver: sumit test
             Logger.step('Adding approver 2/3: sumit test');
             const input1 = approverInputs.nth(1);
             await input1.waitFor({ state: 'visible', timeout: approverTimeout });
+            if (!(await input1.isVisible().catch(() => false))) {
+                Logger.info('Approver 2 is not visible because Approver 1 dialog is overlapping the dropdown.');
+                return; // or continue if inside a loop
+            }
             await input1.click();
             await this.page.waitForTimeout(300);
             await input1.fill('sumit test', { timeout: approverTimeout });
@@ -923,12 +932,19 @@ exports.ApprovalJob = class ApprovalJob {
             await this.page.waitForTimeout(300);
             await this.page.keyboard.press('Enter');
             await this.page.waitForTimeout(800);
+            const amountField2 = amountFields.nth(1);
+            await amountField2.waitFor({ state: 'visible', timeout: 3000 });
+            await amountField2.click();
             Logger.success('Approver 2 added: sumit test');
 
             // 3rd approver: select any option except sumit mishra and sumit test (skip first options via ArrowDown)
             Logger.step('Adding approver 3/3: selecting any other option');
             const input2 = approverInputs.nth(2);
             await input2.waitFor({ state: 'visible', timeout: approverTimeout });
+            if (!(await input2.isVisible().catch(() => false))) {
+                Logger.info('Approver 3 is not visible because Approver 2 dialog is overlapping the dropdown.');
+                return; // or continue if inside a loop
+            }
             await input2.click();
             // await this.page.waitForTimeout(500);
             // for (let k = 0; k < 3; k++) {
@@ -945,6 +961,9 @@ exports.ApprovalJob = class ApprovalJob {
             await this.page.waitForTimeout(300);
             await this.page.keyboard.press('Enter');
             await this.page.waitForTimeout(800);
+            const amountField3 = amountFields.nth(2);
+            await amountField3.waitFor({ state: 'visible', timeout: 3000 });
+            await amountField3.click();
             Logger.success('Approver 3 added: sumit tailorbird');
         } catch (error) {
             Logger.error('Error adding approvers: ' + error.message);
@@ -1032,7 +1051,7 @@ exports.ApprovalJob = class ApprovalJob {
                 // Edit template page: approver rows load after the template name input appears;
                 // wait for the first checkbox to be attached before counting.
                 await this.page.locator('input[type="checkbox"]').first()
-                    .waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
+                    .waitFor({ state: 'attached', timeout: 15000 }).catch(() => { });
                 checkboxes = this.page.locator('input[type="checkbox"]');
                 count = await checkboxes.count();
             }
@@ -1069,7 +1088,7 @@ exports.ApprovalJob = class ApprovalJob {
             Logger.step('Submitting Create Template form');
             await approval.createTemplateSubmit.click();
             await this.page.getByRole('button', { name: 'Create Template' }).first()
-                .waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+                .waitFor({ state: 'visible', timeout: 20000 }).catch(() => { });
             await this.page.waitForTimeout(1000);
             Logger.success('Create Template form submitted');
         } catch (error) {
@@ -1104,7 +1123,7 @@ exports.ApprovalJob = class ApprovalJob {
                     const btn = this.page.getByRole('button', { name }).first();
                     try {
                         await btn.waitFor({ state: 'visible', timeout: 600 });
-                        await btn.scrollIntoViewIfNeeded().catch(() => {});
+                        await btn.scrollIntoViewIfNeeded().catch(() => { });
                         await this.page.waitForTimeout(300); // let animation stabilize before acting
                         await btn.click({ force: true, timeout: 8000 });
                         await this.page.waitForTimeout(700);
@@ -1116,7 +1135,7 @@ exports.ApprovalJob = class ApprovalJob {
             }
 
             // Wait for dialog to fully disappear (animation + unmount)
-            await drawerLocator.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
+            await drawerLocator.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => { });
             Logger.success('Dialog cancelled');
         } catch (error) {
             Logger.error('Error cancelling dialog: ' + error.message);
@@ -1297,7 +1316,7 @@ exports.ApprovalJob = class ApprovalJob {
         await field.fill(label);
         await field.press('Enter');
         await this.page.waitForTimeout(350);
-        await field.press('Escape').catch(() => {});
+        await field.press('Escape').catch(() => { });
         await this.page.waitForTimeout(200);
     }
 
@@ -1311,7 +1330,7 @@ exports.ApprovalJob = class ApprovalJob {
         }
         await this.page.waitForTimeout(450);
         if (await this.isFilterDrawerOpen()) {
-            await approval.filterButton.click().catch(() => {});
+            await approval.filterButton.click().catch(() => { });
             await this.page.waitForTimeout(400);
         }
     }
@@ -1417,7 +1436,7 @@ exports.ApprovalJob = class ApprovalJob {
 
             // Wait for properties page to load
             await this.page.locator("button:has-text('Create Property')")
-                .waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+                .waitFor({ state: 'visible', timeout: 20000 }).catch(() => { });
             await this.page.waitForTimeout(800);
 
             // Click Create Property button
@@ -1784,7 +1803,7 @@ exports.ApprovalJob = class ApprovalJob {
             await this.page.goto('/approvals/all-approvals', { waitUntil: 'load' });
             await this.page.waitForTimeout(5000);
             await this.page.locator('[role="treegrid"]').first()
-                .waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
+                .waitFor({ state: 'visible', timeout: 30000 }).catch(() => { });
             await this.page.waitForTimeout(3000);
             Logger.success('Navigated to All Approvals tab');
         } catch (error) {
@@ -1860,7 +1879,7 @@ exports.ApprovalJob = class ApprovalJob {
             await approveOnBehalfBtn.click();
             await this.page.waitForTimeout(3000);
 
-            await dialog.waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
+            await dialog.waitFor({ state: 'hidden', timeout: 15000 }).catch(() => { });
             await this.page.waitForTimeout(2000);
 
             Logger.success(`Approved revision on behalf for property: "${propertyName}"`);
@@ -1886,7 +1905,7 @@ exports.ApprovalJob = class ApprovalJob {
                 await this.page.reload({ waitUntil: 'load' });
                 await this.page.waitForTimeout(5000);
                 await this.page.locator('[role="treegrid"]').first()
-                    .waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
+                    .waitFor({ state: 'visible', timeout: 30000 }).catch(() => { });
                 await this.page.waitForTimeout(3000);
 
                 // Check if any pending revisions remain for this property

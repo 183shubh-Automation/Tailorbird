@@ -26,7 +26,7 @@ function saveBidData(updated) {
     fs.writeFileSync(BID_DATA_PATH, JSON.stringify(updated, null, 2), 'utf8');
 }
 
-test.describe.skip('Verify Bids', () => {
+test.describe('Verify Bids', () => {
     test.describe.configure({ retries: 1 });
 
     // ── Property setup — creates a fresh property per suite run ──────────────────

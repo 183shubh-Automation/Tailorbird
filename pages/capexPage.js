@@ -41,7 +41,7 @@ class CapexPage {
                 return rows.length > 1;
             },
             { timeout: 25000 }
-        ).catch(() => {});
+        ).catch(() => { });
         await this.page.waitForTimeout(600);
     }
 
@@ -65,8 +65,8 @@ class CapexPage {
         const dimension = name.toLowerCase();
         const apiPromise = this.page.waitForResponse(
             resp => resp.url().includes('/api/bird-table') &&
-                    resp.url().includes(`dimension=${dimension}`) &&
-                    resp.status() >= 200 && resp.status() < 300,
+                resp.url().includes(`dimension=${dimension}`) &&
+                resp.status() >= 200 && resp.status() < 300,
             { timeout: 30000 }
         ).catch(() => null);
         await this.page.locator('.mantine-SegmentedControl-label').filter({ hasText: name }).click();
@@ -85,7 +85,7 @@ class CapexPage {
             },
             name,
             { timeout: 20000 }
-        ).catch(() => {});
+        ).catch(() => { });
         Logger.info(`Tab switched to: ${name}`);
     }
 
@@ -134,8 +134,8 @@ class CapexPage {
                 return null;
             };
             return {
-                properties:       findValue('Properties'),
-                remainingBudget:  findValue('Remaining Budget'),
+                properties: findValue('Properties'),
+                remainingBudget: findValue('Remaining Budget'),
                 currentCommitted: findValue('Current Committed'),
             };
         });
@@ -256,14 +256,14 @@ class CapexPage {
         for (const row of rows) {
             if (row.isTotal) continue;
 
-            const ob  = row['Original Budget'].value;
-            const br  = row['Budget Revision'].value;
-            const cb  = row['Current Budget'].value;
+            const ob = row['Original Budget'].value;
+            const br = row['Budget Revision'].value;
+            const cb = row['Current Budget'].value;
             const rem = row['Budget Remaining'].value;
-            const oc  = row['Original Contract Amount'].value;
+            const oc = row['Original Contract Amount'].value;
             const aco = row['Approved Change Orders'].value;
-            const cc  = row['Current Contract Amount'].value;
-            const rc  = row['Remaining Contract Amount'].value;
+            const cc = row['Current Contract Amount'].value;
+            const rc = row['Remaining Contract Amount'].value;
             const inv = row['Invoiced Amount'].value;
 
             if (ob !== null && br !== null && cb !== null && cb !== 0) {
@@ -312,7 +312,7 @@ class CapexPage {
             () => Array.from(document.querySelectorAll('[role="row"]'))
                 .filter(r => r.querySelectorAll('[role="gridcell"]').length >= 7).length > 0,
             { timeout: 6000 }
-        ).catch(() => {});
+        ).catch(() => { });
         await this.page.waitForTimeout(400);
     }
 
@@ -361,7 +361,7 @@ class CapexPage {
         }
         // Wait for the Manage Columns dialog to actually appear
         await this.page.locator('[role="dialog"]').filter({ hasText: 'Manage Columns' }).first()
-            .waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+            .waitFor({ state: 'visible', timeout: 5000 }).catch(() => { });
         await this.page.waitForTimeout(400);
     }
 
@@ -407,7 +407,7 @@ class CapexPage {
 
         await pencil.click();
         // Wait for the modal badge to confirm the drawer is fully rendered.
-        await this.l.revisionDraftBadge.waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
+        await this.l.revisionDraftBadge.waitFor({ state: 'visible', timeout: 8000 }).catch(() => { });
         await this.page.waitForTimeout(300);
         return true;
     }
@@ -427,7 +427,7 @@ class CapexPage {
             if (closeBtn) closeBtn.click();
         });
         await this.page.waitForTimeout(800);
-        await this.page.locator('[role="dialog"]').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+        await this.page.locator('[role="dialog"]').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => { });
         await this.page.waitForTimeout(400);
     }
 
@@ -507,8 +507,8 @@ class CapexPage {
             if (!grid) return null;
             const scrollable = grid.querySelector('[style*="overflow"]') || grid;
             return {
-                scrollWidth:  scrollable.scrollWidth,
-                clientWidth:  scrollable.clientWidth,
+                scrollWidth: scrollable.scrollWidth,
+                clientWidth: scrollable.clientWidth,
                 isScrollable: scrollable.scrollWidth > scrollable.clientWidth + 5,
             };
         });
@@ -593,20 +593,57 @@ class CapexPage {
             () => Array.from(document.querySelectorAll('[role="row"]'))
                 .filter(r => r.querySelectorAll('[role="gridcell"]').length >= 7).length > 10,
             { timeout: 12000 }
-        ).catch(() => {});
+        ).catch(() => { });
         await this.page.waitForTimeout(600);
     }
 
     /** Unchecks the first individual property (index 1, skipping master). */
+    // async deselectFirstProperty() {
+    //     await this.openPortfolioFilter();
+    //     const dd = this.getPortfolioDropdown();
+    //     const options = dd.locator('.mantine-Combobox-option');
+    //     if ((await options.count()) > 1) {
+    //         await options.nth(1).click();
+    //     }
+    //     await this.closePortfolioFilter();
+    //     await this.page.waitForTimeout(1800);
+
+
+    // }
+
     async deselectFirstProperty() {
         await this.openPortfolioFilter();
         const dd = this.getPortfolioDropdown();
         const options = dd.locator('.mantine-Combobox-option');
+
+        const responsePromise = this.page.waitForResponse(response =>
+            response.url().includes('/api/bird-table') &&
+            response.url().includes('table_name=capex_tracker') &&
+            response.request().method() === 'GET' &&
+            response.status() === 200,
+            { timeout: 30000 }
+        );
+
         if ((await options.count()) > 1) {
             await options.nth(1).click();
         }
+
         await this.closePortfolioFilter();
-        await this.page.waitForTimeout(1800);
+
+        // Wait for API
+        const response = await responsePromise;
+        const body = await response.json();
+
+        // Check property data
+        const propertyRows = body.rows?.filter(row => row.level === 'property') ?? [];
+
+        if (propertyRows.length === 0) {
+            Logger.error('No property data found in bird-table API response.');
+            throw new Error('No property data found in bird-table API response.');
+        }
+
+        Logger.success(`Property data loaded successfully. Found ${propertyRows.length} properties.`);
+        await expect(this.l.searchInput).toBeVisible({ timeout: 10000 });
     }
 
     /** Re-checks the first individual property if it was unchecked. */
@@ -624,7 +661,7 @@ class CapexPage {
             () => Array.from(document.querySelectorAll('[role="row"]'))
                 .filter(r => r.querySelectorAll('[role="gridcell"]').length >= 7).length > 1,
             { timeout: 12000 }
-        ).catch(() => {});
+        ).catch(() => { });
         // GHA: the Properties KPI card updates asynchronously after the filter change.
         // Grid rows appear before the KPI re-renders, so we wait for a valid numeric
         // value to avoid reading null or a loading placeholder that parses to NaN.
@@ -642,7 +679,7 @@ class CapexPage {
                 return false;
             },
             { timeout: 10000 }
-        ).catch(() => {});
+        ).catch(() => { });
         await this.page.waitForTimeout(600);
     }
 
@@ -834,7 +871,7 @@ class CapexPage {
         const topRowPencils = await this.getTopRowPencilCount();
         return { headers, filterBtnText, kpi, rowCount, expandBtns, topRowPencils };
     }
-        async unselectAllDefaultFinancialColumns() {
+    async unselectAllDefaultFinancialColumns() {
         await this.openManageColumnsDrawer();
         await expect(this._manageColumnsDialog()).toBeVisible({ timeout: 8000 });
 
@@ -870,7 +907,7 @@ class CapexPage {
         await this.page.waitForTimeout(800);
     }
 
-      async getPropertyColumnValues() {
+    async getPropertyColumnValues() {
         const waitTimeoutMs = 20000;
 
         await this.page.waitForFunction(
@@ -893,7 +930,7 @@ class CapexPage {
                 });
             },
             { timeout: waitTimeoutMs }
-        ).catch(() => {});
+        ).catch(() => { });
 
         await this._resetPinnedPropertyPaneScroll();
 
@@ -924,7 +961,7 @@ class CapexPage {
         return this._readPropertyColumnFromDom();
     }
 
-        async _resetPinnedPropertyPaneScroll() {
+    async _resetPinnedPropertyPaneScroll() {
         await this.page.evaluate(() => {
             const viewport = document.querySelector('revogr-viewport-scroll.colPinStart');
             const scrollEl = viewport?.querySelector('.vertical-inner') || viewport;
@@ -932,7 +969,7 @@ class CapexPage {
         });
     }
 
-        _readPropertyColumnFromDom() {
+    _readPropertyColumnFromDom() {
         return this.page.evaluate(() => {
             const normalize = (value) => String(value || '').trim().replace(/^›\s*/, '').trim();
             const isPropertyName = (value) => {
@@ -1040,7 +1077,7 @@ class CapexPage {
         });
     }
 
-        async _scrollPinnedPropertyPane(stepPx = 180) {
+    async _scrollPinnedPropertyPane(stepPx = 180) {
         return this.page.evaluate((px) => {
             const viewport = document.querySelector('revogr-viewport-scroll.colPinStart');
             const scrollEl = viewport?.querySelector('.vertical-inner') || viewport;
@@ -1059,7 +1096,7 @@ class CapexPage {
         });
     }
 
-    
+
     /**
      * Clicks the column name paragraph inside the open Manage Columns dialog.
      * The paragraph is the click target for its parent toggle row.
@@ -1096,7 +1133,7 @@ class CapexPage {
         }, FINANCIAL_COLS);
     }
 
-    
+
     /**
      * Returns the number of pencil action buttons on the topmost visible grid row.
      * Used to assert no pencil on group-level / top-level rows.
@@ -1144,17 +1181,17 @@ class CapexPage {
         // data rows in the pinned property pane after a full page reload.
         // Work around it by enabling one column BEFORE reloading so the post-reload
         // grid state is always valid.  The caller's finally block restores all columns.
-        await this.openManageColumnsDrawer().catch(() => {});
+        await this.openManageColumnsDrawer().catch(() => { });
         const dialog = this._manageColumnsDialog();
         if (await dialog.isVisible({ timeout: 5000 }).catch(() => false)) {
             const checked = await this.getCheckedManageColumnNames().catch(() => []);
             if (checked.length === 0 && FINANCIAL_COLS.length > 0) {
-                await this.toggleColumn(FINANCIAL_COLS[0]).catch(() => {});
+                await this.toggleColumn(FINANCIAL_COLS[0]).catch(() => { });
             }
-            await this.closeManageColumnsDrawer().catch(() => {});
+            await this.closeManageColumnsDrawer().catch(() => { });
             await this.page.waitForTimeout(600);
         } else {
-            await this.closeManageColumnsDrawer().catch(() => {});
+            await this.closeManageColumnsDrawer().catch(() => { });
         }
 
         await this.page.reload({ waitUntil: 'domcontentloaded' });
@@ -1162,7 +1199,7 @@ class CapexPage {
         await this.page.waitForFunction(
             () => document.querySelectorAll('button.tree-toggle').length > 0,
             { timeout: 30000 }
-        ).catch(() => {});
+        ).catch(() => { });
         await this.page.waitForTimeout(1000);
     }
 

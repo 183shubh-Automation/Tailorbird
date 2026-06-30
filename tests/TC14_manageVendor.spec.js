@@ -19,7 +19,7 @@ test.use({
 
 let page, vendorPage;
 
-test.describe.skip('Vendors Directory - E2E', () => {
+test.describe('Vendors Directory - E2E', () => {
     test.beforeEach(async ({ page: p }) => {
         page = p;
         vendorPage = new VendorDirectoryPage(page);

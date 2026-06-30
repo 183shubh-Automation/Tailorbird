@@ -85,7 +85,7 @@ test.afterAll(() => {
 });
 
 // ── Suite ─────────────────────────────────────────────────────────────────────
-test.describe.skip('Unit Interior — Contracts > Units tab full E2E suite', () => {
+test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
 
     test('TC274 @sanity @regression Verify user is able to navigate from Jobs listing to Contracts Units tab and validate complete Units page UI including tabs, labels, CTAs, toolbar buttons, grid headers, unit statuses and action controls against fixture data',
         async () => {

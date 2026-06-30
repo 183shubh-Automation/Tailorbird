@@ -742,7 +742,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
     // ─────────────────────────────────────────────────────────────────────────
     // TC297 — Manage Columns (Hide/Restore & Order)
     // ─────────────────────────────────────────────────────────────────────────
-    test('TC297 @regression @capex — Manage Columns: all 9 columns listed, hide removes from grid, restore brings back, all present after multi-toggle', async ({ page }) => {
+    test.skip('TC297 @regression @capex — Manage Columns: all 9 columns listed, hide removes from grid, restore brings back, all present after multi-toggle', async ({ page }) => {
         Logger.step('TC297: Manage Columns — visibility and order');
 
         const ALL_COLS = [

@@ -78,7 +78,7 @@ async function settleApprovalWorkspace(pg, ms = 2200) {
     if (ms > 0) await pg.waitForTimeout(ms);
 }
 
-test.describe.skip('Approval Templates - Comprehensive E2E Tests', () => {
+test.describe('Approval Templates - Comprehensive E2E Tests', () => {
     test.describe.configure({ retries: 0 });
 
     test.beforeEach(async ({ page: p }) => {
