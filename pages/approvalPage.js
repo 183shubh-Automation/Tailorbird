@@ -896,10 +896,7 @@ exports.ApprovalJob = class ApprovalJob {
     async addThreeApprovers() {
         const approverTimeout = 15000;
         const approverInputs = approval.selectApproverInput;
-        const amountFields = dialog.getByPlaceholder('Enter Amount');
-        try {
-            // 1st approver: sumit mishra
-            Logger.step('Adding approver 1/3: sumit mishra');
+        const amountFields = this.createTemplateDialog().getByPlaceholder('Enter Amount');
             const input0 = approverInputs.nth(0);
             await input0.waitFor({ state: 'visible', timeout: approverTimeout });
             await input0.click();
@@ -916,14 +913,8 @@ exports.ApprovalJob = class ApprovalJob {
             Logger.success('Approver 1 added: sumit mishra');
 
 
-            // 2nd approver: sumit test
-            Logger.step('Adding approver 2/3: sumit test');
             const input1 = approverInputs.nth(1);
             await input1.waitFor({ state: 'visible', timeout: approverTimeout });
-            if (!(await input1.isVisible().catch(() => false))) {
-                Logger.info('Approver 2 is not visible because Approver 1 dialog is overlapping the dropdown.');
-                return; // or continue if inside a loop
-            }
             await input1.click();
             await this.page.waitForTimeout(300);
             await input1.fill('sumit test', { timeout: approverTimeout });
@@ -933,7 +924,7 @@ exports.ApprovalJob = class ApprovalJob {
             await this.page.keyboard.press('Enter');
             await this.page.waitForTimeout(800);
             const amountField2 = amountFields.nth(1);
-            await amountField2.waitFor({ state: 'visible', timeout: 3000 });
+            await amountField2.waitFor({ state: 'visible', timeout: approverTimeout });
             await amountField2.click();
             Logger.success('Approver 2 added: sumit test');
 
@@ -941,19 +932,8 @@ exports.ApprovalJob = class ApprovalJob {
             Logger.step('Adding approver 3/3: selecting any other option');
             const input2 = approverInputs.nth(2);
             await input2.waitFor({ state: 'visible', timeout: approverTimeout });
-            if (!(await input2.isVisible().catch(() => false))) {
-                Logger.info('Approver 3 is not visible because Approver 2 dialog is overlapping the dropdown.');
-                return; // or continue if inside a loop
-            }
+
             await input2.click();
-            // await this.page.waitForTimeout(500);
-            // for (let k = 0; k < 3; k++) {
-            //     await this.page.keyboard.press('ArrowDown');
-            //     await this.page.waitForTimeout(150);
-            // }
-            // await this.page.keyboard.press('Enter');
-            // await this.page.waitForTimeout(800);
-            // Logger.success('Approver 3 added: selected from dropdown');
             await this.page.waitForTimeout(300);
             await input2.fill('sumit tailorbird', { timeout: approverTimeout });
             await this.page.waitForTimeout(800);
@@ -962,13 +942,10 @@ exports.ApprovalJob = class ApprovalJob {
             await this.page.keyboard.press('Enter');
             await this.page.waitForTimeout(800);
             const amountField3 = amountFields.nth(2);
-            await amountField3.waitFor({ state: 'visible', timeout: 3000 });
+            await amountField3.waitFor({ state: 'visible', timeout: approverTimeout });
             await amountField3.click();
             Logger.success('Approver 3 added: sumit tailorbird');
-        } catch (error) {
-            Logger.error('Error adding approvers: ' + error.message);
-            throw error;
-        }
+
     }
 
     createTemplateDialog() {
