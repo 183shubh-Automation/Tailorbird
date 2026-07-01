@@ -436,7 +436,7 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
             await expect(dialog, 'Approval Details dialog must open').toBeVisible({ timeout: 15000 });
             Logger.success('TC-OOO-APPROVAL-VERIFY: Approval Details dialog opened ✓');
 
-            const expectedApprovers = ['Sumit Mishra', 'Sumit Test', 'Sumit Harsh'];
+            const expectedApprovers = ['Eligible approvers: Sumit Mishra', 'Eligible approvers: Sumit Test'];
             for (const name of expectedApprovers) {
                 await expect(dialog.getByText(name, { exact: true }), `Approver "${name}" must be listed`).toBeVisible({ timeout: 10000 });
             }

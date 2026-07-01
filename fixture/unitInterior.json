@@ -9,7 +9,6 @@
 
   "jobTabs": {
     "jobSummary":   "Job Summary",
-    "bids":         "Bids",
     "contracts":    "Contracts",
     "changeOrders": "Change Orders",
     "invoice":      "Invoice"

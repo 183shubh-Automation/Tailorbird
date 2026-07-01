@@ -179,8 +179,8 @@ test.describe('Approval Workflow - My Approvals E2E Tests with another user', ()
             // Step 1: Navigate to My Approvals
             Logger.step('Step 1: Navigate to My Approvals');
             await approvalJob.navigateToMyApprovalsTab();
-            await approvalJob.waitForPageLoad();
-
+            // await approvalJob.waitForPageLoad();
+            await page.waitForTimeout(25000); // Wait for 30 seconds to ensure the page is fully loaded
             // Step 2: Verify page is loaded
             Logger.step('Step 2: Verify page is loaded');
             const searchInputVisible = await page.getByPlaceholder('Search...').isVisible({ timeout: 5000 }).catch(() => false);
@@ -219,13 +219,15 @@ test.describe('Approval Workflow - My Approvals E2E Tests with another user', ()
             // Step 7: Test manage columns
             Logger.step('Step 7: Test manage columns');
             await approvalJob.clickSettingsButton();
-            await approvalJob.waitForPageLoad();
+            // await approvalJob.waitForPageLoad();
+            await page.waitForTimeout(25000);
             await approvalJob.closeDialog();
 
             // Step 8: Switch to All Approvals
             Logger.step('Step 8: Switch to All Approvals');
             await approvalJob.navigateToAllApprovalsTab();
-            await approvalJob.waitForPageLoad();
+            // await approvalJob.waitForPageLoad();
+            await page.waitForTimeout(25000);
 
             // Step 9: Verify All Approvals page loaded
             Logger.step('Step 9: Verify All Approvals page loaded');
@@ -240,7 +242,8 @@ test.describe('Approval Workflow - My Approvals E2E Tests with another user', ()
                 allApprovalsVisible || allGridVisible || (allTabSelected && allApprovalsUrl),
                 "UI changed: All Approvals should show search/grid or selected all-approvals state"
             ).toBeTruthy();
-            await approvalJob.waitForPageLoad();
+            // await approvalJob.waitForPageLoad();
+            await page.waitForTimeout(25000);
             Logger.success('TC214 passed: Complete E2E workflow executed successfully');
         } catch (error) {
             Logger.error('TC214 failed: ' + error.message);
