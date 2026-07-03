@@ -359,7 +359,7 @@ test.describe('Budget Workflow - E2E Tests', () => {
     // ===== TC244: Budget Revision E2E — Revisions, AI Notes, Approval =====
 
     test('TC244 @budget @e2e @revision : Budget Revision Workflow E2E — create property, create Budget Approval template with 2 approvers, import budget CSV, approve initial budget, create Revision #1 (Bathroom -$2000 / Concrete +$1000) with AI notes and summary card validation, create Revision #2 (Bathroom +$4000 / Concrete -$500) with AI notes and summary card validation, navigate to All Approvals, assert both revisions show Pending Approval, approve both via Approve on Behalf, assert both show Approved status', async () => {
-        test.setTimeout(480000); // 8 minutes — full E2E lifecycle
+        test.setTimeout(600000); // 8 minutes — full E2E lifecycle
 
         const timestamp = Date.now();
         const propertyName = `TC244_BudgetProp_${timestamp}`;

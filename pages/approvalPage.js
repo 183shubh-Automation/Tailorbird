@@ -897,54 +897,54 @@ exports.ApprovalJob = class ApprovalJob {
         const approverTimeout = 15000;
         const approverInputs = approval.selectApproverInput;
         const amountFields = this.createTemplateDialog().getByPlaceholder('Enter Amount');
-            const input0 = approverInputs.nth(0);
-            await input0.waitFor({ state: 'visible', timeout: approverTimeout });
-            await input0.click();
-            await this.page.waitForTimeout(300);
-            await input0.fill('sumit mishra', { timeout: approverTimeout });
-            await this.page.waitForTimeout(800);
-            await this.page.keyboard.press('ArrowDown');
-            await this.page.waitForTimeout(300);
-            await this.page.keyboard.press('Enter');
-            await this.page.waitForTimeout(800);
-            const amountField = amountFields.nth(0);
-            await amountField.waitFor({ state: 'visible', timeout: approverTimeout });
-            await amountField.click();
-            Logger.success('Approver 1 added: sumit mishra');
+        const input0 = approverInputs.nth(0);
+        await input0.waitFor({ state: 'visible', timeout: approverTimeout });
+        await input0.click();
+        await this.page.waitForTimeout(300);
+        await input0.fill('sumit mishra', { timeout: approverTimeout });
+        await this.page.waitForTimeout(800);
+        await this.page.keyboard.press('ArrowDown');
+        await this.page.waitForTimeout(300);
+        await this.page.keyboard.press('Enter');
+        await this.page.waitForTimeout(800);
+        const amountField = amountFields.nth(0);
+        await amountField.waitFor({ state: 'visible', timeout: approverTimeout });
+        await amountField.click();
+        Logger.success('Approver 1 added: sumit mishra');
 
 
-            const input1 = approverInputs.nth(1);
-            await input1.waitFor({ state: 'visible', timeout: approverTimeout });
-            await input1.click();
-            await this.page.waitForTimeout(300);
-            await input1.fill('sumit test', { timeout: approverTimeout });
-            await this.page.waitForTimeout(800);
-            await this.page.keyboard.press('ArrowDown');
-            await this.page.waitForTimeout(300);
-            await this.page.keyboard.press('Enter');
-            await this.page.waitForTimeout(800);
-            const amountField2 = amountFields.nth(1);
-            await amountField2.waitFor({ state: 'visible', timeout: approverTimeout });
-            await amountField2.click();
-            Logger.success('Approver 2 added: sumit test');
+        const input1 = approverInputs.nth(1);
+        await input1.waitFor({ state: 'visible', timeout: approverTimeout });
+        await input1.click();
+        await this.page.waitForTimeout(300);
+        await input1.fill('sumit test', { timeout: approverTimeout });
+        await this.page.waitForTimeout(800);
+        await this.page.keyboard.press('ArrowDown');
+        await this.page.waitForTimeout(300);
+        await this.page.keyboard.press('Enter');
+        await this.page.waitForTimeout(800);
+        const amountField2 = amountFields.nth(1);
+        await amountField2.waitFor({ state: 'visible', timeout: approverTimeout });
+        await amountField2.click();
+        Logger.success('Approver 2 added: sumit test');
 
-            // 3rd approver: select any option except sumit mishra and sumit test (skip first options via ArrowDown)
-            Logger.step('Adding approver 3/3: selecting any other option');
-            const input2 = approverInputs.nth(2);
-            await input2.waitFor({ state: 'visible', timeout: approverTimeout });
+        // 3rd approver: select any option except sumit mishra and sumit test (skip first options via ArrowDown)
+        Logger.step('Adding approver 3/3: selecting any other option');
+        const input2 = approverInputs.nth(2);
+        await input2.waitFor({ state: 'visible', timeout: approverTimeout });
 
-            await input2.click();
-            await this.page.waitForTimeout(300);
-            await input2.fill('sumit tailorbird', { timeout: approverTimeout });
-            await this.page.waitForTimeout(800);
-            await this.page.keyboard.press('ArrowDown');
-            await this.page.waitForTimeout(300);
-            await this.page.keyboard.press('Enter');
-            await this.page.waitForTimeout(800);
-            const amountField3 = amountFields.nth(2);
-            await amountField3.waitFor({ state: 'visible', timeout: approverTimeout });
-            await amountField3.click();
-            Logger.success('Approver 3 added: sumit tailorbird');
+        await input2.click();
+        await this.page.waitForTimeout(300);
+        await input2.fill('sumit tailorbird', { timeout: approverTimeout });
+        await this.page.waitForTimeout(800);
+        await this.page.keyboard.press('ArrowDown');
+        await this.page.waitForTimeout(300);
+        await this.page.keyboard.press('Enter');
+        await this.page.waitForTimeout(800);
+        const amountField3 = amountFields.nth(2);
+        await amountField3.waitFor({ state: 'visible', timeout: approverTimeout });
+        await amountField3.click();
+        Logger.success('Approver 3 added: sumit tailorbird');
 
     }
 
@@ -974,6 +974,27 @@ exports.ApprovalJob = class ApprovalJob {
         }
     }
 
+     async fillTwoApproversAmount(amount) {
+        const fieldTimeout = 15000;
+        try {
+            Logger.step('Filling amount: ' + amount);
+            const dialog = this.createTemplateDialog();
+            const amountFields = dialog.getByPlaceholder('Enter Amount');
+            const n = 2;
+            for (let i = 0; i < n; i++) {
+                const amountField = amountFields.nth(i);
+                await amountField.waitFor({ state: 'visible', timeout: fieldTimeout });
+                await amountField.click();
+                await this.page.waitForTimeout(200);
+                await amountField.fill(amount.toString(), { timeout: fieldTimeout });
+            }
+            await this.page.waitForTimeout(500);
+            Logger.success('Amount filled on ' + n + ' approver row(s): ' + amount);
+        } catch (error) {
+            Logger.error('Error filling amount: ' + error.message);
+            throw error;
+        }
+    }
     /**
      * Toggle "Always Required" / mandatory flags on approver rows inside Create/Edit Template dialog.
      * Property pickers often port their dropdown outside the dialog; scoping to the dialog avoids wrong targets.
@@ -1712,7 +1733,15 @@ exports.ApprovalJob = class ApprovalJob {
             await this.fillTemplateName(templateName);
             await this.selectTemplateType('budget');
             await this.addProperty(propertyName);
+            // await this.addThreeApprovers();
             await this.addTwoApproversForBudgetTest();
+            // Add amount
+            await this.fillTwoApproversAmount('5555');
+            Logger.info('Amount filled: ' + '5555');
+
+            await this.checkAlwaysRequiredInTemplateDialog(2);
+            Logger.info('Always Required checked for all 2 approver rows');
+
             await this.submitCreateTemplate();
             Logger.success(`Budget Approval template created: ${templateName}`);
         } catch (error) {
@@ -1728,46 +1757,42 @@ exports.ApprovalJob = class ApprovalJob {
     async addTwoApproversForBudgetTest() {
         const approverTimeout = 15000;
         const approverInputs = approval.selectApproverInput;
-        try {
-            Logger.step('Adding approver 1/2: sumit mishra');
-            const input0 = approverInputs.nth(0);
-            await input0.waitFor({ state: 'visible', timeout: approverTimeout });
-            await input0.click();
-            await this.page.waitForTimeout(300);
-            await input0.fill('sumit mishra', { timeout: approverTimeout });
-            await this.page.waitForTimeout(800);
-            await this.page.keyboard.press('ArrowDown');
-            await this.page.waitForTimeout(300);
-            await this.page.keyboard.press('Enter');
-            await this.page.waitForTimeout(800);
-            Logger.success('Approver 1 added: sumit mishra');
+        const amountFields = this.createTemplateDialog().getByPlaceholder('Enter Amount');
+        const input0 = approverInputs.nth(0);
+        await input0.waitFor({ state: 'visible', timeout: approverTimeout });
+        await input0.click();
+        await this.page.waitForTimeout(300);
+        await input0.fill('sumit mishra', { timeout: approverTimeout });
+        await this.page.waitForTimeout(800);
+        await this.page.keyboard.press('ArrowDown');
+        await this.page.waitForTimeout(300);
+        await this.page.keyboard.press('Enter');
+        await this.page.waitForTimeout(800);
+        const amountField = amountFields.nth(0);
+        await amountField.waitFor({ state: 'visible', timeout: approverTimeout });
+        await amountField.click();
+        Logger.success('Approver 1 added: sumit mishra');
 
-            // Check "Always Required" for approver row 1 so the rule triggers for any budget amount
-            await approval.alwaysRequiredCheckboxesInTemplateDialog.nth(0).click();
-            await this.page.waitForTimeout(300);
-            Logger.success('Always Required checked for approver 1');
 
-            Logger.step('Adding approver 2/2: sumit harsh');
-            const input1 = approverInputs.nth(1);
-            await input1.waitFor({ state: 'visible', timeout: approverTimeout });
-            await input1.click();
-            await this.page.waitForTimeout(300);
-            await input1.fill('sumit harsh', { timeout: approverTimeout });
-            await this.page.waitForTimeout(800);
-            await this.page.keyboard.press('ArrowDown');
-            await this.page.waitForTimeout(300);
-            await this.page.keyboard.press('Enter');
-            await this.page.waitForTimeout(800);
-            Logger.success('Approver 2 added: sumit harsh');
+        const input1 = approverInputs.nth(1);
+        await input1.waitFor({ state: 'visible', timeout: approverTimeout });
+        await input1.click();
+        await this.page.waitForTimeout(300);
+        await input1.fill('sumit harsh', { timeout: approverTimeout });
+        await this.page.waitForTimeout(800);
+        await this.page.keyboard.press('ArrowDown');
+        await this.page.waitForTimeout(300);
+        await this.page.keyboard.press('Enter');
+        await this.page.waitForTimeout(800);
+        const amountField2 = amountFields.nth(1);
+        await amountField2.waitFor({ state: 'visible', timeout: approverTimeout });
+        await amountField2.click();
+        Logger.success('Approver 2 added: sumit test');
 
-            // Check "Always Required" for approver row 2 so the rule triggers for any budget amount
-            await approval.alwaysRequiredCheckboxesInTemplateDialog.nth(1).click();
-            await this.page.waitForTimeout(300);
-            Logger.success('Always Required checked for approver 2');
-        } catch (error) {
-            Logger.error('addTwoApproversForBudgetTest failed: ' + error.message);
-            throw error;
-        }
+        // 3rd approver: select any option except sumit mishra and sumit test (skip first options via ArrowDown)
+        Logger.step('Adding approver 3/3: selecting any other option');
+        const input2 = approverInputs.nth(2);
+        await input2.waitFor({ state: 'visible', timeout: approverTimeout });
     }
 
     /**

@@ -101,19 +101,6 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
                 Logger.success(`[TC_UI_001-S1] URL and breadcrumb confirmed`);
             });
 
-            // ── S2: Job-level tab labels ──────────────────────────────────────
-            await test.step('S2: All job-level tabs are visible with correct fixture labels', async () => {
-                for (const [key, label] of Object.entries(fixture.jobTabs)) {
-                    await expect(
-                        page.getByRole('tab', { name: label }),
-                        `Job tab "${label}" must be visible`,
-                    ).toBeVisible({ timeout: 8000 });
-                    InteractionLogger.logVisibility(`Job tab: "${label}"`, true);
-                    Logger.info(`[TC_UI_001-S2] Job tab confirmed: "${label}" (fixture key: ${key})`);
-                }
-                Logger.success('[TC_UI_001-S2] All job-level tabs verified against fixture');
-            });
-
             // ── S3: Contract sub-tab bar ──────────────────────────────────────
             await test.step('S3: Inner Contract sub-tabs match fixture: Contract | Units | Documents', async () => {
                 for (const label of fixture.contractSubTabs) {

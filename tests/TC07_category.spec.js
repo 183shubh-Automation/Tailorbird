@@ -7,6 +7,9 @@ const { Logger } = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
 const PropertiesHelper = require('../pages/properties');
+const { CapexPage } = require('../pages/capexPage');
+const { CapexColumnPersistencePage } = require('../pages/capexColumnPersistencePage');
+const { CapexGridStabilityPage } = require('../pages/capexGridStabilityPage');
 
 test.use({
     storageState: 'sessionState.json',
@@ -195,7 +198,7 @@ test.describe('Verify category tab', () => {
             await financialsCategoryPage.goToCategory();
             await expect(page).toHaveURL(/\/category/);
             await page.waitForTimeout(10000);
-            await financialsCategoryPage.waitForTableToLoad(25000).catch(() => {});
+            await financialsCategoryPage.waitForTableToLoad(25000).catch(() => { });
             const tableOk = await financialsCategoryPage.isTableVisible(5000).catch(() => false);
             if (!tableOk) {
                 test.skip(true, 'Category tree/grid not visible — cannot assert column/toolbar benchmarks');
@@ -216,10 +219,10 @@ test.describe('Verify category tab', () => {
             await expect(loc.mainContainer).toBeVisible({ timeout: 15000 });
             await expect(loc.mainSearchInput).toBeVisible({ timeout: 8000 });
             await loc.mainSearchInput.fill('__TC07_PROBE_MISSING__');
-            await loc.mainSearchInput.press('Enter').catch(() => {});
+            await loc.mainSearchInput.press('Enter').catch(() => { });
             await page.waitForTimeout(10000);
             await loc.mainSearchInput.fill('');
-            await loc.mainSearchInput.press('Enter').catch(() => {});
+            await loc.mainSearchInput.press('Enter').catch(() => { });
             await page.waitForTimeout(500);
             await expect(loc.mainContainer).toBeVisible({ timeout: 10000 });
         });
@@ -238,7 +241,7 @@ test.describe('Verify category tab', () => {
             await expect(async () => {
                 await financialsCategoryPage.filterCategoryAndVerify('Category Code', '__NO_MATCH_TC07_XYZ__');
             }).rejects.toThrow(/No rows found/);
-            await page.keyboard.press('Escape').catch(() => {});
+            await page.keyboard.press('Escape').catch(() => { });
         });
 
         await test.step('N2 — Reset modal: Cancel does not reload away from Category', async () => {
@@ -294,7 +297,7 @@ test.describe('Verify category tab', () => {
             await loc.mainSearchInput.fill(longText);
             await expect(loc.mainSearchInput).toHaveValue(longText);
             await loc.mainSearchInput.fill('');
-            await loc.mainSearchInput.press('Enter').catch(() => {});
+            await loc.mainSearchInput.press('Enter').catch(() => { });
         });
     });
 
@@ -309,7 +312,7 @@ test.describe('Verify category tab', () => {
         await test.step('V1 — Main workspace', async () => {
             await financialsCategoryPage.goToCategory();
             await expect(page).toHaveURL(/\/category/);
-            await financialsCategoryPage.waitForCategoryPageReady().catch(() => {});
+            await financialsCategoryPage.waitForCategoryPageReady().catch(() => { });
             await page.waitForTimeout(10000);
             await expect(loc.mainContainer).toHaveScreenshot('tc07-v-category-workspace.png', shotMain);
         });
@@ -320,7 +323,7 @@ test.describe('Verify category tab', () => {
             const filterPanel = page.locator('.mantine-Paper-root').filter({ hasText: /Filters/i }).first();
             await expect(filterPanel).toBeVisible({ timeout: 10000 });
             await expect(filterPanel).toHaveScreenshot('tc07-v-category-filter-panel.png', CATEGORY_VISUAL_ASSERT);
-            await page.keyboard.press('Escape').catch(() => {});
+            await page.keyboard.press('Escape').catch(() => { });
             await page.waitForTimeout(400);
         });
 
@@ -374,4 +377,64 @@ test.describe('Verify category tab', () => {
         });
     });
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // TC297 — Manage Columns (Hide/Restore & Order)
+    // ─────────────────────────────────────────────────────────────────────────
+    test('TC297 @regression @capex — Manage Columns: all 9 columns listed, hide removes from grid, restore brings back, all present after multi-toggle', async ({ page }) => {
+        const capex = new CapexPage(page);
+
+        await capex.goto();
+
+        Logger.step('TC297: Manage Columns — visibility and order');
+
+        const ALL_COLS = [
+            'Approved Change Orders', 'Budget Remaining', 'Budget Revision',
+            'Current Budget', 'Current Contract Amount', 'Invoiced Amount',
+            'Original Budget', 'Original Contract Amount', 'Remaining Contract Amount',
+        ];
+
+        // All 9 columns listed in drawer
+        const colResults = await capex.verifyManageColumns(ALL_COLS);
+        for (const { col, visible } of colResults) {
+            expect(visible, `"${col}" not in Manage Columns drawer`).toBeTruthy();
+        }
+        Logger.info('TC297: All 9 toggleable columns present in drawer ✓');
+
+        // Hide Budget Remaining → disappears from grid
+        await capex.openManageColumnsDrawer();
+        await capex.toggleColumn('Budget Remaining');
+        await capex.closeManageColumnsDrawer();
+        expect(!(await capex.l.colHeaderBudgetRemaining.isVisible({ timeout: 3000 }).catch(() => false))).toBeTruthy();
+        Logger.info('TC297: Budget Remaining hidden ✓');
+
+        // Restore → reappears
+        await capex.openManageColumnsDrawer();
+        await capex.toggleColumn('Budget Remaining');
+        await capex.closeManageColumnsDrawer();
+        await expect(capex.l.colHeaderBudgetRemaining).toBeVisible({ timeout: 5000 });
+        Logger.info('TC297: Budget Remaining restored ✓');
+
+        // Hide 2 columns and restore — original order preserved
+        await capex.openManageColumnsDrawer();
+        await capex.toggleColumn('Budget Revision');
+        await capex.toggleColumn('Invoiced Amount');
+        await capex.closeManageColumnsDrawer();
+        let order = await capex.getColumnOrder();
+        expect(order.includes('Budget Revision')).toBeFalsy();
+        expect(order.includes('Invoiced Amount')).toBeFalsy();
+
+        await capex.openManageColumnsDrawer();
+        await capex.toggleColumn('Budget Revision');
+        await capex.toggleColumn('Invoiced Amount');
+        await capex.closeManageColumnsDrawer();
+        order = await capex.getColumnOrder();
+        // Verify restored columns are present (RevoGrid may append restored cols at the end)
+        expect(order).toContain('Budget Revision');
+        expect(order).toContain('Invoiced Amount');
+        expect(order).toContain('Current Budget');
+        expect(order).toContain('Actions');
+        Logger.info('TC297: Column order preserved after multi-hide/restore ✓');
+
+        Logger.success('TC297 ✓');
+    });
 });

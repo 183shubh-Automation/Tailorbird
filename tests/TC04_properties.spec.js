@@ -14,6 +14,9 @@ import { propertyLocators } from '../locators/propertyLocator.js';
 const { ProjectPage } = require('../pages/projectPage');
 const { AddColumnPage } = require('../pages/addColumnPage');
 const { Logger } = require('../utils/logger');
+const { CapexPage } = require('../pages/capexPage');
+const { CapexColumnPersistencePage } = require('../pages/capexColumnPersistencePage');
+const { CapexGridStabilityPage } = require('../pages/capexGridStabilityPage');
 
 test.use({
   storageState: 'sessionState.json',
@@ -542,7 +545,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     await page.waitForLoadState('domcontentloaded');
     const locationsPanel = page.getByRole("tabpanel", { name: "Locations" });
     const noUnitsState = locationsPanel.getByText(/No units added yet/i).first();
-   
+
     await expect(
       locationsPanel.getByRole("columnheader", { name: /Unit Name/i }).first(),
     ).toBeVisible({ timeout: 55000 });
@@ -926,6 +929,54 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     } catch (error) {
       Logger.error(`TC250: Test failed — ${error.message}`);
       throw error;
+    }
+  });
+
+  test('TC307 @capex @regression — Property column data persists after hiding all default columns and page refresh', async ({ page }) => {
+    test.setTimeout(420000); // 7 min — 3× getPropertyColumnValues + refreshCapexPage runs slow headless
+    const capex = new CapexPage(page);
+
+    await capex.goto();
+    await capex.selectAllDefaultFinancialColumns().catch(() => { });
+    await capex.goto();
+
+    // Step 1: capture Property column values before hiding columns
+    const propertyDataBeforeHide = await capex.getPropertyColumnValues();
+    expect(
+      propertyDataBeforeHide.length,
+      'Property column must contain at least one property row before column changes'
+    ).toBeGreaterThan(0);
+
+    let shouldResetColumns = false;
+
+    try {
+      const hiddenColumns = await capex.unselectAllDefaultFinancialColumns();
+      shouldResetColumns = true;
+      expect(
+        hiddenColumns.length,
+        'At least one default column should have been visible and unchecked'
+      ).toBeGreaterThan(0);
+
+      // Step 2: capture Property column values after hiding columns
+      const propertyDataAfterHide = await capex.getPropertyColumnValues();
+
+      // Step 3: compare snapshots and fail when values do not match
+      expect(
+        propertyDataAfterHide,
+        `Property column values after hiding columns must match before hiding.\nBefore: ${propertyDataBeforeHide.join(', ')}\nAfter:  ${propertyDataAfterHide.join(', ')}`
+      ).toEqual(propertyDataBeforeHide);
+
+      await capex.refreshCapexPage();
+
+      const propertyDataAfterRefresh = await capex.getPropertyColumnValues();
+      expect(
+        propertyDataAfterRefresh,
+        `Property column values after page refresh must match before hiding.\nBefore: ${propertyDataBeforeHide.join(', ')}\nAfter:  ${propertyDataAfterRefresh.join(', ')}`
+      ).toEqual(propertyDataBeforeHide);
+    } finally {
+      if (shouldResetColumns) {
+        await capex.selectAllDefaultFinancialColumns().catch(() => { });
+      }
     }
   });
 

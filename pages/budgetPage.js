@@ -654,7 +654,7 @@ exports.BudgetJob = class BudgetJob {
         // For a brand-new property, clicking "Revise Budgets" shows a "Create budget revision"
         // CTA rather than opening the editor directly. Click it before verifying the editor.
         const createRev = budget.createBudgetRevisionBtn;
-        if (await createRev.first().isVisible({ timeout: 5000 }).catch(() => false)) {
+        if (await createRev.first().isVisible({ timeout: 50000 }).catch(() => false)) {
             Logger.step('Create budget revision CTA visible (e.g. first budget) — confirming');
             await createRev.first().click({ force: true });
             await this.page.waitForTimeout(7000);
