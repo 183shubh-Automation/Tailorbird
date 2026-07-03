@@ -46,7 +46,7 @@ exports.BudgetJob = class BudgetJob {
     async navigateToBudget() {
         await this.page.goto('/financials/budget', { waitUntil: 'load' });
         await this.page.waitForTimeout(22000);
-        await this.page.waitForURL('**/financials/budget**', { timeout: 15000 }).catch(() => {});
+        await this.page.waitForURL('**/financials/budget**', { timeout: 15000 }).catch(() => { });
     }
 
     async waitForPageLoad() {
@@ -99,7 +99,7 @@ exports.BudgetJob = class BudgetJob {
         }
         if (bestIdx >= 0) {
             await items.nth(bestIdx).click();
-            await this.page.waitForLoadState('domcontentloaded').catch(() => {});
+            await this.page.waitForLoadState('domcontentloaded').catch(() => { });
             await Promise.race([
                 this.page.waitForLoadState('networkidle'),
                 this.page.waitForTimeout(15000),
@@ -196,7 +196,7 @@ exports.BudgetJob = class BudgetJob {
         }
 
         await this.page.waitForTimeout(10000);
-        await this.page.waitForURL(/budget-revision|financials\/budget-revision/, { timeout: 15000 }).catch(() => {});
+        await this.page.waitForURL(/budget-revision|financials\/budget-revision/, { timeout: 15000 }).catch(() => { });
         try {
             await this.verifyRevisionEditorOpen();
             return true;
@@ -288,7 +288,7 @@ exports.BudgetJob = class BudgetJob {
     async verifyBudgetCategoryInNav() {
         await this.page.waitForTimeout(10000);
         await this.page.waitForTimeout(800);
-        await this.page.locator('nav').waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
+        await this.page.locator('nav').waitFor({ state: 'visible', timeout: 10000 }).catch(() => { });
         const budgetVisible = await budget.budgetNavText.first().isVisible().catch(() => false);
         const categoryVisible = await budget.categoryNavText.first().isVisible().catch(() => false);
         const budgetCategoryVisible = await this.isBudgetCategoryVisibleInNav();
@@ -300,7 +300,7 @@ exports.BudgetJob = class BudgetJob {
                 if (more) {
                     const menuText = await more.innerText().catch(() => '');
                     const inMore = /Budget|Category/i.test(menuText);
-                    await this.page.keyboard.press('Escape').catch(() => {});
+                    await this.page.keyboard.press('Escape').catch(() => { });
                     if (inMore) {
                         Logger.success('Budget/Category found in More menu');
                         return;
@@ -482,7 +482,7 @@ exports.BudgetJob = class BudgetJob {
         // and only becomes interactive on :hover. Without hovering, Playwright's
         // synthesised click dispatches at the element's coordinates but the event falls
         // through to the background — the confirmation dialog never appears.
-        await colRow.hover().catch(() => {});
+        await colRow.hover().catch(() => { });
         await this.page.waitForTimeout(300);
 
         // Target the trash icon by SVG class instead of positional nth(1) — positional
@@ -540,14 +540,14 @@ exports.BudgetJob = class BudgetJob {
                 await this.page.evaluate(() => {
                     const lb = document.querySelector('[role="listbox"]');
                     if (lb) lb.scrollTop = lb.scrollHeight;
-                }).catch(() => {});
+                }).catch(() => { });
                 await this.page.waitForTimeout(300);
 
                 const draftOption = budget.draftOption;
                 if (await draftOption.isVisible({ timeout: 2000 }).catch(() => false)) {
                     // Hover to trigger CSS :hover so the delete button becomes interactive.
                     // force:true click bypasses hover, so the button stays opacity:0 and unresponsive.
-                    await draftOption.hover().catch(() => {});
+                    await draftOption.hover().catch(() => { });
                     await this.page.waitForTimeout(400);
                     const deleteBtn = draftOption.locator('button').first();
                     if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
@@ -571,11 +571,11 @@ exports.BudgetJob = class BudgetJob {
             enabled = await btn.isEnabled().catch(() => false);
             if (!enabled) {
                 await this.page.reload({ waitUntil: 'load' });
-                await this.page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+                await this.page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => { });
                 await this.page.waitForTimeout(2000);
                 if (await budget.propertyDropdownButton.isVisible({ timeout: 3000 }).catch(() => false)) {
                     await this.selectBrookProperty();
-                    await this.page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+                    await this.page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => { });
                     await this.page.waitForTimeout(2000);
                 }
                 btn = budget.reviseBudgetsBtn;
@@ -604,7 +604,7 @@ exports.BudgetJob = class BudgetJob {
                         await delDlg.getByRole('button', { name: 'Delete' }).click();
                     }
                     await this.page.waitForTimeout(10000);
-                    
+
                 }
             }
         }
@@ -645,10 +645,23 @@ exports.BudgetJob = class BudgetJob {
         await this.page.waitForTimeout(500);
         await this.clickReviseBudgets();
         await this.page.waitForTimeout(7000);
+        const dialog = this.page.getByRole('dialog', { name: 'Name this budget revision' });
+
+        const randomTitle = `Budget Revision ${Date.now()}`;
+
+        await dialog.getByPlaceholder('e.g. Q2 reforecast').fill(randomTitle);
+
+        // Wait until Continue becomes enabled
+        const continueButton = dialog.getByRole('button', { name: 'Continue' });
+        await expect(continueButton).toBeEnabled();
+
+        await continueButton.click();
+
+        console.log(`Created Budget Revision: ${randomTitle}`);
         // The revision editor may open via URL navigation (/budget-revision/) or as an in-page
         // dialog/drawer (no URL change). Soft-wait for URL, then check for a "Create budget
         // revision" CTA that appears for brand-new properties before the full editor loads.
-        await this.page.waitForURL(/budget-revision/, { timeout: 15000 }).catch(() => {});
+        await this.page.waitForURL(/budget-revision/, { timeout: 15000 }).catch(() => { });
         await this.page.waitForTimeout(7000);
 
         // For a brand-new property, clicking "Revise Budgets" shows a "Create budget revision"
@@ -791,7 +804,7 @@ exports.BudgetJob = class BudgetJob {
                     if (await anyConfirmBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
                         const enabled = await anyConfirmBtn.isEnabled().catch(() => false);
                         if (!enabled) {
-                            await notesField.first().fill('Budget revision submitted via automation for approval.').catch(() => {});
+                            await notesField.first().fill('Budget revision submitted via automation for approval.').catch(() => { });
                             await this.page.waitForTimeout(500);
                             await expect(anyConfirmBtn).toBeEnabled({ timeout: 10000 }).catch(() => null);
                         }
@@ -846,8 +859,8 @@ exports.BudgetJob = class BudgetJob {
             .filter({ hasText: /Submit for Approval|Submit for Review/i })
             .first();
 
-        await this.page.waitForURL(/financials\/budget|budget-revision/i, { timeout: 45000 }).catch(() => {});
-        await this.page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+        await this.page.waitForURL(/financials\/budget|budget-revision/i, { timeout: 45000 }).catch(() => { });
+        await this.page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => { });
 
         let uploadRoot;
         const urlHasRevisionPath = /budget-revision/i.test(this.page.url());
@@ -890,13 +903,13 @@ exports.BudgetJob = class BudgetJob {
                 await budget.doneBtn.first().click();
             } else {
                 Logger.step('Upload modal not shown (inline / auto flow)');
-                await budget.doneBtn.first().waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
+                await budget.doneBtn.first().waitFor({ state: 'visible', timeout: 30000 }).catch(() => { });
                 if (await budget.doneBtn.first().isVisible({ timeout: 2000 }).catch(() => false)) {
                     await budget.doneBtn.first().click();
                 }
             }
             await this.page.waitForTimeout(10000);
-         
+
         };
 
         const tryDirectFileInput = async (maxMs = 20000) => {
@@ -925,7 +938,7 @@ exports.BudgetJob = class BudgetJob {
                     }
                 }
                 await this.page.waitForTimeout(450);
-                await this.page.waitForLoadState('networkidle').catch(() => {});
+                await this.page.waitForLoadState('networkidle').catch(() => { });
             }
             return false;
         };
@@ -1171,7 +1184,7 @@ exports.BudgetJob = class BudgetJob {
         // navigation or after clicking "Revise Budgets". Wait explicitly
         // for the Budget grid and Category column header to be visible
         // before attempting to read its bounding box.
-        await budget.treegrid.first().waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
+        await budget.treegrid.first().waitFor({ state: 'visible', timeout: 30000 }).catch(() => { });
         const categoryHeader = this.page
             .locator('[role="columnheader"]:has-text("Category"), [role="columnheader"]:has-text("Budget Category")')
             .first();
@@ -1418,7 +1431,7 @@ exports.BudgetJob = class BudgetJob {
 
     async getFirstRowCategoryValue(context = 'any') {
         await this.page.waitForTimeout(2000);
-        await this.page.waitForLoadState('networkidle').catch(() => {});
+        await this.page.waitForLoadState('networkidle').catch(() => { });
 
         const headerSelectors = context === 'main'
             ? ['[role="columnheader"]:has-text("Category Code")', '[role="columnheader"]:has-text("Category")']
@@ -1442,7 +1455,7 @@ exports.BudgetJob = class BudgetJob {
         }
 
         const firstRow = budget.treegridDataRows.first();
-        await firstRow.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
+        await firstRow.waitFor({ state: 'visible', timeout: 10000 }).catch(() => { });
         const firstCell = firstRow.locator('[role="gridcell"]').first();
         const cellBox = await firstCell.boundingBox().catch(() => null);
         if (!cellBox) return null;
@@ -1513,12 +1526,12 @@ exports.BudgetJob = class BudgetJob {
         const opt = this.page.getByRole('option', { name: nameOption });
         const n = await opt.count();
         if (n === 0) {
-            await this.page.keyboard.press('Escape').catch(() => {});
+            await this.page.keyboard.press('Escape').catch(() => { });
             throw new Error(`No budget version option matching ${pattern}`);
         }
         await opt.first().scrollIntoViewIfNeeded();
         await opt.first().click({ timeout: 10000 });
-        await this.page.waitForLoadState('networkidle').catch(() => {});
+        await this.page.waitForLoadState('networkidle').catch(() => { });
         await this.page.waitForTimeout(1200);
         // NOTE: Do NOT press Escape here — when the selection navigates to a revision editor
         // page (/budget-revision/.../editor), Escape triggers "Go Back" and leaves the page.
@@ -1532,7 +1545,7 @@ exports.BudgetJob = class BudgetJob {
         // MCP-confirmed (2026-05-19): revision editor is a Mantine Drawer (role="dialog")
         // with outer mantine-Drawer-root at height:0/top:viewport-height (fixed-position children).
         // Anchor on revision controls to distinguish from toasts/portals.
-        await this.page.waitForLoadState('networkidle').catch(() => {});
+        await this.page.waitForLoadState('networkidle').catch(() => { });
         await this.page.waitForTimeout(1500);
 
         const revisionDialog = this.page.getByRole('dialog').filter({
@@ -1552,7 +1565,7 @@ exports.BudgetJob = class BudgetJob {
         // MCP-confirmed: Draft badge is .mantine-Badge-root containing "Draft" text.
         // Target by Mantine class to avoid matching "Save as Draft" button text.
         const draftBadge = revisionScope.locator('.mantine-Badge-root').filter({ hasText: /draft/i }).first();
-        await draftBadge.scrollIntoViewIfNeeded().catch(() => {});
+        await draftBadge.scrollIntoViewIfNeeded().catch(() => { });
         await expect(draftBadge).toBeVisible({ timeout: 40000 });
         Logger.success('Draft revision dialog open with Draft badge (headed: confirm UI)');
 
@@ -1566,9 +1579,9 @@ exports.BudgetJob = class BudgetJob {
         if (isRevisionDialogVisible) {
             await expect(revisionDialog).toBeHidden({ timeout: 20000 });
         } else {
-            await this.page.waitForURL('**/financials/budget**', { timeout: 20000 }).catch(() => {});
+            await this.page.waitForURL('**/financials/budget**', { timeout: 20000 }).catch(() => { });
         }
-        await this.page.waitForLoadState('networkidle').catch(() => {});
+        await this.page.waitForLoadState('networkidle').catch(() => { });
 
         await expect(budget.reviseBudgetsBtn).toBeDisabled({ timeout: 15000 });
         Logger.success('Overview: Revise Budgets disabled while draft version is selected (cannot start another revision)');
@@ -1589,13 +1602,13 @@ exports.BudgetJob = class BudgetJob {
             if (!trimmed || /manage versions/i.test(trimmed)) continue;
             if (!/draft/i.test(trimmed)) {
                 await options.nth(i).click();
-                await this.page.keyboard.press('Escape').catch(() => {});
-                await this.page.waitForLoadState('networkidle').catch(() => {});
+                await this.page.keyboard.press('Escape').catch(() => { });
+                await this.page.waitForLoadState('networkidle').catch(() => { });
                 await this.page.waitForTimeout(1200);
                 return trimmed;
             }
         }
-        await this.page.keyboard.press('Escape').catch(() => {});
+        await this.page.keyboard.press('Escape').catch(() => { });
         throw new Error('No non-draft budget version found in dropdown');
     }
 
@@ -1604,7 +1617,7 @@ exports.BudgetJob = class BudgetJob {
         await budget.versionDropdown.click({ timeout: 15000 });
         await this.page.waitForTimeout(500);
         const n = await this.page.getByRole('option').filter({ hasText: /draft/i }).count();
-        await this.page.keyboard.press('Escape').catch(() => {});
+        await this.page.keyboard.press('Escape').catch(() => { });
         await this.page.waitForTimeout(300);
         return n > 0;
     }
