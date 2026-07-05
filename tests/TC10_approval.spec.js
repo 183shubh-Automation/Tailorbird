@@ -1422,4 +1422,330 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         Logger.success('TC301 ✓');
     });
 
+    test('@approval @regression @positive TC198 Approval Templates — Verify Add Approval Rules approver combobox groups matches under "Roles" and "Users" headings, supports multiple approvers/roles in a single input, and the template is created successfully using dynamically discovered (non-hardcoded) roles and users', async () => {
+        test.setTimeout(420000);
+        const fs = require('fs');
+        const path = require('path');
+
+        const tc198Property = await createNewProperty(page);
+        await approvalJob.navigateToApprovalTab();
+        await approvalJob.navigateToApprovalTemplatesTab();
+        await approvalJob.waitForPageLoad();
+
+        await approvalJob.openCreateTemplateDialog();
+        const dialog = approvalJob.createTemplateDialog();
+
+        const templateName = `TC198_MultiApprover_${Date.now()}`;
+        await approvalJob.fillTemplateName(templateName);
+        await approvalJob.selectTemplateType('Invoice');
+        await approvalJob.addProperty(tc198Property);
+
+        const approverInputs = dialog.getByPlaceholder('Select approver');
+        const approver1 = approverInputs.nth(0);
+        const approver2 = approverInputs.nth(1);
+        const approver3 = approverInputs.nth(2);
+        const approver1Cell = approver1.locator('xpath=ancestor::td[1]');
+        const approver2Cell = approver2.locator('xpath=ancestor::td[1]');
+        const approver3Cell = approver3.locator('xpath=ancestor::td[1]');
+
+        // ── Discover ALL roles/users from the live combobox (no hardcoded names) ──
+        await approver1.click();
+        await page.waitForTimeout(2000);
+        let dropdown = page.locator('.mantine-MultiSelect-dropdown:visible').first();
+        await expect(dropdown).toBeVisible({ timeout: 15000 });
+
+        const rolesHeading = dropdown.locator('.mantine-MultiSelect-groupLabel', { hasText: 'Roles' });
+        const usersHeading = dropdown.locator('.mantine-MultiSelect-groupLabel', { hasText: 'Users' });
+        await expect(rolesHeading, 'FAIL: "Roles" group heading should be visible in the approver combobox').toBeVisible({ timeout: 10000 });
+        await expect(usersHeading, 'FAIL: "Users" group heading should be visible in the approver combobox').toBeVisible({ timeout: 10000 });
+        Logger.success('TC198: Approver combobox shows both "Roles" and "Users" headings');
+
+        const rolesGroup = dropdown.locator('.mantine-MultiSelect-group', { hasText: 'Roles' });
+        const usersGroup = dropdown.locator('.mantine-MultiSelect-group', { hasText: 'Users' });
+        const discoveredRoles = (await rolesGroup.getByRole('option').allTextContents()).map(t => t.trim()).filter(Boolean);
+        const discoveredUsers = (await usersGroup.getByRole('option').allTextContents()).map(t => t.trim()).filter(Boolean);
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(300);
+
+        if (discoveredRoles.length === 0 || discoveredUsers.length === 0) {
+            Logger.error(`TC198: Approver combobox returned ${discoveredRoles.length} role(s) and ${discoveredUsers.length} user(s) — cannot proceed without at least one of each.`);
+            throw new Error(`TC198 FAILED: No roles and/or users available in the approver combobox (roles=${discoveredRoles.length}, users=${discoveredUsers.length}).`);
+        }
+        Logger.info(`TC198: Discovered ${discoveredRoles.length} role(s) and ${discoveredUsers.length} user(s) from the live combobox`);
+
+        // Persist the full discovered lists to data/approverRolesAndUsers.json
+        const dataDir = path.join(process.cwd(), 'data');
+        if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+        const rolesUsersFile = path.join(dataDir, 'approverRolesAndUsers.json');
+        fs.writeFileSync(
+            rolesUsersFile,
+            JSON.stringify({ roles: discoveredRoles, users: discoveredUsers, capturedAt: new Date().toISOString() }, null, 2)
+        );
+        Logger.info(`TC198: Persisted discovered roles/users to ${rolesUsersFile}`);
+
+        // Select random approvers/roles from the persisted JSON only — never hardcoded
+        const persisted = JSON.parse(fs.readFileSync(rolesUsersFile, 'utf-8'));
+        if (!persisted.roles?.length || !persisted.users?.length) {
+            Logger.error(`TC198: Persisted JSON at ${rolesUsersFile} has no roles/users to select from.`);
+            throw new Error(`TC198 FAILED: ${rolesUsersFile} contains no roles and/or users.`);
+        }
+        if (persisted.users.length < 3) {
+            Logger.error(`TC198: Need at least 3 users (2 for approver row 1, 1 for approver row 3) — only ${persisted.users.length} available.`);
+            throw new Error(`TC198 FAILED: Fewer than 3 users available in ${rolesUsersFile}.`);
+        }
+        if (persisted.roles.length < 2) {
+            Logger.error(`TC198: Need at least 2 distinct roles to prove approver row 2 accepts multiple roles — only ${persisted.roles.length} available.`);
+            throw new Error(`TC198 FAILED: Fewer than 2 roles available in ${rolesUsersFile}.`);
+        }
+
+        // Replace whatever is currently selected in an approver cell with a fresh set of values
+        async function setApproverCell(cell, input, values) {
+            const clearBtn = cell.locator('.mantine-InputClearButton-root');
+            if (await clearBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+                await clearBtn.click();
+                await page.waitForTimeout(300);
+            }
+            for (const value of values) {
+                await input.click();
+                await input.fill(value);
+                await page.waitForTimeout(1800);
+                const dd = page.locator('.mantine-MultiSelect-dropdown:visible').first();
+                await expect(dd, `FAIL: combobox should reopen while filtering for "${value}"`).toBeVisible({ timeout: 15000 });
+                await dd.getByRole('option', { name: value, exact: true }).click();
+            }
+            await page.keyboard.press('Escape');
+            await page.waitForTimeout(300);
+        }
+
+        // Retry loop: the backend rejects approvers without explicit access to the property, and the
+        // combobox gives no upfront signal for who is eligible. Each attempt reads the app's own
+        // validation error, permanently excludes any flagged name from the candidate pool, and tries a
+        // fresh random combination — all sourced from the persisted JSON only, never hardcoded.
+        const excluded = new Set();
+        let created = false;
+        let finalUsers = [];
+        let finalRoles = [];
+        const maxAttempts = 8;
+
+        // Amount + "Always Required" are tied to row position, not approver identity, and checking
+        // "Always Required" disables that row's Amount field — so this only needs to run once, before
+        // any submit attempt, not on every retry (re-clicking an already-disabled field would hang).
+        await approvalJob.fillAmount(1000);
+        await approvalJob.checkAlwaysRequiredInTemplateDialog(3);
+
+        for (let attempt = 1; attempt <= maxAttempts && !created; attempt++) {
+            const usersPool = persisted.users.filter(u => !excluded.has(u));
+            const rolesPool = persisted.roles.filter(r => !excluded.has(r));
+
+            if (usersPool.length < 3) {
+                Logger.error(`TC198: Ran out of valid candidate users after ${attempt - 1} attempt(s). Excluded so far: ${[...excluded].join(', ')}`);
+                throw new Error(`TC198 FAILED: Could not find 3 users with property access among the discovered users (excluded: ${[...excluded].join(', ')}).`);
+            }
+            if (rolesPool.length < 2) {
+                Logger.error(`TC198: Ran out of valid candidate roles after ${attempt - 1} attempt(s). Excluded so far: ${[...excluded].join(', ')}`);
+                throw new Error(`TC198 FAILED: Could not find 2 roles with property access among the discovered roles (excluded: ${[...excluded].join(', ')}).`);
+            }
+
+            const shuffledUsers = [...usersPool].sort(() => Math.random() - 0.5);
+            const shuffledRoles = [...rolesPool].sort(() => Math.random() - 0.5);
+            const [u1, u2, u3] = shuffledUsers;
+            const [r1, r2] = shuffledRoles;
+            Logger.info(`TC198: Attempt ${attempt}/${maxAttempts} — approver1=["${u1}", "${u2}"], approver2=["${r1}", "${r2}"], approver3="${u3}"`);
+
+            // ── Scenario 1: approver row 1 — more than one approver in the SAME input ──
+            await setApproverCell(approver1Cell, approver1, [u1, u2]);
+            await expect(approver1Cell.getByText(u1, { exact: true }), `FAIL: approver row 1 should show "${u1}" as a pill`).toBeVisible({ timeout: 10000 });
+            await expect(approver1Cell.getByText(u2, { exact: true }), `FAIL: approver row 1 should show "${u2}" as a pill in the SAME input`).toBeVisible({ timeout: 10000 });
+
+            // ── Scenario 2: approver row 2 — more than one role in the SAME input ──
+            await setApproverCell(approver2Cell, approver2, [r1, r2]);
+            await expect(approver2Cell.getByText(r1, { exact: true }), `FAIL: approver row 2 should show "${r1}" as a pill`).toBeVisible({ timeout: 10000 });
+            await expect(approver2Cell.getByText(r2, { exact: true }), `FAIL: approver row 2 should show "${r2}" as a pill in the SAME input`).toBeVisible({ timeout: 10000 });
+
+            // Complete approver row 3 so the template can be submitted
+            await setApproverCell(approver3Cell, approver3, [u3]);
+
+            await approvalJob.submitCreateTemplate();
+
+            const accessError = dialog.getByText(/do not have access to the listed properties/i).first();
+            const hasAccessError = await accessError.isVisible({ timeout: 4000 }).catch(() => false);
+
+            if (!hasAccessError) {
+                created = true;
+                finalUsers = [u1, u2, u3];
+                finalRoles = [r1, r2];
+                break;
+            }
+
+            const errorText = (await accessError.textContent().catch(() => '')) || '';
+            const flagged = [u1, u2, u3, r1, r2].filter(candidate => errorText.includes(candidate));
+            if (flagged.length === 0) {
+                Logger.error(`TC198: Submission failed with an unrecognized validation error: ${errorText}`);
+                throw new Error(`TC198 FAILED: Unexpected validation error on submit: ${errorText}`);
+            }
+            flagged.forEach(name => excluded.add(name));
+            Logger.info(`TC198: Attempt ${attempt} rejected — excluding invalid approver(s) from future attempts: ${flagged.join(', ')}`);
+        }
+
+        if (!created) {
+            throw new Error(`TC198 FAILED: Could not create the template after ${maxAttempts} attempts (excluded: ${[...excluded].join(', ')}).`);
+        }
+
+        await expect(dialog, 'FAIL: Create Template dialog should close after successful submission').toBeHidden({ timeout: 20000 });
+        Logger.success(`TC198: Template submitted successfully with approver1=["${finalUsers[0]}", "${finalUsers[1]}"], approver2=["${finalRoles[0]}", "${finalRoles[1]}"], approver3="${finalUsers[2]}"`);
+
+        try {
+            await approvalJob.searchTemplate(templateName);
+            await expect(
+                page.getByRole('row').filter({ hasText: templateName }),
+                `FAIL: Newly created template "${templateName}" should appear in the Approval Templates grid`
+            ).toBeVisible({ timeout: 15000 });
+            await approvalJob.clearSearch();
+            Logger.success(`TC198 passed: template "${templateName}" created successfully using dynamically discovered (non-hardcoded) approvers/roles`);
+        } finally {
+            await approvalJob.clearSearch().catch(() => {});
+            await approvalJob.searchTemplate(templateName).catch(() => {});
+            await approvalJob.deleteTemplate(templateName).catch(() => {});
+            await approvalJob.clearSearch().catch(() => {});
+        }
+    });
+
+    test('@approval @regression @positive TC199 Approval Templates — Verify a template can be created with approval rules assigned to roles only (no individual user approvers), using dynamically discovered (non-hardcoded) roles', async () => {
+        test.setTimeout(240000);
+        const fs = require('fs');
+        const path = require('path');
+
+        const tc199Property = await createNewProperty(page);
+        await approvalJob.navigateToApprovalTab();
+        await approvalJob.navigateToApprovalTemplatesTab();
+        await approvalJob.waitForPageLoad();
+
+        await approvalJob.openCreateTemplateDialog();
+        const dialog = approvalJob.createTemplateDialog();
+
+        const templateName = `TC199_RolesOnly_${Date.now()}`;
+        await approvalJob.fillTemplateName(templateName);
+        await approvalJob.selectTemplateType('Budget');
+        await approvalJob.addProperty(tc199Property);
+
+        const approverInputs = dialog.getByPlaceholder('Select approver');
+        const approver1 = approverInputs.nth(0);
+        const approver2 = approverInputs.nth(1);
+        const approver3 = approverInputs.nth(2);
+        const approverCells = [approver1, approver2, approver3].map(input => input.locator('xpath=ancestor::td[1]'));
+
+        // ── Discover ALL roles from the live combobox (no hardcoded names) ──
+        await approver1.click();
+        await page.waitForTimeout(2000);
+        const dropdown = page.locator('.mantine-MultiSelect-dropdown:visible').first();
+        await expect(dropdown).toBeVisible({ timeout: 15000 });
+
+        const rolesHeading = dropdown.locator('.mantine-MultiSelect-groupLabel', { hasText: 'Roles' });
+        const usersHeading = dropdown.locator('.mantine-MultiSelect-groupLabel', { hasText: 'Users' });
+        await expect(rolesHeading, 'FAIL: "Roles" group heading should be visible in the approver combobox').toBeVisible({ timeout: 10000 });
+        await expect(usersHeading, 'FAIL: "Users" group heading should be visible in the approver combobox').toBeVisible({ timeout: 10000 });
+
+        const rolesGroup = dropdown.locator('.mantine-MultiSelect-group', { hasText: 'Roles' });
+        const usersGroup = dropdown.locator('.mantine-MultiSelect-group', { hasText: 'Users' });
+        const discoveredRoles = (await rolesGroup.getByRole('option').allTextContents()).map(t => t.trim()).filter(Boolean);
+        const discoveredUsers = (await usersGroup.getByRole('option').allTextContents()).map(t => t.trim()).filter(Boolean);
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(300);
+
+        if (discoveredRoles.length === 0) {
+            Logger.error(`TC199: Approver combobox returned 0 roles — cannot create a roles-only template.`);
+            throw new Error('TC199 FAILED: No roles available in the approver combobox.');
+        }
+        Logger.info(`TC199: Discovered ${discoveredRoles.length} role(s) and ${discoveredUsers.length} user(s) from the live combobox`);
+
+        // Persist the full discovered lists to data/approverRolesAndUsers.json — same file/shape as TC198
+        const dataDir = path.join(process.cwd(), 'data');
+        if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+        const rolesUsersFile = path.join(dataDir, 'approverRolesAndUsers.json');
+        fs.writeFileSync(
+            rolesUsersFile,
+            JSON.stringify({ roles: discoveredRoles, users: discoveredUsers, capturedAt: new Date().toISOString() }, null, 2)
+        );
+        Logger.info(`TC199: Persisted discovered roles/users to ${rolesUsersFile}`);
+
+        // Select roles for all 3 approver rows from the persisted JSON only — never hardcoded
+        const persisted = JSON.parse(fs.readFileSync(rolesUsersFile, 'utf-8'));
+        if (!persisted.roles?.length) {
+            Logger.error(`TC199: Persisted JSON at ${rolesUsersFile} has no roles to select from.`);
+            throw new Error(`TC199 FAILED: ${rolesUsersFile} contains no roles.`);
+        }
+
+        const shuffledRoles = [...persisted.roles].sort(() => Math.random() - 0.5);
+        // Reuse roles round-robin if the org has fewer than 3 — every row still needs a value to submit.
+        const rowRoles = [0, 1, 2].map(i => shuffledRoles[i % shuffledRoles.length]);
+        Logger.info(`TC199: Randomly selected roles for approver rows 1/2/3 = ${JSON.stringify(rowRoles)}`);
+
+        for (let i = 0; i < 3; i++) {
+            const input = approverInputs.nth(i);
+            const cell = approverCells[i];
+            const role = rowRoles[i];
+
+            await input.click();
+            await input.fill(role);
+            await page.waitForTimeout(1800);
+            const dd = page.locator('.mantine-MultiSelect-dropdown:visible').first();
+            await expect(dd, `FAIL: combobox should reopen while filtering for "${role}"`).toBeVisible({ timeout: 15000 });
+            await dd.getByRole('option', { name: role, exact: true }).click();
+            await page.keyboard.press('Escape');
+            await page.waitForTimeout(300);
+
+            await expect(cell.getByText(role, { exact: true }), `FAIL: approver row ${i + 1} should show role "${role}" as a pill`).toBeVisible({ timeout: 10000 });
+            // Sanity check: no individual user (always email-style in this org's directory) ever ends
+            // up in a roles-only row — cheaper than asserting absence of every discovered user name.
+            const cellText = (await cell.textContent()) || '';
+            expect(
+                cellText.includes('@'),
+                `FAIL: approver row ${i + 1} should contain only a role, but found an email-style entry suggesting a user was added: ${cellText}`
+            ).toBe(false);
+        }
+        Logger.success(`TC199: All 3 approver rows populated with roles only (no individual user approvers) — ${JSON.stringify(rowRoles)}`);
+
+        await approvalJob.fillAmount(1000);
+        await approvalJob.checkAlwaysRequiredInTemplateDialog(3);
+        await approvalJob.submitCreateTemplate();
+
+        const unexpectedError = dialog.getByText(/do not have access|error/i).first();
+        if (await unexpectedError.isVisible({ timeout: 3000 }).catch(() => false)) {
+            const errorText = (await unexpectedError.textContent().catch(() => '')) || '';
+            Logger.error(`TC199: Submission failed unexpectedly for a roles-only template: ${errorText}`);
+            throw new Error(`TC199 FAILED: Unexpected validation error when submitting a roles-only template: ${errorText}`);
+        }
+        await expect(dialog, 'FAIL: Create Template dialog should close after successful submission').toBeHidden({ timeout: 20000 });
+        Logger.success(`TC199: Roles-only template submitted successfully with roles ${JSON.stringify(rowRoles)}`);
+
+        try {
+            await approvalJob.searchTemplate(templateName);
+            const gridRow = page.getByRole('row').filter({ hasText: templateName });
+            await expect(
+                gridRow,
+                `FAIL: Newly created template "${templateName}" should appear in the Approval Templates grid`
+            ).toBeVisible({ timeout: 15000 });
+
+            const approvalRulesText = (await gridRow.textContent()) || '';
+            expect(
+                approvalRulesText.includes('@'),
+                `FAIL: Approval Rules for "${templateName}" should contain only roles, but grid text suggests an individual user (email) was included: ${approvalRulesText}`
+            ).toBe(false);
+            for (const role of rowRoles) {
+                expect(
+                    approvalRulesText.includes(role),
+                    `FAIL: Approval Rules for "${templateName}" should list role "${role}"`
+                ).toBe(true);
+            }
+
+            await approvalJob.clearSearch();
+            Logger.success(`TC199 passed: template "${templateName}" created successfully using roles only (${JSON.stringify(rowRoles)}), dynamically discovered — no individual approvers used`);
+        } finally {
+            await approvalJob.clearSearch().catch(() => {});
+            await approvalJob.searchTemplate(templateName).catch(() => {});
+            await approvalJob.deleteTemplate(templateName).catch(() => {});
+            await approvalJob.clearSearch().catch(() => {});
+        }
+    });
+
 });
