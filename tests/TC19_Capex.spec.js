@@ -229,7 +229,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
     // ─────────────────────────────────────────────────────────────────────────
     // TC287 — Fund Tab (comprehensive)
     // ─────────────────────────────────────────────────────────────────────────
-    test.only('TC287 @regression @capex — Fund tab: all columns, CTAs, filter, KPI cards, uncategorized bucket, expand to leaf, E2E revision modal with DRAFT badge and Save', async ({ page }) => {
+    test('TC287 @regression @capex — Fund tab: all columns, CTAs, filter, KPI cards, uncategorized bucket, expand to leaf, E2E revision modal with DRAFT badge and Save', async ({ page }) => {
         Logger.step('TC287: Fund tab — full coverage');
 
         await capex.clickTab('Fund');
