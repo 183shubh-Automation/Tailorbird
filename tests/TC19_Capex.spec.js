@@ -229,7 +229,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
     // ─────────────────────────────────────────────────────────────────────────
     // TC287 — Fund Tab (comprehensive)
     // ─────────────────────────────────────────────────────────────────────────
-    test('TC287 @regression @capex — Fund tab: all columns, CTAs, filter, KPI cards, uncategorized bucket, expand to leaf, E2E revision modal with DRAFT badge and Save', async ({ page }) => {
+    test.only('TC287 @regression @capex — Fund tab: all columns, CTAs, filter, KPI cards, uncategorized bucket, expand to leaf, E2E revision modal with DRAFT badge and Save', async ({ page }) => {
         Logger.step('TC287: Fund tab — full coverage');
 
         await capex.clickTab('Fund');
@@ -288,6 +288,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.info(`TC287: ${info.expandBtns} expand button(s) on Fund group rows`);
 
         const modal = await capex.verifyRevisionModal();
+
         Logger.info(`TC287: Revision modal E2E — opened=${modal.opened}, draftBadge=${modal.draftBadge}, kpiCount=${modal.kpiCount}, tabsSwitched=${modal.tabsSwitched}, saveEnabled=${modal.saveEnabled}`);
         if (modal.opened) {
             expect(modal.draftBadge).toBeTruthy();

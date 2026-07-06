@@ -819,13 +819,40 @@ class CapexPage {
         const opened = await this.openRevisionModal();
         if (!opened) return { opened: false };
 
+        await this.page.waitForTimeout(4000);
+        // const dialog = this.page.getByRole('dialog', { name: 'Name this budget revision' });
+
+        const randomTitle = `Budget Revision ${Date.now()}`;
+
+        const dialog = this.page.getByRole('dialog');
+
+        if (await dialog.isVisible().catch(() => false)) {
+            const titleInput = dialog.getByPlaceholder('e.g. Q2 reforecast');
+
+            if (await titleInput.isVisible().catch(() => false)) {
+                await titleInput.fill(randomTitle);
+
+                const continueButton = dialog.getByRole('button', { name: 'Continue' });
+                await expect(continueButton).toBeEnabled();
+                await continueButton.click();
+            }
+        }
+        // await dialog.getByPlaceholder('e.g. Q2 reforecast').fill(randomTitle);
+
+        // // Wait until Continue becomes enabled
+        // const continueButton = dialog.getByRole('button', { name: 'Continue' });
+        // await expect(continueButton).toBeEnabled();
+        // await continueButton.click();
+
         const draftBadge = await this.l.revisionDraftBadge.isVisible({ timeout: 5000 }).catch(() => false);
         const kpi = await this.getRevisionModalKpiValues();
         const kpiCount = Object.values(kpi).filter(v => v !== null).length;
 
         // Switch tabs
         await this.l.revisionTabDocuments.click();
-        await this.page.waitForTimeout(700);
+        // await dialog.getByPlaceholder('e.g. Q2 reforecast').fill(randomTitle);
+        // await expect(continueButton).toBeEnabled();
+        // await continueButton.click();
         const tabsSwitched = await this.isRevisionModalOpen();
         await this.l.revisionTabBudget.click();
         await this.page.waitForTimeout(400);
