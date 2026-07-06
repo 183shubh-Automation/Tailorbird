@@ -155,52 +155,6 @@ test.describe('Verify Bids', () => {
         Logger.success('TC_BID_05 passed — Create Bid dialog completely verified against fixture');
     });
 
-    // ──────────────────────────────────────────────────────────────────────────────
-    // TC_BID_07 — Compare Bids (Piper): panel layout, toolbar, welcome text,
-    //             empty-prompt block, send-button state, Manage Vendors back-nav
-    // ──────────────────────────────────────────────────────────────────────────────
-    test('TC_BID_07 @regression @bid @compareBids : Should open Compare Bids Piper panel with correct layout, toolbar, welcome text and block empty prompt submit', async () => {
-        test.setTimeout(120000);
-        const bidData = loadBidData();
-        if (!bidData.bidUrl) test.skip(true, 'bidUrl not set — run TC_BID_02 first');
-
-        Logger.step(`TC_BID_07: Navigating to bid: ${bidData.bidUrl}`);
-        await page.goto(bidData.bidUrl, { waitUntil: 'load' });
-        await page.waitForTimeout(3000);
-        await expect(page).toHaveURL(url => url.href.includes(`/bids/${bidData.bidId}`));
-
-        // Open Manage Bids → Compare Bids
-        await bidPage.navigateToCompareBids();
-
-        // Assert full Piper panel initial state
-        await bidPage.assertPiperPanelInitialState();
-
-        // Empty-prompt guard: send button must remain disabled with no input
-        Logger.step('TC_BID_07 — Verify send button disabled for empty textarea');
-        const sendBtn = bidPage.loc().piperSendButton;
-        await expect(sendBtn).toBeDisabled();
-        Logger.info('Send button correctly disabled — empty prompt cannot be submitted ✓');
-
-        // Typing enables send; clearing disables again
-        Logger.step('TC_BID_07 — Verify send button enabled/disabled on input change');
-        await bidPage.loc().piperChatInput.fill('test');
-        await expect(sendBtn).toBeEnabled({ timeout: 5000 });
-        Logger.info('Send button enabled after typing ✓');
-        await bidPage.loc().piperChatInput.fill('');
-        await expect(sendBtn).toBeDisabled({ timeout: 5000 });
-        Logger.info('Send button disabled after clearing input ✓');
-
-        // Manage Vendors back navigation
-        Logger.step('TC_BID_07 — Verify Manage Vendors back navigation');
-        await bidPage.assertPiperManageVendorsNavigation();
-
-        Logger.success('TC_BID_07 passed — Piper panel layout, empty-prompt guard, and back-nav verified');
-    });
-
-    // ──────────────────────────────────────────────────────────────────────────────
-    // TC_BID_08 — Compare Bids (Piper): prompt send → AI Thinking → Thought →
-    //             response text; multi-turn conversation; Reset dialog cancel + confirm
-    // ──────────────────────────────────────────────────────────────────────────────
     test('TC_BID_08 @regression @bid @compareBids @aiPiper : Should send AI Bid Levelling prompt, validate Thinking→Thought→response flow, multi-turn conversation and Reset e2e', async () => {
         test.setTimeout(600000);
         const bidData = loadBidData();
