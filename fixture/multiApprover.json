@@ -1,0 +1,26 @@
+{
+  "jobName": "Automation job for multi approver flow",
+  "approverEmails": {
+    "email1": "admin_1783321052746@yopmail.com",
+    "email2": "admin_1783341186610@yopmail.com"
+  },
+  "approvalNotes": "Approved via automation - multi approver flow test",
+  "invoiceAmount": {
+    "min": 50,
+    "max": 949
+  },
+  "approvalStatus": {
+    "approvalStatusLabel": "Approval Status",
+    "rowNumber": "1.",
+    "eligibleApproversPrefix": "Eligible approvers:",
+    "pending": {
+      "approvedCountText": "0 of 1 approved",
+      "statusBadgeText": "Pending Approval"
+    },
+    "approved": {
+      "approvedCountText": "1 of 1 approved",
+      "statusBadgeText": "Approved"
+    },
+    "timestampPattern": "\\d{1,2}\\/\\d{1,2}\\/\\d{4},?\\s+\\d{1,2}:\\d{2}(:\\d{2})?\\s*(AM|PM)?"
+  }
+}

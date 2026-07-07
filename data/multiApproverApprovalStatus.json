@@ -1,0 +1,40 @@
+{
+  "jobName": "Automation job for multi approver flow",
+  "invoiceNumber": "14240",
+  "expectations": {
+    "approvalStatusLabel": "Approval Status",
+    "rowNumber": "1.",
+    "eligibleApproversPrefix": "Eligible approvers:",
+    "pending": {
+      "approvedCountText": "0 of 1 approved",
+      "statusBadgeText": "Pending Approval"
+    },
+    "approved": {
+      "approvedCountText": "1 of 1 approved",
+      "statusBadgeText": "Approved"
+    },
+    "timestampPattern": "\\d{1,2}\\/\\d{1,2}\\/\\d{4},?\\s+\\d{1,2}:\\d{2}(:\\d{2})?\\s*(AM|PM)?"
+  },
+  "pendingStatus": {
+    "approvalStatusLabel": "Approval Status",
+    "approvedCountText": "0 of 1 approved",
+    "rowNumberText": "1.",
+    "eligibleApproversText": "Eligible approvers: admin_1783321052746@yopmail.com, admin_1783341186610@yopmail.com",
+    "approverName": null,
+    "timestampText": null,
+    "notesText": null,
+    "statusBadgeText": "Pending Approval"
+  },
+  "approvedStatus": {
+    "approvalStatusLabel": "Approval Status",
+    "approvedCountText": "1 of 1 approved",
+    "rowNumberText": "1.",
+    "eligibleApproversText": "Eligible approvers: admin_1783321052746@yopmail.com, admin_1783341186610@yopmail.com",
+    "approverName": "Sumit Harsh",
+    "timestampText": "7/7/2026, 11:37:00 AM",
+    "notesText": "Approved via automation - multi approver flow test",
+    "statusBadgeText": "Approved"
+  },
+  "signedInUserName": "Sumit Harsh",
+  "verifiedAt": "2026-07-07T06:07:05.968Z"
+}
