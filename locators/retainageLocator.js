@@ -25,12 +25,15 @@ function retainageLocators(page) {
 
     // Line-items grid (revo-grid) column headers
     lineItemsGrid: page.locator('revo-grid:has([role="columnheader"] span:text("Cost Item"))'),
-    lineItemsInvoiceAmountHeader: page.locator('[role="columnheader"]').filter({ hasText: 'Invoice Amount' }),
+    // Every header below is matched with an exact anchor, not a bare substring — this grid is
+    // virtualized and can have off-screen columns with overlapping names (e.g. "Invoice Amount"
+    // vs "Last Invoice Amount"), confirmed live via MCP browser (strict-mode violation otherwise).
+    lineItemsInvoiceAmountHeader: page.locator('[role="columnheader"]').filter({ hasText: /^Invoice Amount$/ }),
     lineItemsRetainagePercentHeader: page.locator('[role="columnheader"]').filter({ hasText: /^Retainage %$/ }),
-    lineItemsRetainageAmountHeader: page.locator('[role="columnheader"]').filter({ hasText: 'Retainage ($)' }),
-    lineItemsRetainageReleasedHeader: page.locator('[role="columnheader"]').filter({ hasText: 'Retainage Released ($)' }),
-    lineItemsTotalWithheldHeader: page.locator('[role="columnheader"]').filter({ hasText: 'Total Withheld to Date' }),
-    lineItemsOutstandingRetainageHeader: page.locator('[role="columnheader"]').filter({ hasText: 'Outstanding Retainage' }),
+    lineItemsRetainageAmountHeader: page.locator('[role="columnheader"]').filter({ hasText: /^Retainage \(\$\)$/ }),
+    lineItemsRetainageReleasedHeader: page.locator('[role="columnheader"]').filter({ hasText: /^Retainage Released \(\$\)$/ }),
+    lineItemsTotalWithheldHeader: page.locator('[role="columnheader"]').filter({ hasText: /^Total Withheld to Date$/ }),
+    lineItemsOutstandingRetainageHeader: page.locator('[role="columnheader"]').filter({ hasText: /^Outstanding Retainage$/ }),
     lineItemsNetPayableHeader: page.locator('[role="columnheader"]').filter({ hasText: /^Net Payable$/ }),
     lineItemsRow: (scope, scheduleOfValue) =>
       page
@@ -48,6 +51,7 @@ function retainageLocators(page) {
       .getByRole('button', { name: /^(Create|Add) Invoice$/i })
       .locator('visible=true')
       .first(),
+    invoiceListSearchInput: page.getByRole('textbox', { name: 'Search...' }),
     listRowByInvoiceNumber: (invoiceNumberText) =>
       page
         .locator('revo-grid:has([role="columnheader"] span:text("Invoice Number")) revogr-data[type="rgRow"] div[role="row"]')
@@ -111,6 +115,29 @@ function retainageLocators(page) {
     editContractOverviewCancelButton: page
       .getByRole('dialog', { name: 'Edit Contract Overview' })
       .getByRole('button', { name: 'Cancel', exact: true }),
+
+    // Invoice-level Retainage % override badge — reads "From contract (X%)" when inherited, or
+    // "Override" once the user has changed it away from the cascaded value.
+    invoiceRetainageBadge: page.getByText(/^(Override|From contract \(\d+(\.\d+)?%\))$/),
+
+    // Shared currency-cell editor testid, used for Invoice Amount and Retainage Released ($)
+    // cells alike (confirmed live via MCP browser — same input renders for both).
+    cellCurrencyEditorInput: page.getByTestId('bird-table-currency-input'),
+
+    // "Clear selection" reset control that appears on a grid cell once it holds its own
+    // override value (confirmed live on both invoice-level and line-level Retainage %, and on
+    // line-level Retainage Released).
+    cellClearOverrideButton: (row) => row.getByRole('button', { name: 'Clear selection' }),
+
+    // Confirm Invoice "Are you sure?" dialog
+    confirmInvoiceConfirmationDialog: page.getByRole('dialog', { name: 'Confirm Invoice' }),
+    confirmInvoiceConfirmationConfirmButton: page
+      .getByRole('dialog', { name: 'Confirm Invoice' })
+      .getByRole('button', { name: 'Confirm', exact: true }),
+
+    // Toast shown when the over-draw guard rejects a Confirm Invoice attempt.
+    confirmationFailedToastTitle: page.getByText('Confirmation Failed', { exact: true }),
+    confirmationFailedToastMessage: page.getByText(/^Failed to confirm invoice:/),
   };
 }
 

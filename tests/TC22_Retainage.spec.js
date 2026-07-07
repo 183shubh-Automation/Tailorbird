@@ -53,6 +53,10 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
 
     test('TC212 @regression @retainage : Existing invoice row shows correct Retainage figures in the list grid', async () => {
         await retainagePage.gotoInvoiceList(fixture.jobId);
+        // The list grid virtualizes rows and this job accumulates more invoices over time (via
+        // other tests in this suite), so #14080 can scroll out of the default view — search
+        // narrows it back to a single row instead of assuming it's already rendered.
+        await retainagePage.searchInvoiceList(String(fixture.invoiceId));
 
         const row = retainagePage.getListRowByInvoiceNumber(`Invoice #${fixture.invoiceId}`);
         await expect(row).toBeVisible({ timeout: 20000 });
@@ -175,40 +179,65 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         const values = await retainagePage.getInvoiceLineItemRowValues(row);
         Logger.info(`Line-items grid row values for "${fixture.lineItem.label}": ${JSON.stringify(values)}`);
 
-        Logger.info(`Asserting Invoice Amount -> actual: "${values.invoiceAmount}" | expected: "${fixture.lineItem.invoiceAmount}"`);
+        // ── The 4 core columns: Invoice Amount, Retainage %, Retainage ($), Net Payable ────────
+        Logger.step(`Asserting the 4 core columns for "${fixture.lineItem.label}": Invoice Amount, Retainage %, Retainage ($), Net Payable`);
+
+        Logger.info(`Column "Invoice Amount" -> actual: "${values.invoiceAmount}" | expected: "${fixture.lineItem.invoiceAmount}"`);
         expect(values.invoiceAmount).toBe(fixture.lineItem.invoiceAmount);
 
-        Logger.info(`Asserting Retainage % -> actual: "${values.retainagePercent}" | expected: "${fixture.lineItem.retainagePercentValue}"`);
+        Logger.info(`Column "Retainage %" -> actual: "${values.retainagePercent}" | expected: "${fixture.lineItem.retainagePercentValue}"`);
         expect(values.retainagePercent).toBe(fixture.lineItem.retainagePercentValue);
 
-        Logger.info(`Asserting Retainage ($) -> actual: "${values.retainageAmount}" | expected: "${fixture.lineItem.retainageAmount}"`);
+        Logger.info(`Column "Retainage ($)" -> actual: "${values.retainageAmount}" | expected: "${fixture.lineItem.retainageAmount}"`);
         expect(values.retainageAmount).toBe(fixture.lineItem.retainageAmount);
 
-        Logger.info(`Asserting Retainage Released ($) -> actual: "${values.retainageReleased}" | expected: "${fixture.lineItem.retainageReleased}"`);
-        expect(values.retainageReleased).toBe(fixture.lineItem.retainageReleased);
-
-        Logger.info(`Asserting Total Withheld to Date -> actual: "${values.totalWithheldToDate}" | expected: "${fixture.lineItem.totalWithheldToDate}"`);
-        expect(values.totalWithheldToDate).toBe(fixture.lineItem.totalWithheldToDate);
-
-        Logger.info(`Asserting Outstanding Retainage -> actual: "${values.outstandingRetainage}" | expected: "${fixture.lineItem.outstandingRetainageToDate}"`);
-        expect(values.outstandingRetainage).toBe(fixture.lineItem.outstandingRetainageToDate);
-
-        Logger.info(`Asserting Net Payable -> actual: "${values.netPayable}" | expected: "${fixture.lineItem.netPayable}"`);
+        Logger.info(`Column "Net Payable" -> actual: "${values.netPayable}" | expected: "${fixture.lineItem.netPayable}"`);
         expect(values.netPayable).toBe(fixture.lineItem.netPayable);
 
-        // Per-line formula check, computed from this same row's own cells (not the fixture
-        // constants above), so it fails loudly if the UI's math ever drifts from the source data.
+        Logger.success(`All 4 core columns present with the expected values: Invoice Amount=${values.invoiceAmount}, Retainage %=${values.retainagePercent}, Retainage ($)=${values.retainageAmount}, Net Payable=${values.netPayable}.`);
+
+        // Calculation between those same 4 columns, computed from this row's own live cell values
+        // (not the fixture constants above), so it fails loudly if the UI's math ever drifts from
+        // the source data:
+        //   Invoice Amount x Retainage % = Retainage ($)
+        //   Invoice Amount - Retainage ($) + Retainage Released = Net Payable
         const invoiceAmount = RetainagePage.parseCurrency(values.invoiceAmount);
         const retainagePercent = parseFloat(values.retainagePercent);
         const retainageAmount = RetainagePage.parseCurrency(values.retainageAmount);
+        const retainageReleased = RetainagePage.parseCurrency(values.retainageReleased);
         const netPayable = RetainagePage.parseCurrency(values.netPayable);
+
         const expectedRetainageAmount = Math.round(invoiceAmount * (retainagePercent / 100));
-        const expectedNetPayable = invoiceAmount - retainageAmount + RetainagePage.parseCurrency(values.retainageReleased);
-        Logger.info(`Formula check: Invoice Amount ($${invoiceAmount}) x Retainage % (${retainagePercent}%) = $${expectedRetainageAmount} (actual: $${retainageAmount})`);
+        Logger.info(`Calculation: Invoice Amount ($${invoiceAmount}) x Retainage % (${retainagePercent}%) = $${expectedRetainageAmount} | actual Retainage ($) = $${retainageAmount}`);
         expect(retainageAmount).toBe(expectedRetainageAmount);
-        Logger.info(`Formula check: Net Payable = Invoice Amount ($${invoiceAmount}) - Retainage ($${retainageAmount}) + Released ($0) = $${expectedNetPayable} (actual: $${netPayable})`);
+        Logger.success(`Verified: $${invoiceAmount} x ${retainagePercent}% = $${expectedRetainageAmount}, matching the actual Retainage ($) column.`);
+
+        const expectedNetPayable = invoiceAmount - retainageAmount + retainageReleased;
+        Logger.info(`Calculation: Invoice Amount ($${invoiceAmount}) - Retainage ($${retainageAmount}) + Retainage Released ($${retainageReleased}) = $${expectedNetPayable} | actual Net Payable = $${netPayable}`);
         expect(netPayable).toBe(expectedNetPayable);
-        Logger.success(`Invoice line-items grid values and Retainage % calculation verified for "${fixture.lineItem.label}".`);
+        Logger.success(`Verified: $${invoiceAmount} - $${retainageAmount} + $${retainageReleased} = $${expectedNetPayable}, matching the actual Net Payable column.`);
+
+        // ── Remaining columns (Retainage Released, Total Withheld to Date, Outstanding Retainage) ──
+        Logger.info(`Column "Retainage Released ($)" -> actual: "${values.retainageReleased}" | expected: "${fixture.lineItem.retainageReleased}"`);
+        expect(values.retainageReleased).toBe(fixture.lineItem.retainageReleased);
+
+        // Total Withheld to Date / Outstanding Retainage are CONTRACT-level cumulative figures for
+        // this scope/schedule-of-value across every invoice on the job (confirmed live via MCP
+        // browser: they grow as other invoices are added), not a value owned by this invoice alone.
+        // So these are asserted structurally — currency-formatted and at least this invoice's own
+        // Retainage ($) contribution — instead of pinned to one exact dollar amount that drifts.
+        const totalWithheldToDate = RetainagePage.parseCurrency(values.totalWithheldToDate);
+        const outstandingRetainage = RetainagePage.parseCurrency(values.outstandingRetainage);
+        Logger.info(`Column "Total Withheld to Date" -> actual: "${values.totalWithheldToDate}" (cumulative across all invoices for this scope; must be >= this invoice's own Retainage ($) of $${retainageAmount})`);
+        expect(values.totalWithheldToDate).toMatch(new RegExp(fixture.patterns.moneyPrefix));
+        expect(totalWithheldToDate).toBeGreaterThanOrEqual(retainageAmount);
+
+        Logger.info(`Column "Outstanding Retainage" -> actual: "${values.outstandingRetainage}" (cumulative across all invoices for this scope; must be >= this invoice's own Retainage ($) of $${retainageAmount})`);
+        expect(values.outstandingRetainage).toMatch(new RegExp(fixture.patterns.moneyPrefix));
+        expect(outstandingRetainage).toBeGreaterThanOrEqual(retainageAmount);
+        Logger.success(`Total Withheld to Date ($${totalWithheldToDate}) and Outstanding Retainage ($${outstandingRetainage}) are correctly formatted and include this invoice's contribution.`);
+
+        Logger.success(`Invoice line-items grid: all 7 Retainage columns and the calculation between Invoice Amount / Retainage % / Retainage ($) / Net Payable are verified for "${fixture.lineItem.label}".`);
     });
 
     test('TC231 @regression @retainage : Retainage calculation formula is verified explicitly — Invoice Amount x Retainage % = Retainage Withheld, and Invoice Amount - Retainage Withheld + Retainage Released = Net Payable', async () => {
@@ -255,6 +284,137 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         Logger.info(`Formula sanity-check with the requested example: Invoice Amount $${illustrativeAmount}, Retainage % ${illustrativePercent}% -> Retainage Withheld $${illustrativeWithheld}, Net Payable $${illustrativeNetPayable}`);
         expect(illustrativeWithheld).toBe(50);
         expect(illustrativeNetPayable).toBe(950);
+    });
+
+    test('TC235 @regression @retainage : Invoice inherits the job/contract Retainage % by default, and can be overridden at the invoice level', async () => {
+        await retainagePage.gotoInvoiceList(fixture.jobId);
+        await retainagePage.createDraftInvoice();
+
+        const inheritedBadge = await retainagePage.getInvoiceRetainageBadgeText();
+        Logger.info(`Invoice-level Retainage % badge before any change -> actual: "${inheritedBadge}" | expected pattern: ${fixture.patterns.invoiceRetainageBadgeInherited}`);
+        expect(inheritedBadge).toMatch(new RegExp(fixture.patterns.invoiceRetainageBadgeInherited));
+
+        await retainagePage.setRetainagePercent(fixture.overrideScenario.invoiceLevelPercent);
+        const overriddenBadge = await retainagePage.getInvoiceRetainageBadgeText();
+        Logger.info(`Invoice-level Retainage % badge after overriding to ${fixture.overrideScenario.invoiceLevelPercent}% -> actual: "${overriddenBadge}" | expected: "Override"`);
+        expect(overriddenBadge).toBe('Override');
+        Logger.success('Invoice-level Retainage % transitioned from "From contract (X%)" (inherited) to "Override" once changed by the user.');
+
+        const row = retainagePage.getInvoiceLineItemRow(fixture.lineItem.scope, fixture.lineItem.scheduleOfValue);
+        await retainagePage.setLineInvoiceAmount(row, fixture.overrideScenario.invoiceAmount);
+
+        const values = await retainagePage.getInvoiceLineItemRowValues(row);
+        Logger.info(`Line values after invoice-level override cascaded down: ${JSON.stringify(values)}`);
+        expect(values.retainagePercent).toBe(String(fixture.overrideScenario.invoiceLevelPercent));
+        expect(RetainagePage.parseCurrency(values.retainageAmount)).toBe(fixture.overrideScenario.expectedRetainageAmount);
+        expect(RetainagePage.parseCurrency(values.netPayable)).toBe(fixture.overrideScenario.expectedNetPayable);
+        Logger.success(`Invoice-level override (${fixture.overrideScenario.invoiceLevelPercent}%) cascaded to the line: Retainage ($${fixture.overrideScenario.expectedRetainageAmount}) and Net Payable ($${fixture.overrideScenario.expectedNetPayable}) both match Invoice Amount ($${fixture.overrideScenario.invoiceAmount}) x ${fixture.overrideScenario.invoiceLevelPercent}%.`);
+    });
+
+    test('TC236 @regression @retainage : A single line\'s Retainage % can be overridden independently of the invoice-level value', async () => {
+        await retainagePage.gotoInvoiceList(fixture.jobId);
+        await retainagePage.createDraftInvoice();
+        await retainagePage.setRetainagePercent(fixture.overrideScenario.invoiceLevelPercent);
+
+        const row = retainagePage.getInvoiceLineItemRow(fixture.lineItem.scope, fixture.lineItem.scheduleOfValue);
+        await retainagePage.setLineInvoiceAmount(row, fixture.overrideScenario.invoiceAmount);
+
+        const inheritedValues = await retainagePage.getInvoiceLineItemRowValues(row);
+        Logger.info(`Line Retainage % before per-line override -> actual: "${inheritedValues.retainagePercent}" | expected (inherited from invoice): "${fixture.overrideScenario.invoiceLevelPercent}"`);
+        expect(inheritedValues.retainagePercent).toBe(String(fixture.overrideScenario.invoiceLevelPercent));
+
+        await retainagePage.setLineRetainagePercentOverride(row, fixture.overrideScenario.lineOverridePercent);
+
+        const overriddenValues = await retainagePage.getInvoiceLineItemRowValues(row);
+        Logger.info(`Line values after per-line override to ${fixture.overrideScenario.lineOverridePercent}%: ${JSON.stringify(overriddenValues)}`);
+        expect(overriddenValues.retainagePercent).toBe(String(fixture.overrideScenario.lineOverridePercent));
+        expect(RetainagePage.parseCurrency(overriddenValues.retainageAmount)).toBe(fixture.overrideScenario.expectedLineOverrideRetainageAmount);
+        expect(RetainagePage.parseCurrency(overriddenValues.netPayable)).toBe(fixture.overrideScenario.expectedLineOverrideNetPayable);
+        Logger.success(`Line-level override (${fixture.overrideScenario.lineOverridePercent}%) took effect independently of the invoice-level value (${fixture.overrideScenario.invoiceLevelPercent}%): Retainage ($${fixture.overrideScenario.expectedLineOverrideRetainageAmount}) and Net Payable ($${fixture.overrideScenario.expectedLineOverrideNetPayable}) both match the line's own %.`);
+
+        await expect(retainagePage.getLineOverrideClearButton(row), 'An overridden line must expose a "Clear selection" control to revert to the inherited %').toBeVisible({ timeout: 5000 });
+        Logger.success('Overridden line exposes a "Clear selection" control, confirming the override is tracked distinctly from the inherited invoice-level value.');
+
+        const invoiceLevelBadge = await retainagePage.getInvoiceRetainageBadgeText();
+        Logger.info(`Invoice-level badge remains unaffected by the per-line override -> actual: "${invoiceLevelBadge}" | expected: "Override" (still reflecting the invoice-level 6% override from earlier in this test, unrelated to the line's own 9%)`);
+        expect(invoiceLevelBadge).toBe('Override');
+    });
+
+    test('TC237 @regression @retainage : Retainage ($) rounds to the nearest cent, not the nearest whole dollar (rounding edge case)', async () => {
+        await retainagePage.gotoInvoiceList(fixture.jobId);
+        await retainagePage.createDraftInvoice();
+
+        const row = retainagePage.getInvoiceLineItemRow(fixture.lineItem.scope, fixture.lineItem.scheduleOfValue);
+        await retainagePage.setLineInvoiceAmount(row, fixture.roundingScenario.amountEntered);
+        await retainagePage.setLineRetainagePercentOverride(row, fixture.roundingScenario.percent);
+
+        const values = await retainagePage.getInvoiceLineItemRowValues(row);
+        Logger.info(`Rounding scenario values: ${JSON.stringify(values)}`);
+
+        // 333.335 entered rounds to 333.33 on input; 333.33 x 5% = 16.6665, which must round to
+        // the nearest CENT ($16.67), not the nearest whole dollar ($17) — the two diverge here,
+        // which is exactly what makes this a real rounding edge case rather than a coincidence.
+        Logger.info(`Invoice Amount after entry -> actual: "${values.invoiceAmount}" | expected: "${fixture.roundingScenario.expectedAmountAfterEntry}"`);
+        expect(values.invoiceAmount).toBe(fixture.roundingScenario.expectedAmountAfterEntry);
+
+        Logger.info(`Retainage ($) -> actual: "${values.retainageAmount}" | expected (rounded to nearest cent): "${fixture.roundingScenario.expectedRetainageAmount}" | NOT nearest-dollar ($17)`);
+        expect(values.retainageAmount).toBe(fixture.roundingScenario.expectedRetainageAmount);
+        expect(values.retainageAmount).not.toBe('$17');
+
+        Logger.info(`Net Payable -> actual: "${values.netPayable}" | expected: "${fixture.roundingScenario.expectedNetPayable}"`);
+        expect(values.netPayable).toBe(fixture.roundingScenario.expectedNetPayable);
+        Logger.success(`Rounding edge case verified: $${fixture.roundingScenario.expectedAmountAfterEntry} x ${fixture.roundingScenario.percent}% = 16.6665 rounds to ${fixture.roundingScenario.expectedRetainageAmount} (nearest cent), giving Net Payable ${fixture.roundingScenario.expectedNetPayable}.`);
+    });
+
+    test('TC238 @regression @retainage : Retainage Released can be set above 0 and is reflected in Net Payable; approval succeeds when it does not exceed Withheld', async () => {
+        await retainagePage.gotoInvoiceList(fixture.jobId);
+        const invoiceId = await retainagePage.createDraftInvoice();
+
+        const row = retainagePage.getInvoiceLineItemRow(fixture.lineItem.scope, fixture.lineItem.scheduleOfValue);
+        await retainagePage.setLineInvoiceAmount(row, fixture.releaseScenario.amount);
+        await retainagePage.setLineRetainagePercentOverride(row, fixture.releaseScenario.percent);
+
+        const beforeRelease = await retainagePage.getInvoiceLineItemRowValues(row);
+        Logger.info(`Retainage Released before setting it -> actual: "${beforeRelease.retainageReleased}" | expected: "$0"`);
+        expect(beforeRelease.retainageReleased).toBe('$0');
+
+        await retainagePage.setLineRetainageReleased(row, fixture.releaseScenario.releasedAmount);
+
+        const afterRelease = await retainagePage.getInvoiceLineItemRowValues(row);
+        Logger.info(`Line values after setting Retainage Released to ${fixture.releaseScenario.releasedAmount}: ${JSON.stringify(afterRelease)}`);
+        expect(RetainagePage.parseCurrency(afterRelease.retainageReleased)).toBe(fixture.releaseScenario.releasedAmount);
+        expect(RetainagePage.parseCurrency(afterRelease.retainageAmount)).toBe(fixture.releaseScenario.expectedRetainageAmount);
+        expect(RetainagePage.parseCurrency(afterRelease.netPayable)).toBe(fixture.releaseScenario.expectedNetPayable);
+        Logger.success(`Released > 0 scenario verified: Net Payable = Invoice Amount ($${fixture.releaseScenario.amount}) - Retainage ($${fixture.releaseScenario.expectedRetainageAmount}) + Released ($${fixture.releaseScenario.releasedAmount}) = $${fixture.releaseScenario.expectedNetPayable}.`);
+
+        const result = await retainagePage.confirmInvoice();
+        Logger.info(`Confirm Invoice #${invoiceId} outcome -> approved: ${result.approved} (Released $${fixture.releaseScenario.releasedAmount} <= Withheld $${fixture.releaseScenario.expectedRetainageAmount} for this line, so no over-draw)`);
+        expect(result.approved, `Invoice should approve successfully: ${result.errorMessage}`).toBe(true);
+        Logger.success(`Invoice #${invoiceId} approved successfully with Retainage Released > 0 and no over-draw error.`);
+    });
+
+    test('TC239 @regression @retainage : Approval is rejected when a contract line\'s cumulative Retainage Released would exceed its cumulative Retainage Withheld', async () => {
+        await retainagePage.gotoInvoiceList(fixture.jobId);
+        const invoiceId = await retainagePage.createDraftInvoice();
+
+        const row = retainagePage.getInvoiceLineItemRow(fixture.lineItem.scope, fixture.lineItem.scheduleOfValue);
+        await retainagePage.setLineInvoiceAmount(row, fixture.overDrawScenario.amount);
+        await retainagePage.setLineRetainageReleased(row, fixture.overDrawScenario.releasedAmount);
+
+        const values = await retainagePage.getInvoiceLineItemRowValues(row);
+        Logger.info(`Over-draw setup: Invoice Amount=${values.invoiceAmount}, Retainage ($)=${values.retainageAmount}, Retainage Released=${values.retainageReleased} (deliberately far larger than this line's own Retainage ($) — the guard checks the CUMULATIVE line balance across every invoice on the contract, not just this one, so a released amount this large is guaranteed to exceed it).`);
+
+        const result = await retainagePage.confirmInvoice();
+        Logger.info(`Confirm Invoice #${invoiceId} outcome -> approved: ${result.approved} | message: "${result.errorMessage}"`);
+        expect(result.approved, 'Approval must be rejected when Retainage Released would exceed Retainage Withheld for the contract line').toBe(false);
+
+        const pattern = new RegExp(fixture.patterns.overDrawErrorMessage);
+        expect(result.errorMessage).toMatch(pattern);
+        const [, releasedInMessage, withheldInMessage] = result.errorMessage.match(pattern);
+        Logger.info(`Guard error parsed -> released: $${releasedInMessage}, withheld: $${withheldInMessage}`);
+        expect(parseFloat(releasedInMessage.replace(/,/g, ''))).toBeGreaterThan(parseFloat(withheldInMessage.replace(/,/g, '')));
+        expect(parseFloat(releasedInMessage.replace(/,/g, ''))).toBeGreaterThanOrEqual(fixture.overDrawScenario.releasedAmount);
+        Logger.success(`Over-draw guard confirmed: approval rejected with "${result.errorMessage}" — released ($${releasedInMessage}) correctly exceeds withheld ($${withheldInMessage}) for the contract line.`);
     });
 });
 
@@ -379,8 +539,10 @@ test.describe('Verify Contract > Retainage deep validation', () => {
         // value hardcoded for a single-invoice job — this stays correct as more invoices land.
         const sumAcrossAllInvoices = await retainagePage.sumAllRetainageTabInvoiceRows();
         Logger.info(`Sum of Withheld/Released across every invoice row in the grid: ${JSON.stringify(sumAcrossAllInvoices)}`);
-        expect(RetainagePage.parseCurrency(totals.withheld)).toBe(sumAcrossAllInvoices.withheld);
-        expect(RetainagePage.parseCurrency(totals.released)).toBe(sumAcrossAllInvoices.released);
+        // toBeCloseTo, not toBe: summing many invoices' cents via repeated += accumulates
+        // ordinary floating-point drift (e.g. 660.0099999999999 vs the displayed "$660.01").
+        expect(RetainagePage.parseCurrency(totals.withheld)).toBeCloseTo(sumAcrossAllInvoices.withheld, 2);
+        expect(RetainagePage.parseCurrency(totals.released)).toBeCloseTo(sumAcrossAllInvoices.released, 2);
         expect(totals.outstanding).toBe(fixture.expected.dashText);
         Logger.success(`Total row cross-checked: Withheld ($${sumAcrossAllInvoices.withheld}) and Released ($${sumAcrossAllInvoices.released}) match the sum of every invoice row in the grid; Outstanding shows "—" (not summed by design).`);
 

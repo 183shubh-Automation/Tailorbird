@@ -18,8 +18,6 @@
     "retainagePercentValue": "4",
     "retainageAmount": "$200",
     "retainageReleased": "$0",
-    "totalWithheldToDate": "$370",
-    "outstandingRetainageToDate": "$370",
     "netPayable": "$4,800"
   },
 
@@ -59,7 +57,8 @@
 
   "messages": {
     "jobNotFoundOnInvoiceList": "Job not found",
-    "notFoundGeneric": "not found"
+    "notFoundGeneric": "not found",
+    "confirmationFailedTitle": "Confirmation Failed"
   },
 
   "patterns": {
@@ -67,7 +66,40 @@
     "moneyPrefix": "^\\$",
     "withheldSignedPrefix": "^-\\s*\\$",
     "releasedSignedPrefix": "^\\+\\s*\\$",
-    "currencyOrDash": "^(\\$[\\d,]+(\\.\\d{2})?|—)$"
+    "currencyOrDash": "^(\\$[\\d,]+(\\.\\d{2})?|—)$",
+    "invoiceRetainageBadgeInherited": "^From contract \\(\\d+(\\.\\d+)?%\\)$",
+    "overDrawErrorMessage": "^Failed to confirm invoice: Retainage released \\(\\$([\\d,]+\\.\\d{2})\\) cannot exceed retainage withheld \\(\\$([\\d,]+\\.\\d{2})\\) for a contract line\\. Reduce the release before approving\\.$"
+  },
+
+  "overrideScenario": {
+    "invoiceLevelPercent": 6,
+    "invoiceAmount": 1000,
+    "expectedRetainageAmount": 60,
+    "expectedNetPayable": 940,
+    "lineOverridePercent": 9,
+    "expectedLineOverrideRetainageAmount": 90,
+    "expectedLineOverrideNetPayable": 910
+  },
+
+  "roundingScenario": {
+    "amountEntered": "333.335",
+    "percent": 5,
+    "expectedAmountAfterEntry": "$333.33",
+    "expectedRetainageAmount": "$16.67",
+    "expectedNetPayable": "$316.66"
+  },
+
+  "releaseScenario": {
+    "amount": 333.33,
+    "percent": 5,
+    "releasedAmount": 10,
+    "expectedRetainageAmount": 16.67,
+    "expectedNetPayable": 326.66
+  },
+
+  "overDrawScenario": {
+    "amount": 1,
+    "releasedAmount": 99999
   },
 
   "apiEndpoints": {

@@ -23,6 +23,32 @@ class RetainagePage {
   }
 
   /**
+   * The invoice list grid virtualizes rows, so an older invoice can scroll out of the default
+   * view once enough invoices exist on the job — searching narrows it back down to one row.
+   * @param {string} term
+   */
+  async searchInvoiceList(term) {
+    Logger.step(`Searching invoice list for: ${term}`);
+    await this.loc.invoiceListSearchInput.fill(term);
+    await this.page.waitForTimeout(600);
+  }
+
+  /**
+   * Clicks Create Invoice from the Invoice list and returns the new invoice's numeric ID, parsed
+   * from the resulting /jobs/{jobId}/invoices/{invoiceId} URL (no hardcoded ID — every run gets
+   * a fresh, globally-unique one from the app itself).
+   * @returns {Promise<string>}
+   */
+  async createDraftInvoice() {
+    Logger.step('Creating new draft invoice');
+    await this.loc.createInvoiceButton.click();
+    await this.page.waitForURL(/\/invoices\/\d+/, { timeout: 20000 });
+    const invoiceId = this.page.url().match(/\/invoices\/(\d+)/)[1];
+    Logger.success(`Created draft invoice #${invoiceId}`);
+    return invoiceId;
+  }
+
+  /**
    * @param {number|string} jobId
    * @param {number|string} invoiceId
    */
@@ -51,11 +77,25 @@ class RetainagePage {
     return negative ? -value : value;
   }
 
-  /** @param {string} value e.g. "4" or "4%" */
+  /**
+   * @param {string|number} value e.g. "4" or "4%"
+   *
+   * Click + .fill() + a real Tab keypress — confirmed live via MCP browser that this exact
+   * sequence is what flips the badge to "Override" and cascades the new % to every line (via a
+   * "Retainage % applied to all lines" toast). Character-by-character keyboard.type() here left
+   * the badge showing the stale "From contract (X%)" state; only .fill() reliably commits it.
+   */
   async setRetainagePercent(value) {
     Logger.step(`Setting Retainage % to "${value}"...`);
+    await this.loc.retainagePercentInput.click();
     await this.loc.retainagePercentInput.fill(String(value));
-    await this.loc.retainagePercentInput.blur();
+    await this.page.keyboard.press('Tab');
+    await this.page.waitForTimeout(1000);
+  }
+
+  /** Reads the invoice-level Retainage % badge: "From contract (X%)" or "Override". */
+  async getInvoiceRetainageBadgeText() {
+    return (await this.loc.invoiceRetainageBadge.textContent()).trim();
   }
 
   async goBack() {
@@ -180,34 +220,47 @@ class RetainagePage {
   }
 
   /**
-   * Parses an Invoice Details line-items grid row into its named columns.
+   * Resolves a data cell's text for the given row by matching the header's own
+   * data-rgcol/aria-colindex — robust to the grid's on-screen column order (confirmed live via
+   * MCP browser that "Retainage ($)" and "Retainage %" can swap positions), unlike splitting
+   * innerText by line, which silently mismaps values whenever columns are reordered.
+   * @param {import('@playwright/test').Locator} row
+   * @param {import('@playwright/test').Locator} headerLocator
+   */
+  async getColumnValueForRow(row, headerLocator) {
+    await headerLocator.waitFor({ state: 'attached', timeout: 10000 });
+    const colIndex = await headerLocator.evaluate((el) => el.getAttribute('data-rgcol') || el.getAttribute('aria-colindex'));
+    if (!colIndex) {
+      throw new Error(`Could not resolve column index for header: ${await headerLocator.textContent()}`);
+    }
+    const cell = row.locator(`[role="gridcell"][data-rgcol="${colIndex}"], [role="gridcell"][aria-colindex="${colIndex}"]`).first();
+    // A focused/edited cell can render an inline "Clear selection" (✕) button, and the open
+    // NumberInput editor injects its own <style> tag — both confirmed live via MCP browser to
+    // leak into textContent() and contaminate the value. Strip them before reading text; the
+    // button's presence is checked separately via getLineOverrideClearButton, not by parsing this.
+    return cell.evaluate((el) => {
+      const clone = el.cloneNode(true);
+      clone.querySelectorAll('button, style').forEach((n) => n.remove());
+      return clone.textContent.trim();
+    });
+  }
+
+  /**
+   * Reads the Invoice Details line-items grid's Retainage-related columns for the given row,
+   * resolved by header name rather than on-screen position.
    * @param {import('@playwright/test').Locator} row
    */
   async getInvoiceLineItemRowValues(row) {
-    const text = await row.innerText();
-    const cells = text.split('\n').filter(Boolean);
-    const [
-      scope,
-      budgetCategory,
-      location,
-      scheduleOfValue,
-      costItem,
-      status,
-      invoiceAmount,
-      retainagePercent,
-      retainageAmount,
-      retainageReleased,
-      totalWithheldToDate,
-      outstandingRetainage,
-      netPayable,
-    ] = cells;
+    const [invoiceAmount, retainagePercent, retainageAmount, retainageReleased, totalWithheldToDate, outstandingRetainage, netPayable] = await Promise.all([
+      this.getColumnValueForRow(row, this.loc.lineItemsInvoiceAmountHeader),
+      this.getColumnValueForRow(row, this.loc.lineItemsRetainagePercentHeader),
+      this.getColumnValueForRow(row, this.loc.lineItemsRetainageAmountHeader),
+      this.getColumnValueForRow(row, this.loc.lineItemsRetainageReleasedHeader),
+      this.getColumnValueForRow(row, this.loc.lineItemsTotalWithheldHeader),
+      this.getColumnValueForRow(row, this.loc.lineItemsOutstandingRetainageHeader),
+      this.getColumnValueForRow(row, this.loc.lineItemsNetPayableHeader),
+    ]);
     return {
-      scope,
-      budgetCategory,
-      location,
-      scheduleOfValue,
-      costItem,
-      status,
       invoiceAmount,
       retainagePercent,
       retainageAmount,
@@ -216,6 +269,90 @@ class RetainagePage {
       outstandingRetainage,
       netPayable,
     };
+  }
+
+  /**
+   * Resolves the given row's cell for a header (by data-rgcol, robust to column reordering) and
+   * double-clicks it to open its inline editor.
+   * @param {import('@playwright/test').Locator} row
+   * @param {import('@playwright/test').Locator} headerLocator
+   */
+  async openLineCellEditor(row, headerLocator) {
+    const colIndex = await headerLocator.evaluate((el) => el.getAttribute('data-rgcol') || el.getAttribute('aria-colindex'));
+    await row.locator(`[data-rgcol="${colIndex}"]`).dblclick();
+  }
+
+  /**
+   * @param {import('@playwright/test').Locator} row
+   *
+   * The 1s wait after committing lets the app's debounced recalculation (a PATCH to
+   * /api/bird-table/cells, confirmed live via MCP browser) finish before any caller reads
+   * Retainage ($) / Net Payable — reading immediately after Enter races ahead of it and
+   * observes stale "—" / "$0" values.
+   */
+  async setLineInvoiceAmount(row, amount) {
+    Logger.step(`Setting line Invoice Amount to ${amount}`);
+    await this.openLineCellEditor(row, this.loc.lineItemsInvoiceAmountHeader);
+    await this.loc.cellCurrencyEditorInput.fill(String(amount));
+    await this.loc.cellCurrencyEditorInput.press('Enter');
+    await this.page.waitForTimeout(1000);
+  }
+
+  /**
+   * Overrides a single line's Retainage % independently of the invoice-level value. The editor
+   * has no stable testid, so it's driven by keyboard (select-all + type) after opening it.
+   * @param {import('@playwright/test').Locator} row
+   */
+  async setLineRetainagePercentOverride(row, value) {
+    Logger.step(`Overriding line Retainage % to ${value}`);
+    await this.openLineCellEditor(row, this.loc.lineItemsRetainagePercentHeader);
+    await this.page.keyboard.press('ControlOrMeta+a');
+    await this.page.keyboard.type(String(value));
+    await this.page.keyboard.press('Enter');
+    await this.page.waitForTimeout(1000);
+  }
+
+  /** @param {import('@playwright/test').Locator} row */
+  async setLineRetainageReleased(row, amount) {
+    Logger.step(`Setting line Retainage Released to ${amount}`);
+    await this.openLineCellEditor(row, this.loc.lineItemsRetainageReleasedHeader);
+    await this.loc.cellCurrencyEditorInput.fill(String(amount));
+    await this.loc.cellCurrencyEditorInput.press('Enter');
+    await this.page.waitForTimeout(1000);
+  }
+
+  /** @param {import('@playwright/test').Locator} row */
+  getLineOverrideClearButton(row) {
+    return this.loc.cellClearOverrideButton(row);
+  }
+
+  /**
+   * Clicks Confirm Invoice, accepts the "Are you sure?" dialog, and waits for the app to settle
+   * on either outcome: a successful approval (redirect to the invoice list) or a rejection (a
+   * "Confirmation Failed" toast while staying on the invoice detail page). Returns the outcome
+   * so the caller can assert either branch without swallowing a genuine unexpected failure.
+   * @returns {Promise<{approved: boolean, errorMessage: string|null}>}
+   */
+  async confirmInvoice() {
+    Logger.step('Clicking Confirm Invoice');
+    await this.loc.confirmInvoiceButton.click();
+    await expect(this.loc.confirmInvoiceConfirmationDialog).toBeVisible({ timeout: 10000 });
+    await this.loc.confirmInvoiceConfirmationConfirmButton.click();
+
+    const approved = await this.page
+      .waitForURL(/tab=invoices/, { timeout: 15000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (approved) {
+      Logger.success('Invoice confirmed and approved.');
+      return { approved: true, errorMessage: null };
+    }
+
+    await expect(this.loc.confirmationFailedToastTitle, 'Neither approval redirect nor a "Confirmation Failed" toast appeared').toBeVisible({ timeout: 10000 });
+    const errorMessage = (await this.loc.confirmationFailedToastMessage.textContent()).trim();
+    Logger.info(`Confirmation rejected: ${errorMessage}`);
+    return { approved: false, errorMessage };
   }
 
   /** @param {string} label e.g. "Property", "Budget Category" */
