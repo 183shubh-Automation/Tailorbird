@@ -1,0 +1,76 @@
+{
+  "projectName": "Project_Automation_Retainage_flow",
+  "propertyName": "Test Property3 Automation Retainage flow",
+  "jobName": "Automation_Job_for_Retainage_flow",
+  "jobId": 4145,
+  "invoiceId": 14080,
+  "invoiceListUrl": "https://beta.tailorbird.com/jobs/4145?tab=invoices",
+  "invoiceDetailUrl": "https://beta.tailorbird.com/jobs/4145/invoices/14080",
+  "discoveredVia": "mcp-browser-playwright",
+  "discoveredAt": "2026-07-06T10:42:00.000Z",
+  "notes": "Pre-existing fixture found live in staging under Projects. Purpose-built for Retainage automation (project/job/invoice names all say 'Retainage flow'). If this fixture is ever deleted, update jobId/invoiceId here after locating its replacement — TC22_Retainage.spec.js and pages/retainagePage.js read only from this file, no code changes needed.",
+
+  "lineItem": {
+    "scope": "Bid with material",
+    "scheduleOfValue": "76000",
+    "label": "Bid with material · 76000",
+    "invoiceAmount": "$5,000",
+    "retainagePercentValue": "4",
+    "retainageAmount": "$200",
+    "retainageReleased": "$0",
+    "totalWithheldToDate": "$370",
+    "outstandingRetainageToDate": "$370",
+    "netPayable": "$4,800"
+  },
+
+  "expected": {
+    "listRowWithheldText": "$200",
+    "listRowNetPayableText": "$4,800",
+    "dashText": "—",
+    "retainageTab": {
+      "withheld": "$200",
+      "released": "$0",
+      "outstanding": "$200"
+    }
+  },
+
+  "contractOverview": {
+    "property": "Test Property3 Automation Retainage flow",
+    "budgetCategory": "Concrete",
+    "contractId": "4145",
+    "vendor": "sumit corp",
+    "vendorAddress": "Noida",
+    "duration": "Jul 1, 2026 -> Jul 31, 2026",
+    "estimatedTotalCost": "$0.00",
+    "contractTerms": "-",
+    "labels": {
+      "totalWithheld": "Total Withheld",
+      "totalReleased": "Total Released",
+      "outstandingBalance": "Outstanding Balance"
+    }
+  },
+
+  "editContractOverview": {
+    "dialogTitle": "Edit Contract Overview",
+    "retainagePercentLabel": "Retainage %",
+    "lockedMessage": "Contract is finalized. Retainage % cannot be changed.",
+    "lockedValue": "0%"
+  },
+
+  "messages": {
+    "jobNotFoundOnInvoiceList": "Job not found",
+    "notFoundGeneric": "not found"
+  },
+
+  "patterns": {
+    "percentSuffix": "%$",
+    "moneyPrefix": "^\\$",
+    "withheldSignedPrefix": "^-\\s*\\$",
+    "releasedSignedPrefix": "^\\+\\s*\\$",
+    "currencyOrDash": "^(\\$[\\d,]+(\\.\\d{2})?|—)$"
+  },
+
+  "apiEndpoints": {
+    "retainageInvoices": "/api/jobs/{jobId}/retainage-invoices"
+  }
+}
