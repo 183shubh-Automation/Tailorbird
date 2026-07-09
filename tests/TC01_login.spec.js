@@ -88,7 +88,7 @@ test.describe('Tailorbird Login Flow', () => {
     });
   });
 
-  test('@sanity @login Login with existing user which has only one organization', async ({ browser }) => {
+  test('TC04 @sanity @login Login with existing user which has only one organization', async ({ browser }) => {
     Logger.info('Starting Tailorbird login test...');
 
     context = await browser.newContext();
@@ -113,7 +113,7 @@ test.describe('Tailorbird Login Flow', () => {
 });
 
 test.describe('Regression — login (consolidated)', () => {
-  test('TC04 @regression @login Full login regression — negatives, edges, benchmarks, snapshots', async ({
+  test('TC05 @regression @login Full login regression — negatives, edges, benchmarks, snapshots', async ({
     browser,
   }, testInfo) => {
     testInfo.setTimeout(600_000);
@@ -121,83 +121,83 @@ test.describe('Regression — login (consolidated)', () => {
     const loginUrl = process.env.LOGIN_URL;
 
     await test.step('AuthKit email-step benchmark (heading, Email field, Continue)', async () => {
-      Logger.info('[TC04] Starting AuthKit email step benchmark scan');
+      Logger.info('[TC05] Starting AuthKit email step benchmark scan');
       const context = await browser.newContext();
       const page = await context.newPage();
       await page.goto(loginUrl, { waitUntil: 'load' });
-      Logger.info('[TC04] Asserting: heading "Sign in" is visible');
+      Logger.info('[TC05] Asserting: heading "Sign in" is visible');
       await expect(
         page.getByRole('heading', { name: 'Sign in' }),
         'FAIL: UI benchmark — expected visible heading with accessible name exactly "Sign in" (AuthKit copy or role changed).',
       ).toBeVisible({ timeout: 15_000 });
-      Logger.info('[TC04] Asserting: Email textbox is visible');
+      Logger.info('[TC05] Asserting: Email textbox is visible');
       await expect(
         page.getByRole('textbox', { name: 'Email' }),
         'FAIL: UI benchmark — expected visible textbox with accessible name "Email"',
       ).toBeVisible();
-      Logger.info('[TC04] Asserting: Continue button is visible');
+      Logger.info('[TC05] Asserting: Continue button is visible');
       await expect(
         page.getByRole('button', { name: /^Continue(\s|$)/ }),
         'FAIL: UI benchmark — primary submit must be named like "Continue" (MCP 2026-05-04: "Continue Last used"). Rename breaks login.',
       ).toBeVisible();
-      Logger.success('[TC04] ✅ AuthKit email step benchmark — all controls present');
+      Logger.success('[TC05] ✅ AuthKit email step benchmark — all controls present');
       await context.close();
     });
 
     await test.step('TC01b: Invalid credentials must not land on dashboard + invalid banner text', async () => {
-      Logger.info('[TC04] Starting: invalid credentials rejection check');
+      Logger.info('[TC05] Starting: invalid credentials rejection check');
       const context = await browser.newContext();
       const page = await context.newPage();
       const loginPage = new LoginPage(page);
       await page.goto(loginUrl, { waitUntil: 'load' });
       InteractionLogger.logFormFill('Email', 'tb_automation_invalid@invalid.local', false);
       await loginPage.submitCredentials('tb_automation_invalid@invalid.local', 'NotARealPassword_99999');
-      Logger.info('[TC04] Asserting: page did not navigate to dashboard');
+      Logger.info('[TC05] Asserting: page did not navigate to dashboard');
       await expect(page, 'FAIL: Invalid credentials must not reach dashboard URL').not.toHaveURL(dashboardUrl, {
         timeout: 25_000,
       });
-      Logger.info('[TC04] Asserting: invalid credentials banner visible');
+      Logger.info('[TC05] Asserting: invalid credentials banner visible');
       await loginPage.expectInvalidCredentialsBanner('TC01b invalid creds');
-      Logger.success('[TC04] ✅ Invalid credentials blocked — banner shown, no dashboard');
+      Logger.success('[TC05] ✅ Invalid credentials blocked — banner shown, no dashboard');
       await context.close();
     });
 
     await test.step('TC03: Dashboard URL without stored session is not logged-in app home', async () => {
-      Logger.info('[TC04] Starting: unauthenticated dashboard access redirects away');
+      Logger.info('[TC05] Starting: unauthenticated dashboard access redirects away');
       const context = await browser.newContext();
       const page = await context.newPage();
       InteractionLogger.logNavigation(dashboardUrl, 'Dashboard — unauthenticated');
       await page.goto(dashboardUrl, { waitUntil: 'load', timeout: 60_000 });
-      Logger.info(`[TC04] Current URL after goto: ${page.url()}`);
-      Logger.info('[TC04] Asserting: URL is not dashboard (should redirect to login)');
+      Logger.info(`[TC05] Current URL after goto: ${page.url()}`);
+      Logger.info('[TC05] Asserting: URL is not dashboard (should redirect to login)');
       await expect(page, 'FAIL: Unauthenticated visit to dashboard should redirect away from dashboard URL').not.toHaveURL(
         dashboardUrl,
         { timeout: 45_000 },
       );
-      Logger.success('[TC04] ✅ Unauthenticated access correctly redirected');
+      Logger.success('[TC05] ✅ Unauthenticated access correctly redirected');
       await context.close();
     });
 
     await test.step('TC01-neg-01: Valid email with wrong password — banner + no dashboard', async () => {
-      Logger.info('[TC04] Starting: valid email + wrong password must be rejected');
+      Logger.info('[TC05] Starting: valid email + wrong password must be rejected');
       const context = await browser.newContext();
       const page = await context.newPage();
       const loginPage = new LoginPage(page);
       await page.goto(loginUrl, { waitUntil: 'load' });
       InteractionLogger.logFormFill('Email', process.env.TEST_EMAIL, false);
       await loginPage.submitCredentials(process.env.TEST_EMAIL, '__WrongPassword_regression_999__');
-      Logger.info('[TC04] Asserting: did not navigate to dashboard');
+      Logger.info('[TC05] Asserting: did not navigate to dashboard');
       await expect(page, 'FAIL: Wrong password must not navigate to dashboard').not.toHaveURL(dashboardUrl, {
         timeout: 25_000,
       });
-      Logger.info('[TC04] Asserting: invalid credentials banner visible');
+      Logger.info('[TC05] Asserting: invalid credentials banner visible');
       await loginPage.expectInvalidCredentialsBanner('TC01-neg-01 wrong password');
-      Logger.success('[TC04] ✅ Wrong password blocked — banner shown');
+      Logger.success('[TC05] ✅ Wrong password blocked — banner shown');
       await context.close();
     });
 
     await test.step('TC01-neg-02: Empty email — stay on email step, required message', async () => {
-      Logger.info('[TC04] Starting: empty email must not advance to password step');
+      Logger.info('[TC05] Starting: empty email must not advance to password step');
       const context = await browser.newContext();
       const page = await context.newPage();
       const loginPage = new LoginPage(page);
@@ -205,24 +205,24 @@ test.describe('Regression — login (consolidated)', () => {
       InteractionLogger.logFormFill('Email', '', false);
       await loginPage.continueFromEmailStepNoNavigationWait('');
       const advanced = await loginPage.isPasswordStepVisibleWithin(4000);
-      Logger.info(`[TC04] Password step advanced: ${advanced} (expected: false)`);
+      Logger.info(`[TC05] Password step advanced: ${advanced} (expected: false)`);
       expect(advanced, 'FAIL: Continue with empty email must not show password field').toBe(false);
-      Logger.info('[TC04] Asserting: email field still visible');
+      Logger.info('[TC05] Asserting: email field still visible');
       await expect(loginPage.emailInput, 'FAIL: Email field should remain visible after empty submit').toBeVisible();
-      Logger.info('[TC04] Asserting: required email message shown');
+      Logger.info('[TC05] Asserting: required email message shown');
       await loginPage.expectAuthKitMessage(loginPage.authKit.emailRequired, 'TC01-neg-02 empty email');
-      Logger.success('[TC04] ✅ Empty email blocked — required message shown');
+      Logger.success('[TC05] ✅ Empty email blocked — required message shown');
       await context.close();
     });
 
     await test.step('TC01-neg-03: Empty password — no auth, password required message', async () => {
-      Logger.info('[TC04] Starting: empty password must be rejected');
+      Logger.info('[TC05] Starting: empty password must be rejected');
       const context = await browser.newContext();
       const page = await context.newPage();
       const loginPage = new LoginPage(page);
       await page.goto(loginUrl, { waitUntil: 'load' });
       await loginPage.continueFromEmailStep(process.env.TEST_EMAIL);
-      Logger.info('[TC04] Asserting: Sign in button visible at password step');
+      Logger.info('[TC05] Asserting: Sign in button visible at password step');
       await expect(
         page.getByRole('button', { name: 'Sign in' }),
         'FAIL: Password step — expected visible button with accessible name "Sign in" (label or AuthKit flow changed).',
@@ -231,17 +231,17 @@ test.describe('Regression — login (consolidated)', () => {
       await loginPage.passwordInput.fill('');
       InteractionLogger.logButtonClick('Sign in', 'Sign in');
       await loginPage.signInButton.click();
-      Logger.info('[TC04] Asserting: did not navigate to dashboard');
+      Logger.info('[TC05] Asserting: did not navigate to dashboard');
       await expect(page, 'FAIL: Empty password must not reach dashboard').not.toHaveURL(dashboardUrl, { timeout: 20_000 });
-      Logger.info('[TC04] Asserting: password required message shown');
+      Logger.info('[TC05] Asserting: password required message shown');
       await loginPage.expectAuthKitMessage(loginPage.authKit.passwordRequired, 'TC01-neg-03 empty password');
       await loginPage.expectPasswordStepChromeVisible();
-      Logger.success('[TC04] ✅ Empty password blocked — required message shown');
+      Logger.success('[TC05] ✅ Empty password blocked — required message shown');
       await context.close();
     });
 
     await test.step('TC01-neg-04: Whitespace-only email — no password step, invalid email message', async () => {
-      Logger.info('[TC04] Starting: whitespace-only email must be rejected');
+      Logger.info('[TC05] Starting: whitespace-only email must be rejected');
       const context = await browser.newContext();
       const page = await context.newPage();
       const loginPage = new LoginPage(page);
@@ -250,14 +250,14 @@ test.describe('Regression — login (consolidated)', () => {
       const advanced = await loginPage.isPasswordStepVisibleWithin(4000);
       expect(advanced, 'FAIL: Whitespace-only email must not advance to password step').toBe(false);
       await expect(loginPage.emailInput, 'FAIL: Email field should stay visible').toBeVisible();
-      Logger.info('[TC04] Asserting: invalid email message shown');
+      Logger.info('[TC05] Asserting: invalid email message shown');
       await loginPage.expectAuthKitMessage(loginPage.authKit.emailInvalid, 'TC01-neg-04 whitespace email');
-      Logger.success('[TC04] ✅ Whitespace email blocked — invalid message shown');
+      Logger.success('[TC05] ✅ Whitespace email blocked — invalid message shown');
       await context.close();
     });
 
     await test.step('TC01-neg-05: Whitespace-only password — rejected, invalid credentials banner', async () => {
-      Logger.info('[TC04] Starting: whitespace-only password must be rejected');
+      Logger.info('[TC05] Starting: whitespace-only password must be rejected');
       const context = await browser.newContext();
       const page = await context.newPage();
       const loginPage = new LoginPage(page);
@@ -267,14 +267,14 @@ test.describe('Regression — login (consolidated)', () => {
       await expect(page, 'FAIL: Whitespace-only password must not reach dashboard').not.toHaveURL(dashboardUrl, {
         timeout: 25_000,
       });
-      Logger.info('[TC04] Asserting: invalid credentials banner shown');
+      Logger.info('[TC05] Asserting: invalid credentials banner shown');
       await loginPage.expectInvalidCredentialsBanner('TC01-neg-05 whitespace password');
-      Logger.success('[TC04] ✅ Whitespace password blocked — banner shown');
+      Logger.success('[TC05] ✅ Whitespace password blocked — banner shown');
       await context.close();
     });
 
     await test.step('TC01-neg-06: Malformed email — blocked or rejected with expected copy', async () => {
-      Logger.info('[TC04] Starting: malformed email must be blocked or lead to rejection');
+      Logger.info('[TC05] Starting: malformed email must be blocked or lead to rejection');
       const context = await browser.newContext();
       const page = await context.newPage();
       const loginPage = new LoginPage(page);
@@ -286,21 +286,21 @@ test.describe('Regression — login (consolidated)', () => {
         await expect(page, 'FAIL: Malformed email path must not reach dashboard').not.toHaveURL(dashboardUrl, {
           timeout: 25_000,
         });
-        Logger.info('[TC04] Asserting: invalid credentials banner shown (password path)');
+        Logger.info('[TC05] Asserting: invalid credentials banner shown (password path)');
         await loginPage.expectInvalidCredentialsBanner('TC01-neg-06 malformed email → password');
       } else {
         await expect(page, 'FAIL: Malformed email must not reach dashboard').not.toHaveURL(dashboardUrl, {
           timeout: 25_000,
         });
-        Logger.info('[TC04] Asserting: invalid email message shown (inline path)');
+        Logger.info('[TC05] Asserting: invalid email message shown (inline path)');
         await loginPage.expectAuthKitMessage(loginPage.authKit.emailInvalid, 'TC01-neg-06 malformed email inline');
       }
-      Logger.success('[TC04] ✅ Malformed email blocked');
+      Logger.success('[TC05] ✅ Malformed email blocked');
       await context.close();
     });
 
     await test.step('TC01-neg-07: Extremely long email/password — blocked or invalid credentials', async () => {
-      Logger.info('[TC04] Starting: extremely long credentials must be blocked');
+      Logger.info('[TC05] Starting: extremely long credentials must be blocked');
       const context = await browser.newContext();
       const page = await context.newPage();
       const loginPage = new LoginPage(page);
@@ -314,19 +314,19 @@ test.describe('Regression — login (consolidated)', () => {
         await expect(page, 'FAIL: Long credentials path must not reach dashboard').not.toHaveURL(dashboardUrl, {
           timeout: 25_000,
         });
-        Logger.info('[TC04] Asserting: invalid credentials banner (password path)');
+        Logger.info('[TC05] Asserting: invalid credentials banner (password path)');
         await loginPage.expectInvalidCredentialsBanner('TC01-neg-07 long credentials');
       } else {
         await expect(page, 'FAIL: Long email must not reach dashboard').not.toHaveURL(dashboardUrl, { timeout: 25_000 });
-        Logger.info('[TC04] Asserting: invalid email message (inline path)');
+        Logger.info('[TC05] Asserting: invalid email message (inline path)');
         await loginPage.expectAuthKitMessage(loginPage.authKit.emailInvalid, 'TC01-neg-07 long email inline');
       }
-      Logger.success('[TC04] ✅ Long credentials blocked');
+      Logger.success('[TC05] ✅ Long credentials blocked');
       await context.close();
     });
 
     await test.step('TC01-neg-08: Unicode wrong password — invalid credentials banner', async () => {
-      Logger.info('[TC04] Starting: unicode wrong password must be rejected');
+      Logger.info('[TC05] Starting: unicode wrong password must be rejected');
       const context = await browser.newContext();
       const page = await context.newPage();
       const loginPage = new LoginPage(page);
@@ -335,14 +335,14 @@ test.describe('Regression — login (consolidated)', () => {
       await expect(page, 'FAIL: Unicode wrong password must not reach dashboard').not.toHaveURL(dashboardUrl, {
         timeout: 25_000,
       });
-      Logger.info('[TC04] Asserting: invalid credentials banner shown');
+      Logger.info('[TC05] Asserting: invalid credentials banner shown');
       await loginPage.expectInvalidCredentialsBanner('TC01-neg-08 unicode password');
-      Logger.success('[TC04] ✅ Unicode wrong password blocked — banner shown');
+      Logger.success('[TC05] ✅ Unicode wrong password blocked — banner shown');
       await context.close();
     });
 
     await test.step('TC01-neg-09: Injection-style strings — no dashboard, expected validation or banner', async () => {
-      Logger.info('[TC04] Starting: injection-style input must be blocked');
+      Logger.info('[TC05] Starting: injection-style input must be blocked');
       const context = await browser.newContext();
       const page = await context.newPage();
       const loginPage = new LoginPage(page);
@@ -356,21 +356,21 @@ test.describe('Regression — login (consolidated)', () => {
         await expect(page, 'FAIL: Injection path must not reach dashboard').not.toHaveURL(dashboardUrl, {
           timeout: 25_000,
         });
-        Logger.info('[TC04] Asserting: invalid credentials banner (password path)');
+        Logger.info('[TC05] Asserting: invalid credentials banner (password path)');
         await loginPage.expectInvalidCredentialsBanner('TC01-neg-09 injection → password');
       } else {
         await expect(page, 'FAIL: Injection email must not reach dashboard').not.toHaveURL(dashboardUrl, {
           timeout: 25_000,
         });
-        Logger.info('[TC04] Asserting: invalid email message (inline path)');
+        Logger.info('[TC05] Asserting: invalid email message (inline path)');
         await loginPage.expectAuthKitMessage(loginPage.authKit.emailInvalid, 'TC01-neg-09 injection inline');
       }
-      Logger.success('[TC04] ✅ Injection-style input blocked');
+      Logger.success('[TC05] ✅ Injection-style input blocked');
       await context.close();
     });
 
     await test.step('TC01-edge-01: Double-click Sign in with bad password — still rejected', async () => {
-      Logger.info('[TC04] Starting: double-click submit with bad password must be rejected');
+      Logger.info('[TC05] Starting: double-click submit with bad password must be rejected');
       const context = await browser.newContext();
       const page = await context.newPage();
       const loginPage = new LoginPage(page);
@@ -380,14 +380,14 @@ test.describe('Regression — login (consolidated)', () => {
       await expect(page, 'FAIL: Double-click submit must not authenticate with bad password').not.toHaveURL(dashboardUrl, {
         timeout: 25_000,
       });
-      Logger.info('[TC04] Asserting: invalid credentials banner shown after double-click');
+      Logger.info('[TC05] Asserting: invalid credentials banner shown after double-click');
       await loginPage.expectInvalidCredentialsBanner('TC01-edge-01 double-click');
-      Logger.success('[TC04] ✅ Double-click with bad password rejected — banner shown');
+      Logger.success('[TC05] ✅ Double-click with bad password rejected — banner shown');
       await context.close();
     });
 
     await test.step('TC01-edge-02: Browser back from password returns to email step', async () => {
-      Logger.info('[TC04] Starting: browser back from password step returns to email');
+      Logger.info('[TC05] Starting: browser back from password step returns to email');
       const context = await browser.newContext();
       const page = await context.newPage();
       const loginPage = new LoginPage(page);
@@ -398,13 +398,13 @@ test.describe('Regression — login (consolidated)', () => {
       await expect(loginPage.emailInput, 'FAIL: After back, email field should be visible again').toBeVisible({
         timeout: 15_000,
       });
-      Logger.info('[TC04] Asserting: password field not visible after back');
+      Logger.info('[TC05] Asserting: password field not visible after back');
       await expect(loginPage.passwordInput, 'FAIL: After back, password field should be hidden').not.toBeVisible();
-      Logger.success('[TC04] ✅ Browser back returned to email step');
+      Logger.success('[TC05] ✅ Browser back returned to email step');
     });
 
     await test.step('TC01-edge-03: Padded email with wrong password — invalid credentials banner', async () => {
-      Logger.info('[TC04] Starting: padded email with wrong password must be rejected');
+      Logger.info('[TC05] Starting: padded email with wrong password must be rejected');
       const context = await browser.newContext();
       const page = await context.newPage();
       const loginPage = new LoginPage(page);
@@ -414,14 +414,14 @@ test.describe('Regression — login (consolidated)', () => {
       await expect(page, 'FAIL: Padded email wrong password must not reach dashboard').not.toHaveURL(dashboardUrl, {
         timeout: 25_000,
       });
-      Logger.info('[TC04] Asserting: invalid credentials banner shown');
+      Logger.info('[TC05] Asserting: invalid credentials banner shown');
       await loginPage.expectInvalidCredentialsBanner('TC01-edge-03 padded email');
-      Logger.success('[TC04] ✅ Padded email with wrong password blocked — banner shown');
+      Logger.success('[TC05] ✅ Padded email with wrong password blocked — banner shown');
       await context.close();
     });
 
     await test.step('TC01-vis-01: Visual snapshots — email, password, error states', async () => {
-      Logger.info('[TC04] Starting: visual snapshot comparison for login flow states');
+      Logger.info('[TC05] Starting: visual snapshot comparison for login flow states');
       const context = await browser.newContext({
         viewport: { width: 1280, height: 790 },
       });
@@ -465,9 +465,9 @@ test.describe('Regression — login (consolidated)', () => {
         mask: maskSelectors,
       });
 
-      Logger.info('[TC04] Asserting: error state URL is not dashboard');
+      Logger.info('[TC05] Asserting: error state URL is not dashboard');
       await expect(page, 'FAIL: Error state must still not be dashboard').not.toHaveURL(dashboardUrl);
-      Logger.success('[TC04] ✅ Visual snapshots captured — email, password, and error states');
+      Logger.success('[TC05] ✅ Visual snapshots captured — email, password, and error states');
       await context.close();
     });
   });
@@ -479,7 +479,7 @@ test.describe('TC01 Login — Text assertions', () => {
   const loginUrl = process.env.LOGIN_URL;
   const testEmail = process.env.TEST_EMAIL;
 
-  test('TC05 @login Full login text agent — email step, password step, all error states', async ({ browser }) => {
+  test('TC06 @login Full login text agent — email step, password step, all error states', async ({ browser }) => {
     Logger.info('[TEXT AGENT] Starting full login text scan — one context, sequential states');
     const ctx = await browser.newContext();
     const page = await ctx.newPage();

@@ -34,17 +34,17 @@ test.beforeEach(async ({ page }) => {
     await _appShell05.waitFor({ state: 'visible', timeout: 20_000 });
 });
 
-test('TC63 @regression @projectAndJob : Navigate to Projects & Jobs and verify page loads successfully within 2 seconds and zero console error', async ({ page }) => {
+test('TC69 @regression @projectAndJob : Navigate to Projects & Jobs and verify page loads successfully within 2 seconds and zero console error', async ({ page }) => {
     await projectPage.navigateToProjects();
 });
 
-test('TC64 @regression @projectAndJob : User should be able to Open Create Project modal and verify all fields are visible', async () => {
+test('TC70 @regression @projectAndJob : User should be able to Open Create Project modal and verify all fields are visible', async () => {
     await projectPage.navigateToProjects();
     await projectPage.openCreateProjectModal();
     await projectPage.verifyModalFields();
 });
 
-test('TC65 @regression @sanity @mandatory @projectAndJob @contract : User should be able to Fill Create Project form, submit, and verify project details on dashboard', async ({ page }) => {
+test('TC71 @regression @sanity @mandatory @projectAndJob @contract : User should be able to Fill Create Project form, submit, and verify project details on dashboard', async ({ page }) => {
     let propertyName;
     const propertyDataPath = path.join(__dirname, '../data/propertyData.json');
     const downloadsPropertyPath = path.join(process.cwd(), 'downloads', 'property.json');
@@ -98,27 +98,27 @@ test('TC65 @regression @sanity @mandatory @projectAndJob @contract : User should
     });
 });
 
-test('TC66 @regression @projectAndJob : User should be able to search project using partial name and verify matching results', async () => {
+test('TC72 @regression @projectAndJob : User should be able to search project using partial name and verify matching results', async () => {
     await projectPage.navigateToProjects();
     await projectPage.setProjectsTableView();
     await projectPage.searchProjectInProjects('Automa_Test');
 });
 
-test('TC67 @regression @projectAndJob : User should be able to apply filter and export project', async () => {
+test('TC73 @regression @projectAndJob : User should be able to apply filter and export project', async () => {
     await projectPage.navigateToProjects();
     await projectPage.setProjectsTableView();
     await projectJob.applyProjectFilterAndExport('Test Property 1_Cottages on Elm', 'Automa_Test');
     // await projectJob.deleteFirstProjectRow();
 });
 
-test('TC68 @regression @projectAndJob : Validate cancel button closes without saving.', async () => {
+test('TC74 @regression @projectAndJob : Validate cancel button closes without saving.', async () => {
     await projectPage.navigateToProjects();
     await projectPage.setProjectsTableView();
     await projectPage.openCreateProjectModal();
     await projectPage.verifyModalClosed();
 });
 
-test('TC69 @regression @projectAndJob : Validate Create Project form mandatory fields assertion, property dropdown options and date can be filled directly without using calender', async () => {
+test('TC75 @regression @projectAndJob : Validate Create Project form mandatory fields assertion, property dropdown options and date can be filled directly without using calender', async () => {
     await projectPage.navigateToProjects();
     await projectPage.openCreateProjectModal();
     await projectPage.validateMandatoryFields();
@@ -126,7 +126,7 @@ test('TC69 @regression @projectAndJob : Validate Create Project form mandatory f
     await projectPage.fillDateField('2024-07-01', '2024-12-31');
 });
 
-test('TC70 @regression @projectAndJob : Positive user journeys for Projects, Jobs and Bids', async ({ page }) => {
+test('TC76 @regression @projectAndJob : Positive user journeys for Projects, Jobs and Bids', async ({ page }) => {
     const loc = projectPage.tc05Loc();
     await test.step('P1: Projects workspace loads with key controls', async () => {
         await projectPage.tc05GotoProjectsWorkspace();
@@ -165,98 +165,98 @@ test('TC70 @regression @projectAndJob : Positive user journeys for Projects, Job
     });
 });
 
-test('TC71 @regression @projectAndJob : Negative and missing input validations', async ({ page }) => {
+test('TC77 @regression @projectAndJob : Negative and missing input validations', async ({ page }) => {
     const loc = projectPage.tc05Loc();
 
     await test.step('N1: Create Project empty submit shows mandatory invalid markers', async () => {
-        console.log('[TC71] N1 â€” Navigate to Projects workspace and open Create Project modal (no fields filled)');
+        console.log('[TC77] N1 â€” Navigate to Projects workspace and open Create Project modal (no fields filled)');
         await projectPage.tc05GotoProjectsWorkspace();
         await projectPage.openCreateProjectModal();
         const invalidCount = await projectPage.tc05ClickCreateProjectAndInvalidCount();
-        console.log(`[TC71] N1 â€” ASSERT: invalid field marker count >= 2 | actual: ${invalidCount}`);
+        console.log(`[TC77] N1 â€” ASSERT: invalid field marker count >= 2 | actual: ${invalidCount}`);
         try {
             expect(invalidCount).toBeGreaterThanOrEqual(2);
-            console.log(`[TC71] N1 â€” PASS: found ${invalidCount} invalid markers (>= 2)`);
+            console.log(`[TC77] N1 â€” PASS: found ${invalidCount} invalid markers (>= 2)`);
         } catch (e) {
-            console.log(`[TC71] N1 â€” FAIL: expected >= 2 invalid markers, got ${invalidCount}`);
+            console.log(`[TC77] N1 â€” FAIL: expected >= 2 invalid markers, got ${invalidCount}`);
             throw e;
         }
         await projectPage.verifyModalClosed();
     });
 
     await test.step('N2: Create Project name-only submit should still enforce missing required fields', async () => {
-        console.log('[TC71] N2 â€” Open modal, fill name only ("Only Name Negative Case"), submit');
+        console.log('[TC77] N2 â€” Open modal, fill name only ("Only Name Negative Case"), submit');
         await projectPage.openCreateProjectModal();
         await projectPage.nameInput.fill('Only Name Negative Case');
         const invalidCount = await projectPage.tc05ClickCreateProjectAndInvalidCount();
-        console.log(`[TC71] N2 â€” ASSERT: invalid field marker count >= 1 (other required fields missing) | actual: ${invalidCount}`);
+        console.log(`[TC77] N2 â€” ASSERT: invalid field marker count >= 1 (other required fields missing) | actual: ${invalidCount}`);
         try {
             expect(invalidCount).toBeGreaterThanOrEqual(1);
-            console.log(`[TC71] N2 â€” PASS: found ${invalidCount} invalid marker(s) (>= 1)`);
+            console.log(`[TC77] N2 â€” PASS: found ${invalidCount} invalid marker(s) (>= 1)`);
         } catch (e) {
-            console.log(`[TC71] N2 â€” FAIL: expected >= 1 invalid marker, got ${invalidCount}`);
+            console.log(`[TC77] N2 â€” FAIL: expected >= 1 invalid marker, got ${invalidCount}`);
             throw e;
         }
         const stillOpen = await projectPage.modal.first().isVisible({ timeout: 2000 }).catch(() => false);
-        console.log(`[TC71] N2 â€” ASSERT: modal stays open after failed submit | actual visible: ${stillOpen}`);
+        console.log(`[TC77] N2 â€” ASSERT: modal stays open after failed submit | actual visible: ${stillOpen}`);
         try {
             expect(stillOpen).toBeTruthy();
-            console.log(`[TC71] N2 â€” PASS: modal remains open after name-only submit`);
+            console.log(`[TC77] N2 â€” PASS: modal remains open after name-only submit`);
         } catch (e) {
-            console.log(`[TC71] N2 â€” FAIL: modal closed unexpectedly after name-only submit`);
+            console.log(`[TC77] N2 â€” FAIL: modal closed unexpectedly after name-only submit`);
             throw e;
         }
         await projectPage.verifyModalClosed();
     });
 
     await test.step('N3: Create Project whitespace-only name should not be treated as valid', async () => {
-        console.log('[TC71] N3 â€” Open modal, fill whitespace-only name ("   "), submit');
+        console.log('[TC77] N3 â€” Open modal, fill whitespace-only name ("   "), submit');
         await projectPage.openCreateProjectModal();
         await projectPage.nameInput.fill('   ');
         const invalidCount = await projectPage.tc05ClickCreateProjectAndInvalidCount();
-        console.log(`[TC71] N3 â€” ASSERT: invalid field marker count >= 1 (whitespace name rejected) | actual: ${invalidCount}`);
+        console.log(`[TC77] N3 â€” ASSERT: invalid field marker count >= 1 (whitespace name rejected) | actual: ${invalidCount}`);
         try {
             expect(invalidCount).toBeGreaterThanOrEqual(1);
-            console.log(`[TC71] N3 â€” PASS: whitespace name produced ${invalidCount} invalid marker(s)`);
+            console.log(`[TC77] N3 â€” PASS: whitespace name produced ${invalidCount} invalid marker(s)`);
         } catch (e) {
-            console.log(`[TC71] N3 â€” FAIL: whitespace name should trigger >= 1 invalid marker, got ${invalidCount}`);
+            console.log(`[TC77] N3 â€” FAIL: whitespace name should trigger >= 1 invalid marker, got ${invalidCount}`);
             throw e;
         }
         await projectPage.verifyModalClosed();
     });
 
     await test.step('N4: Create Project negative budget value should not proceed silently', async () => {
-        console.log('[TC71] N4 â€” Open modal, fill name "Negative Budget Case" and budget "-1000", submit');
+        console.log('[TC77] N4 â€” Open modal, fill name "Negative Budget Case" and budget "-1000", submit');
         await projectPage.openCreateProjectModal();
         await projectPage.nameInput.fill('Negative Budget Case');
         await projectPage.budgetInput.fill('-1000').catch(() => { });
         await projectPage.tc05ClickCreateProjectAndInvalidCount();
         const stillOpen = await projectPage.modal.first().isVisible({ timeout: 2000 }).catch(() => false);
-        console.log(`[TC71] N4 â€” ASSERT: modal stays open when budget is negative (-1000) | actual visible: ${stillOpen}`);
+        console.log(`[TC77] N4 â€” ASSERT: modal stays open when budget is negative (-1000) | actual visible: ${stillOpen}`);
         try {
             expect(stillOpen).toBeTruthy();
-            console.log(`[TC71] N4 â€” PASS: modal remains open with negative budget value`);
+            console.log(`[TC77] N4 â€” PASS: modal remains open with negative budget value`);
         } catch (e) {
-            console.log(`[TC71] N4 â€” FAIL: modal closed unexpectedly with negative budget value`);
+            console.log(`[TC77] N4 â€” FAIL: modal closed unexpectedly with negative budget value`);
             throw e;
         }
         await projectPage.verifyModalClosed();
     });
 
     await test.step('N5: Create Project impossible date ordering keeps modal guarded', async () => {
-        console.log('[TC71] N5 â€” Open modal, fill start=2026-12-31 end=2026-01-01 (end before start), submit');
+        console.log('[TC77] N5 â€” Open modal, fill start=2026-12-31 end=2026-01-01 (end before start), submit');
         await projectPage.openCreateProjectModal();
         await projectPage.nameInput.fill('Date Order Negative');
         await projectPage.startDateInput.fill('2026-12-31').catch(() => { });
         await projectPage.endDateInput.fill('2026-01-01').catch(() => { });
         await projectPage.tc05ClickCreateProjectAndInvalidCount();
         const stillOpen = await projectPage.modal.first().isVisible({ timeout: 2000 }).catch(() => false);
-        console.log(`[TC71] N5 â€” ASSERT: modal stays open with impossible date range | actual visible: ${stillOpen}`);
+        console.log(`[TC77] N5 â€” ASSERT: modal stays open with impossible date range | actual visible: ${stillOpen}`);
         try {
             expect(stillOpen).toBeTruthy();
-            console.log(`[TC71] N5 â€” PASS: modal remains open with end-before-start dates`);
+            console.log(`[TC77] N5 â€” PASS: modal remains open with end-before-start dates`);
         } catch (e) {
-            console.log(`[TC71] N5 â€” FAIL: modal closed unexpectedly with impossible date range`);
+            console.log(`[TC77] N5 â€” FAIL: modal closed unexpectedly with impossible date range`);
             throw e;
         }
         await projectPage.verifyModalClosed();
@@ -264,42 +264,42 @@ test('TC71 @regression @projectAndJob : Negative and missing input validations',
 
     await test.step('N6: Project search SQL-like string must not crash page', async () => {
         const sqlPayload = `' OR 1=1 --`;
-        console.log(`[TC71] N6 â€” Fill Projects search with SQL injection payload: "${sqlPayload}"`);
+        console.log(`[TC77] N6 â€” Fill Projects search with SQL injection payload: "${sqlPayload}"`);
         await projectPage.tc05FillSearch(sqlPayload);
-        console.log(`[TC71] N6 â€” ASSERT: search input retains raw value "${sqlPayload}" (not interpreted, page not crashed)`);
+        console.log(`[TC77] N6 â€” ASSERT: search input retains raw value "${sqlPayload}" (not interpreted, page not crashed)`);
         try {
             await expect(loc.mainSearchInput).toHaveValue(sqlPayload);
-            console.log(`[TC71] N6 â€” PASS: SQL-like payload stored as plain text in search input`);
+            console.log(`[TC77] N6 â€” PASS: SQL-like payload stored as plain text in search input`);
         } catch (e) {
-            console.log(`[TC71] N6 â€” FAIL: search input did not retain SQL-like payload`);
+            console.log(`[TC77] N6 â€” FAIL: search input did not retain SQL-like payload`);
             throw e;
         }
     });
 
     await test.step('N7: Project search script-like payload must remain plain text', async () => {
         const xssPayload = '<script>alert(1)</script>';
-        console.log(`[TC71] N7 â€” Fill Projects search with XSS payload: "${xssPayload}"`);
+        console.log(`[TC77] N7 â€” Fill Projects search with XSS payload: "${xssPayload}"`);
         await projectPage.tc05FillSearch(xssPayload);
-        console.log(`[TC71] N7 â€” ASSERT: search input retains raw value "${xssPayload}" (not executed as script)`);
+        console.log(`[TC77] N7 â€” ASSERT: search input retains raw value "${xssPayload}" (not executed as script)`);
         try {
             await expect(loc.mainSearchInput).toHaveValue(xssPayload);
-            console.log(`[TC71] N7 â€” PASS: XSS payload treated as plain text in search input`);
+            console.log(`[TC77] N7 â€” PASS: XSS payload treated as plain text in search input`);
         } catch (e) {
-            console.log(`[TC71] N7 â€” FAIL: search input did not retain XSS payload as plain text`);
+            console.log(`[TC77] N7 â€” FAIL: search input did not retain XSS payload as plain text`);
             throw e;
         }
     });
 
     await test.step('N8: No-match project search shows safe empty state', async () => {
         const noMatchTerm = `__NEG_NO_MATCH_${Date.now()}__`;
-        console.log(`[TC71] N8 â€” Fill Projects search with guaranteed no-match term: "${noMatchTerm}"`);
+        console.log(`[TC77] N8 â€” Fill Projects search with guaranteed no-match term: "${noMatchTerm}"`);
         await projectPage.tc05FillSearch(noMatchTerm);
-        console.log(`[TC71] N8 â€” ASSERT: empty-state / no-results element is visible within 15s`);
+        console.log(`[TC77] N8 â€” ASSERT: empty-state / no-results element is visible within 15s`);
         try {
             await expect(loc.noResultsPrimaryText).toBeVisible({ timeout: 15000 });
-            console.log(`[TC71] N8 â€” PASS: empty state shown for no-match search`);
+            console.log(`[TC77] N8 â€” PASS: empty state shown for no-match search`);
         } catch (e) {
-            console.log(`[TC71] N8 â€” FAIL: empty state not visible within 15s for no-match search "${noMatchTerm}"`);
+            console.log(`[TC77] N8 â€” FAIL: empty state not visible within 15s for no-match search "${noMatchTerm}"`);
             throw e;
         }
         await projectPage.tc05ClearSearch();
@@ -307,7 +307,7 @@ test('TC71 @regression @projectAndJob : Negative and missing input validations',
 
 });
 
-test('TC72 @regression @projectAndJob : Edge behavior and state transition checks', async ({ page }) => {
+test('TC78 @regression @projectAndJob : Edge behavior and state transition checks', async ({ page }) => {
     const loc = projectPage.tc05Loc();
     await test.step('E1: Very long project search input should be accepted and recoverable', async () => {
         await projectPage.tc05GotoProjectsWorkspace();
@@ -350,7 +350,7 @@ test('TC72 @regression @projectAndJob : Edge behavior and state transition check
     });
 });
 
-test('@regression @projectAndJob TC271 - Reject project creation with "      " name', async ({ page }) => {
+test('@regression @projectAndJob TC79 - Reject project creation with "      " name', async ({ page }) => {
     await projectPage.navigateToProjects();
     await projectPage.openCreateProjectModal();
 

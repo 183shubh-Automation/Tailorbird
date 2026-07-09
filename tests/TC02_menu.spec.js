@@ -53,7 +53,7 @@ test.afterAll(async () => {
 
 test.describe('Tailorbird Left Panel Flow - Modular', () => {
 
-    test('TC06 @sanity @regression Verify all left panel menu options are available', async () => {
+    test('TC07 @sanity @regression Verify all left panel menu options are available', async () => {
         const actualLabels = await helper.getLeftPanelLabels(page);
 
         if (actualLabels.length === 0)
@@ -65,7 +65,7 @@ test.describe('Tailorbird Left Panel Flow - Modular', () => {
         }
     });
 
-      test('TC07 @regression Verify each left panel menu item navigates to its correct URL when clicked',
+      test('TC08 @regression Verify each left panel menu item navigates to its correct URL when clicked',
         async () => {
             test.setTimeout(180000);
 
@@ -172,30 +172,30 @@ test.describe('Tailorbird Left Panel Flow - Modular', () => {
         },
     );
 
-    test('TC08 @sanity @regression Verify main menu toggle functionality', async () => {
-        Logger.info('[TC08] Starting: main sidebar toggle — collapse and expand');
+    test('TC09 @sanity @regression Verify main menu toggle functionality', async () => {
+        Logger.info('[TC09] Starting: main sidebar toggle — collapse and expand');
         await test.step('Sidebar shell collapses and expands (width + layout, not aria-expanded)', async () => {
             await helper.assertMainSidebarToggle(page);
         });
-        Logger.success('[TC08] ✅ Main sidebar toggle verified — collapse and expand work');
+        Logger.success('[TC09] ✅ Main sidebar toggle verified — collapse and expand work');
     });
 
-    test('TC09 @sanity @regression Verify Financials expand/collapse', async () => {
-        Logger.info('[TC09] Starting: Financials section expand/collapse');
+    test('TC10 @sanity @regression Verify Financials expand/collapse', async () => {
+        Logger.info('[TC10] Starting: Financials section expand/collapse');
         await helper.runTwoClickTest(page, "Financials");
-        Logger.success('[TC09] ✅ Financials expand/collapse verified');
+        Logger.success('[TC10] ✅ Financials expand/collapse verified');
     });
 
-    test('TC10 @sanity @regression Verify Trackers expand/collapse', async () => {
-        Logger.info('[TC10] Starting: Trackers section expand/collapse');
+    test('TC11 @sanity @regression Verify Trackers expand/collapse', async () => {
+        Logger.info('[TC11] Starting: Trackers section expand/collapse');
         await helper.runTwoClickTest(page, "Trackers");
-        Logger.success('[TC10] ✅ Trackers expand/collapse verified');
+        Logger.success('[TC11] ✅ Trackers expand/collapse verified');
     });
 
-    test('TC11 @sanity @regression Verify Documents expand/collapse', async () => {
-        Logger.info('[TC11] Starting: Documents section expand/collapse');
+    test('TC12 @sanity @regression Verify Documents expand/collapse', async () => {
+        Logger.info('[TC12] Starting: Documents section expand/collapse');
         await helper.runTwoClickTest(page, "Documents");
-        Logger.success('[TC11] ✅ Documents expand/collapse verified');
+        Logger.success('[TC12] ✅ Documents expand/collapse verified');
     });
 
     test.describe('Regression — left nav edges, resilience, and UI snapshot', () => {
@@ -489,9 +489,9 @@ test.describe('TC02 Menu — Single-org user assertions', () => {
     test.use({ storageState: 'OneOrganizationUserSessionState.json' });
     test.setTimeout(60_000);
 
-    test('TC23 @regression @menu Single-org user: Switch Organization is NOT in user menu', async ({ page }) => {
+    test('TC21 @regression @menu Single-org user: Switch Organization is NOT in user menu', async ({ page }) => {
         test.skip(!process.env.DASHBOARD_URL, 'DASHBOARD_URL required');
-        Logger.info('[TC23] Starting: single-org user — open profile menu, assert expected items present, assert Switch Organization absent');
+        Logger.info('[TC21] Starting: single-org user — open profile menu, assert expected items present, assert Switch Organization absent');
 
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'load', timeout: 60_000 });
 
@@ -500,7 +500,7 @@ test.describe('TC02 Menu — Single-org user assertions', () => {
         const profileTrigger = navbar.locator('[cursor=pointer]').filter({ hasText: /summit\.harsha@tailorbird\.us/i })
             .or(navbar.locator('.mantine-Avatar-root').last());
         await expect(navbar.locator('.mantine-Avatar-root').last()).toBeVisible({ timeout: 15_000 });
-        Logger.info('[TC23] Clicking profile trigger in navbar');
+        Logger.info('[TC21] Clicking profile trigger in navbar');
         await navbar.locator('.mantine-Avatar-root').last().click();
 
         const menu = page
@@ -512,7 +512,7 @@ test.describe('TC02 Menu — Single-org user assertions', () => {
         });
 
         const items = (await menu.getByRole('menuitem').allInnerTexts()).map((t) => t.trim());
-        Logger.info(`[TC23] User menu items (single-org session): ${JSON.stringify(items)}`);
+        Logger.info(`[TC21] User menu items (single-org session): ${JSON.stringify(items)}`);
 
         // Assert expected items ARE present (MCP-verified: these appear for single-org user)
         const expectedPresent = ['Manage Approvers', 'Manage Organization', 'Profile', 'Logout'];
@@ -521,7 +521,7 @@ test.describe('TC02 Menu — Single-org user assertions', () => {
                 menu.getByRole('menuitem', { name: label, exact: true }),
                 `FAIL: Expected "${label}" to be visible in single-org user menu. Got: ${JSON.stringify(items)}`,
             ).toBeVisible({ timeout: 5_000 });
-            Logger.info(`[TC23] ✅ Present: "${label}"`);
+            Logger.info(`[TC21] ✅ Present: "${label}"`);
         }
 
         // Assert Switch Organization is NOT present
@@ -529,7 +529,7 @@ test.describe('TC02 Menu — Single-org user assertions', () => {
             menu.getByRole('menuitem', { name: /^Switch Organization$/i }),
             `FAIL: "Switch Organization" must NOT appear for a single-org user. Got: ${JSON.stringify(items)}`,
         ).not.toBeVisible();
-        Logger.success('[TC23] ✅ "Switch Organization" correctly absent for single-org user');
+        Logger.success('[TC21] ✅ "Switch Organization" correctly absent for single-org user');
 
         await page.keyboard.press('Escape');
         await expect(menu).toBeHidden({ timeout: 5_000 });
@@ -539,7 +539,7 @@ test.describe('TC02 Menu — Single-org user assertions', () => {
 test.describe('TC02 Menu — Text assertions', () => {
     test.setTimeout(120_000);
 
-    test('TC21 @menu @sanity Full nav text agent — all CTAs, labels, nav items, profile menu', async ({ page }) => {
+    test('TC22 @menu @sanity Full nav text agent — all CTAs, labels, nav items, profile menu', async ({ page }) => {
         test.skip(!process.env.DASHBOARD_URL, 'DASHBOARD_URL required');
         // beforeEach already navigated to DASHBOARD_URL and set up auth session
         InteractionLogger.logNavigation(process.env.DASHBOARD_URL, 'Dashboard — left nav Text Agent');

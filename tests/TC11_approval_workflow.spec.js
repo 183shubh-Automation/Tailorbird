@@ -32,9 +32,9 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
         Logger.success('Setup complete - Navigated to Approval section');
     });
 
-    test('@approval @sanity @regression TC198 My Approvals – Verify user can navigate to My Approvals tab and view all expected column headers correctly', async () => {
+    test('@approval @sanity @regression TC209 My Approvals – Verify user can navigate to My Approvals tab and view all expected column headers correctly', async () => {
         try {
-            Logger.step('TC198: Verifying My Approvals tab navigation and page structure');
+            Logger.step('TC209: Verifying My Approvals tab navigation and page structure');
 
             // Navigate to My Approvals
             await approvalJob.navigateToMyApprovalsTab();
@@ -54,16 +54,16 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             const headerText = headers.map(h => h.toLowerCase()).join(' ');
             expect(headerText).toContain('property');
 
-            Logger.success('TC198 passed: My Approvals tab structure verified');
+            Logger.success('TC209 passed: My Approvals tab structure verified');
         } catch (error) {
-            Logger.error('TC198 failed: ' + error.message);
+            Logger.error('TC209 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC199 My Approvals – Verify user can export available approval records from My Approvals into a CSV file successfully', async () => {
+    test('@approval @regression TC210 My Approvals – Verify user can export available approval records from My Approvals into a CSV file successfully', async () => {
         try {
-            Logger.step('TC199: Testing export data functionality in My Approvals');
+            Logger.step('TC210: Testing export data functionality in My Approvals');
 
             await approvalJob.navigateToMyApprovalsTab();
             await approvalJob.waitForPageLoad();
@@ -76,16 +76,16 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             expect(exportSuccess).toBeTruthy();
             Logger.success('Export button clicked - CSV file should download');
 
-            Logger.success('TC199 passed: Export functionality working');
+            Logger.success('TC210 passed: Export functionality working');
         } catch (error) {
-            Logger.error('TC199 failed: ' + error.message);
+            Logger.error('TC210 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC200 My Approvals – Verify user can open and close the Manage Columns dialog and view available column options', async () => {
+    test('@approval @regression TC211 My Approvals – Verify user can open and close the Manage Columns dialog and view available column options', async () => {
         try {
-            Logger.step('TC200: Testing Manage Columns dialog in My Approvals');
+            Logger.step('TC211: Testing Manage Columns dialog in My Approvals');
 
             await approvalJob.navigateToMyApprovalsTab();
             await approvalJob.waitForPageLoad();
@@ -103,16 +103,16 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             await approvalJob.closeDialog();
             Logger.success('Dialog closed');
 
-            Logger.success('TC200 passed: Manage Columns dialog tested');
+            Logger.success('TC211 passed: Manage Columns dialog tested');
         } catch (error) {
-            Logger.error('TC200 failed: ' + error.message);
+            Logger.error('TC211 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @sanity @regression TC201 My Approvals – Verify user can add a new column to the approvals table and see it reflected immediately', async () => {
+    test('@approval @sanity @regression TC212 My Approvals – Verify user can add a new column to the approvals table and see it reflected immediately', async () => {
         try {
-            Logger.step('TC201: Testing Add Column button in My Approvals');
+            Logger.step('TC212: Testing Add Column button in My Approvals');
 
             await approvalJob.navigateToMyApprovalsTab();
             await approvalJob.waitForPageLoad();
@@ -122,16 +122,16 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             expect(columnAdded).toBeTruthy();
             Logger.success('New column added successfully');
 
-            Logger.success('TC201 passed: Add Column functionality working');
+            Logger.success('TC212 passed: Add Column functionality working');
         } catch (error) {
-            Logger.error('TC201 failed: ' + error.message);
+            Logger.error('TC212 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC202 My Approvals – Verify user can open the filter panel, apply filters, and close the filter panel successfully', async () => {
+    test('@approval @regression TC213 My Approvals – Verify user can open the filter panel, apply filters, and close the filter panel successfully', async () => {
         try {
-            Logger.step('TC202: Testing Filter button in My Approvals');
+            Logger.step('TC213: Testing Filter button in My Approvals');
 
             await approvalJob.navigateToMyApprovalsTab();
             await approvalJob.waitForPageLoad();
@@ -145,16 +145,16 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             await approvalJob.closeDialog();
             Logger.success('Filter panel closed');
 
-            Logger.success('TC202 passed: Filter button tested');
+            Logger.success('TC213 passed: Filter button tested');
         } catch (error) {
-            Logger.error('TC202 failed: ' + error.message);
+            Logger.error('TC213 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC203 All Approvals – Verify user can navigate to All Approvals tab and view all expected column headers correctly', async () => {
+    test('@approval @regression TC214 All Approvals – Verify user can navigate to All Approvals tab and view all expected column headers correctly', async () => {
         try {
-            Logger.step('TC203: Verifying All Approvals tab navigation and structure');
+            Logger.step('TC214: Verifying All Approvals tab navigation and structure');
 
             // Navigate to All Approvals tab
             await approvalJob.navigateToAllApprovalsTab();
@@ -172,16 +172,16 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             Logger.info('Column headers: ' + headers.join(' | '));
             const headerText = headers.map(h => h.toLowerCase()).join(' ');
             expect(headerText).toContain('property');
-            Logger.success('TC203 passed: All Approvals tab structure verified');
+            Logger.success('TC214 passed: All Approvals tab structure verified');
         } catch (error) {
-            Logger.error('TC203 failed: ' + error.message);
+            Logger.error('TC214 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC204 All Approvals – Verify user can search approval records in All Approvals using a valid keyword and view filtered results', async () => {
+    test('@approval @regression TC215 All Approvals – Verify user can search approval records in All Approvals using a valid keyword and view filtered results', async () => {
         try {
-            Logger.step('TC204: Testing search in All Approvals tab');
+            Logger.step('TC215: Testing search in All Approvals tab');
 
             await approvalJob.navigateToAllApprovalsTab();
             await approvalJob.waitForPageLoad();
@@ -200,16 +200,16 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             const afterClearRowCount = await approvalJob.getTableRowCount();
             Logger.info('Rows after clearing search: ' + afterClearRowCount);
 
-            Logger.success('TC204 passed: Search functionality in All Approvals working');
+            Logger.success('TC215 passed: Search functionality in All Approvals working');
         } catch (error) {
-            Logger.error('TC204 failed: ' + error.message);
+            Logger.error('TC215 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @sanity @regression TC205 All Approvals – Verify user can export approval records from All Approvals into a CSV file successfully', async () => {
+    test('@approval @sanity @regression TC216 All Approvals – Verify user can export approval records from All Approvals into a CSV file successfully', async () => {
         try {
-            Logger.step('TC205: Testing export in All Approvals tab');
+            Logger.step('TC216: Testing export in All Approvals tab');
 
             await approvalJob.navigateToAllApprovalsTab();
             await approvalJob.waitForPageLoad();
@@ -222,16 +222,16 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             expect(exportSuccess).toBeTruthy();
             Logger.success('Export button clicked in All Approvals');
 
-            Logger.success('TC205 passed: Export working in All Approvals');
+            Logger.success('TC216 passed: Export working in All Approvals');
         } catch (error) {
-            Logger.error('TC205 failed: ' + error.message);
+            Logger.error('TC216 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC206 All Approvals – Verify user can open and close the Manage Columns dialog and manage table columns successfully', async () => {
+    test('@approval @regression TC217 All Approvals – Verify user can open and close the Manage Columns dialog and manage table columns successfully', async () => {
         try {
-            Logger.step('TC206: Testing Manage Columns in All Approvals');
+            Logger.step('TC217: Testing Manage Columns in All Approvals');
 
             await approvalJob.navigateToAllApprovalsTab();
             await approvalJob.waitForPageLoad();
@@ -248,16 +248,16 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             await approvalJob.closeDialog();
             Logger.success('Dialog closed');
 
-            Logger.success('TC206 passed: Manage Columns tested in All Approvals');
+            Logger.success('TC217 passed: Manage Columns tested in All Approvals');
         } catch (error) {
-            Logger.error('TC206 failed: ' + error.message);
+            Logger.error('TC217 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC207 All Approvals – Verify user can add a new custom column successfully in All Approvals table and validate updated approval grid structure after column creation', async () => {
+    test('@approval @regression TC218 All Approvals – Verify user can add a new custom column successfully in All Approvals table and validate updated approval grid structure after column creation', async () => {
         try {
-            Logger.step('TC207: Testing Add Column in All Approvals');
+            Logger.step('TC218: Testing Add Column in All Approvals');
 
             await approvalJob.navigateToAllApprovalsTab();
             await approvalJob.waitForPageLoad();
@@ -267,16 +267,16 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             expect(columnAdded).toBeTruthy();
             Logger.success('New column added successfully');
 
-            Logger.success('TC207 passed: Add Column functionality working');
+            Logger.success('TC218 passed: Add Column functionality working');
         } catch (error) {
-            Logger.error('TC207 failed: ' + error.message);
+            Logger.error('TC218 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC208 All Approvals – Verify user can open the filter panel from All Approvals workspace, apply approval filters successfully, and close the filter drawer without breaking approval table behavior', async () => {
+    test('@approval @regression TC219 All Approvals – Verify user can open the filter panel from All Approvals workspace, apply approval filters successfully, and close the filter drawer without breaking approval table behavior', async () => {
         try {
-            Logger.step('TC208: Testing Filter button in All Approvals');
+            Logger.step('TC219: Testing Filter button in All Approvals');
 
             await approvalJob.navigateToAllApprovalsTab();
             await approvalJob.waitForPageLoad();
@@ -290,16 +290,16 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             await approvalJob.closeDialog();
             Logger.success('Filter panel closed');
 
-            Logger.success('TC208 passed: Filter button tested in All Approvals');
+            Logger.success('TC219 passed: Filter button tested in All Approvals');
         } catch (error) {
-            Logger.error('TC208 failed: ' + error.message);
+            Logger.error('TC219 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @sanity @regression TC209 Approval Workflow – Verify user can switch between My Approvals and All Approvals tabs without data or UI issues', async () => {
+    test('@approval @sanity @regression TC220 Approval Workflow – Verify user can switch between My Approvals and All Approvals tabs without data or UI issues', async () => {
         try {
-            Logger.step('TC209: E2E test - switching between tabs');
+            Logger.step('TC220: E2E test - switching between tabs');
 
             // Start with My Approvals
             await approvalJob.navigateToMyApprovalsTab();
@@ -319,16 +319,16 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             await approvalJob.navigateToMyApprovalsTab();
             Logger.success('Successfully navigated between tabs');
 
-            Logger.success('TC209 passed: Cross-tab navigation working');
+            Logger.success('TC220 passed: Cross-tab navigation working');
         } catch (error) {
-            Logger.error('TC209 failed: ' + error.message);
+            Logger.error('TC220 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @sanity @regression TC210 Approval Workflow – Verify both My Approvals and All Approvals tabs load with consistent column headers and page structure', async () => {
+    test('@approval @sanity @regression TC221 Approval Workflow – Verify both My Approvals and All Approvals tabs load with consistent column headers and page structure', async () => {
         try {
-            Logger.step('TC210: E2E test - verifying page loaded across tabs');
+            Logger.step('TC221: E2E test - verifying page loaded across tabs');
 
             // Get My Approvals page loaded
             await approvalJob.navigateToMyApprovalsTab();
@@ -346,9 +346,9 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             expect(myApprovalsHeaders.length >= 0).toBeTruthy();
             expect(allApprovalsHeaders.length >= 0).toBeTruthy();
 
-            Logger.success('TC210 passed: Both tabs loaded successfully');
+            Logger.success('TC221 passed: Both tabs loaded successfully');
         } catch (error) {
-            Logger.error('TC210 failed: ' + error.message);
+            Logger.error('TC221 failed: ' + error.message);
             throw error;
         }
     });

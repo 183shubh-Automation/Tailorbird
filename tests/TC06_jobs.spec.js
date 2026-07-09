@@ -65,7 +65,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         });
     });
 
-    test('TC74 @regression @projectAndJob : Validate Navigation to job tab without any console error within 2 seconds', async () => {
+    test('TC80 @regression @projectAndJob : Validate Navigation to job tab without any console error within 2 seconds', async () => {
         Logger.step('Navigating to Projects...');
         await projectPage.navigateToProjects();
         await projectPage.openProject(projectData.projectName);
@@ -80,7 +80,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         await projectJob.navigateToJobsTab();
     });
 
-    test('TC75 @regression @sanity @mandatory @projectAndJob @contract : Validate add job modal fields, add job flow and job config in job overview', async () => {
+    test('TC81 @regression @sanity @mandatory @projectAndJob @contract : Validate add job modal fields, add job flow and job config in job overview', async () => {
         await projectPage.navigateToProjects();
         await projectPage.openProject(projectData.projectName);
         await projectJob.navigateToJobsTab();
@@ -182,18 +182,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         Logger.success(`Created job details saved to: ${lastCreatedJobPath}`);
     });
 
-    test.skip('TC76 @regression @projectAndJob @bids : Validate scope mix modal fields', async () => {
-        // SKIPPED: The Bid Book "Add Row" mechanism (bt-add-row-menu / bt-add-row) was
-        // removed in the current app version. Scope Mix requires ≥1 row in the Bid Book,
-        // but no UI or API mechanism exists to create rows in the current build.
-        // Re-enable when the app exposes a working row-creation entry point.
-        await projectPage.openScopeMixModal();
-        await projectPage.validateScopeMixModalFields();
-        await projectPage.addScopeEntry();
-        await projectPage.closeScopeMixModal();
-    });
-
-    test('TC77 @regression @mandatory @projectAndJob @contract : Add contract from left Jobs menu and finalize contract with new flow', async () => {
+    test('TC83 @regression @mandatory @projectAndJob @contract : Add contract from left Jobs menu and finalize contract with new flow', async () => {
         const captureDebugScreenshot = async (label) => {
         };
 
@@ -731,7 +720,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
     });
 
     // Writes tabs disabled state for TC08 / TC09; run after `npm run Test:mandatory` when executing invoice/CO suites (see `npm run Test:depsForInvoiceCo`).
-    test('TC78 @regression @projectAndJob @mandatory : Check if Invoice and Change Order tabs are disabled - persist for spec 8 and 9', async () => {
+    test('TC84 @regression @projectAndJob @mandatory : Check if Invoice and Change Order tabs are disabled - persist for spec 8 and 9', async () => {
         Logger.step('Checking if Invoice and Change Order tabs are disabled...');
         await projectPage.openProject(projectData.projectName);
         await projectJob.navigateToJobsTab();
@@ -760,7 +749,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         }
     });
 
-    test('TC79 @regression @projectAndJob : Jobs positive user journey assertions', async () => {
+    test('TC85 @regression @projectAndJob : Jobs positive user journey assertions', async () => {
         await test.step('P1: Open target project and Jobs tab successfully', async () => {
             await openJobsWorkspaceFromLeftNav(page);
             await expect(page).toHaveURL(/\/jobs|tab=jobs/i);
@@ -795,7 +784,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         });
     });
 
-    test('TC80 @regression @projectAndJob : Jobs negative and missing validations', async () => {
+    test('TC86 @regression @projectAndJob : Jobs negative and missing validations', async () => {
         await test.step('N1: Empty Create Job submit should remain guarded', async () => {
             await openJobsWorkspaceFromLeftNav(page);
             await projectPage.openCreateJobModal();
@@ -842,7 +831,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         });
     });
 
-    test('TC81 @regression @projectAndJob : Jobs edge and stress interactions', async () => {
+    test('TC87 @regression @projectAndJob : Jobs edge and stress interactions', async () => {
         await test.step('E1: Long search strings should be accepted and recover', async () => {
             await openJobsWorkspaceFromLeftNav(page);
             const search = projectPage.tc05Loc().mainSearchInput;
@@ -877,7 +866,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         });
     });
 
-    test('TC82 @regression @projectAndJob : Jobs visual assurance across states', async () => {
+    test('TC88 @regression @projectAndJob : Jobs visual assurance across states', async () => {
         const loc = projectPage.tc05Loc();
         const shotMain = { ...JOB_VISUAL_ASSERT, mask: [loc.mainSearchInput] };
 
@@ -930,7 +919,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         });
     });
 
-    test('@regression @projectAndJob TC272 - Reject job creation with whitespace-only title', async () => {
+    test('@regression @projectAndJob TC89 - Reject job creation with whitespace-only title', async () => {
         await openJobsWorkspaceFromLeftNav(page);
         await projectPage.openCreateJobModal();
 

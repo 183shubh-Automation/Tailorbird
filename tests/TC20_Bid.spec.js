@@ -65,7 +65,7 @@ test.describe('Verify Bids', () => {
     // ──────────────────────────────────────────────────────────────────────────────
     // TC_BID_01 — Bid list page layout
     // ──────────────────────────────────────────────────────────────────────────────
-    test('TC_BID_01 @regression @bid : Should display Bid list page with correct layout, columns and toolbar', async () => {
+    test('TC311 TC_BID_01 @regression @bid : Should display Bid list page with correct layout, columns and toolbar', async () => {
         Logger.step('TC_BID_01: Asserting Bid list page');
 
         await bidPage.assertBidsListPage();
@@ -81,7 +81,7 @@ test.describe('Verify Bids', () => {
     // ──────────────────────────────────────────────────────────────────────────────
     // TC_BID_02 — Create AI Bid + Overview tab + Edit due date
     // ──────────────────────────────────────────────────────────────────────────────
-    test('TC_BID_02 @regression @bid @createBid : Should open Create Bid modal, assert all fields and dropdown options, create bid, verify Overview tab and edit due date', async () => {
+    test('TC312 TC_BID_02 @regression @bid @createBid : Should open Create Bid modal, assert all fields and dropdown options, create bid, verify Overview tab and edit due date', async () => {
         const bidData = loadBidData();
         const uniqueBidName = `Auto_Bid_${Date.now()}`;
 
@@ -126,7 +126,7 @@ test.describe('Verify Bids', () => {
         Logger.success(`TC_BID_02 passed — bid created: ${uniqueBidName} (ID: ${bidId})`);
     });
 
-    test('TC_BID_04 @regression @bid @manageBids : Should assert Manage Bids tab columns and toolbar', async () => {
+    test('TC313 TC_BID_04 @regression @bid @manageBids : Should assert Manage Bids tab columns and toolbar', async () => {
         const bidData = loadBidData();
         if (!bidData.bidUrl) test.skip(true, 'bidUrl not set — run TC_BID_02 first');
 
@@ -144,7 +144,7 @@ test.describe('Verify Bids', () => {
     // TC_BID_05 — Create Bid dialog: full fixture-driven assertion of every
     //             field label, placeholder, and each dropdown option
     // ──────────────────────────────────────────────────────────────────────────────
-    test('TC_BID_05 @regression @bid @dialogAssert : Should assert every field label, placeholder and dropdown option in Create Bid dialog using fixture data from bidData.json', async () => {
+    test('TC314 TC_BID_05 @regression @bid @dialogAssert : Should assert every field label, placeholder and dropdown option in Create Bid dialog using fixture data from bidData.json', async () => {
         const bidData = loadBidData();
 
         Logger.step('TC_BID_05: Opening Create Bid dialog for complete fixture assertion');
@@ -155,7 +155,7 @@ test.describe('Verify Bids', () => {
         Logger.success('TC_BID_05 passed — Create Bid dialog completely verified against fixture');
     });
 
-    test('TC_BID_08 @regression @bid @compareBids @aiPiper : Should send AI Bid Levelling prompt, validate Thinking→Thought→response flow, multi-turn conversation and Reset e2e', async () => {
+    test('TC315 TC_BID_08 @regression @bid @compareBids @aiPiper : Should send AI Bid Levelling prompt, validate Thinking→Thought→response flow, multi-turn conversation and Reset e2e', async () => {
         test.setTimeout(600000);
         const bidData = loadBidData();
         if (!bidData.bidUrl) test.skip(true, 'bidUrl not set — run TC_BID_02 first');
@@ -226,7 +226,7 @@ test.describe('Verify Bids', () => {
     //             Uploads files\Misora_Bid_Leveling_Reference_with data(Aggregate Summary).csv
     //             via the paperclip attach button, then runs AI Bid Levelling.
     // ──────────────────────────────────────────────────────────────────────────────
-    test('TC_BID_09 @regression @bid @compareBids @fileUpload : Should attach external proposal file via Piper paperclip button and run AI Bid Levelling', async () => {
+    test('TC316 TC_BID_09 @regression @bid @compareBids @fileUpload : Should attach external proposal file via Piper paperclip button and run AI Bid Levelling', async () => {
         test.setTimeout(600000);
         const bidData = loadBidData();
         if (!bidData.bidUrl) test.skip(true, 'bidUrl not set — run TC_BID_02 first');
@@ -284,107 +284,7 @@ test.describe('Verify Bids', () => {
         Logger.success('TC_BID_09 passed — file attach and AI Bid Levelling prompt verified');
     });
 
-    test.skip('TC_BID_10 @regression @bid @compareBids @aiPrompts : Should execute all AI Bid Levelling prompts and validate Piper response for each', async () => {
-        test.setTimeout(1800000); // 30 min — 8 prompts × up to 4 min each
-        const bidData = loadBidData();
-        if (!bidData.bidUrl) test.skip(true, 'bidUrl not set — run TC_BID_02 first');
-
-        const PROMPTS = [
-            {
-                label: 'Demo — Level the bids',
-                text:  'Level the bids',
-                validate: async (text) => {
-                    expect(text.length).toBeGreaterThan(0);
-                    Logger.info('[Demo] Piper responded ✓');
-                },
-            },
-            {
-                label: 'Prompt 1 — Aggregate price, lowest to highest + flags',
-                text: 'Level all submitted bids by aggregate price, from lowest to highest. Flag any significant pricing difference and scope item exclusions that may impact comparison.',
-                validate: async (text) => {
-                    expect(text.length).toBeGreaterThan(0);
-                    Logger.info('[Prompt 1] Piper responded ✓');
-                },
-            },
-            {
-                label: 'Prompt 2 — Aggregate Scope Items & Allowance Items tabs',
-                text: 'Create Aggregate Scope Items and Aggregate Allowance Items tabs. Show scope items side by side. Group rows by trade category. Add subtotal. Add Lowest, Highest, Median. End with Grand Total.',
-                validate: async (text) => {
-                    expect(text.length).toBeGreaterThan(0);
-                    Logger.info('[Prompt 2] Piper responded ✓');
-                },
-            },
-            {
-                label: 'Prompt 3 — Aggregate Summary with inventory, bidder columns, subtotal, spread',
-                text: 'Create Aggregate Summary using inventory/reno levels, Scope Items and Allowance Items. Show bidder columns, subtotal rows, grand total, lowest, highest and spread comparison.',
-                validate: async (text) => {
-                    expect(text.length).toBeGreaterThan(0);
-                    Logger.info('[Prompt 3] Piper responded ✓');
-                },
-            },
-            {
-                label: 'Prompt 4 — Price per Floor Plan per Inventory',
-                text: 'Create Price per Floor Plan per Inventory comparison with floorplan groups, bidder columns, category rows, subtotal and grand total.',
-                validate: async (text) => {
-                    expect(text.length).toBeGreaterThan(0);
-                    Logger.info('[Prompt 4] Piper responded ✓');
-                },
-            },
-            {
-                label: 'Prompt 5 — WAVG price ranking + difference flags',
-                text: 'Level bids using WAVG price from lowest to highest and flag significant pricing differences and scope exclusions.',
-                validate: async (text) => {
-                    expect(text.length).toBeGreaterThan(0);
-                    Logger.info('[Prompt 5] Piper responded ✓');
-                },
-            },
-            {
-                label: 'Prompt 6 — Unit Price comparison by trade category',
-                text: 'Compare Unit Price. Group rows by trade category with subtotal per category and add Lowest, Highest and Median comparison.',
-                validate: async (text) => {
-                    expect(text.length).toBeGreaterThan(0);
-                    Logger.info('[Prompt 6] Piper responded ✓');
-                },
-            },
-            {
-                label: 'Prompt 7 — Weighted Average per Unit Type',
-                text: 'Create Weighted Average per Unit Type tab showing unit types (0x1 Studio, 1x1, 2x2, 3x2), inventory levels, bidder weighted averages and overall WAVG.',
-                validate: async (text) => {
-                    expect(text.length).toBeGreaterThan(0);
-                    Logger.info('[Prompt 7] Piper responded ✓');
-                },
-            },
-        ];
-
-        Logger.step(`TC_BID_10: Navigating to bid: ${bidData.bidUrl}`);
-        await page.goto(bidData.bidUrl, { waitUntil: 'load' });
-        await page.waitForTimeout(3000);
-
-        await bidPage.navigateToCompareBids();
-
-        for (let i = 0; i < PROMPTS.length; i++) {
-            const { label, text, validate } = PROMPTS[i];
-            Logger.step(`TC_BID_10 — [${i + 1}/${PROMPTS.length}] ${label}`);
-
-            await bidPage.sendPiperMessage(text);
-            await bidPage.waitForPiperResponse();
-
-            const responseText = await bidPage.getPiperLastResponseText();
-            await validate(responseText);
-
-            Logger.info(`[${i + 1}/${PROMPTS.length}] "${label}" — response ${responseText.length} chars ✓`);
-        }
-
-        // Verify total Thought button count matches prompts sent
-        const panel = page.getByRole('tabpanel', { name: 'Manage Bids' });
-        const thoughtCount = await panel.getByRole('button', { name: 'Thought' }).count();
-        expect(thoughtCount).toBeGreaterThanOrEqual(PROMPTS.length);
-        Logger.info(`Total Thought buttons: ${thoughtCount} (expected ≥ ${PROMPTS.length}) ✓`);
-
-        Logger.success(`TC_BID_10 passed — all ${PROMPTS.length} AI Bid Levelling prompts executed and validated`);
-    });
-
-    test('TC_BID_11 @regression @bid @compareBids @negative : Should handle negative and edge cases — empty prompt blocked, long/special-char prompts accepted, Reset cancel preserves history', async () => {
+    test('TC318 TC_BID_11 @regression @bid @compareBids @negative : Should handle negative and edge cases — empty prompt blocked, long/special-char prompts accepted, Reset cancel preserves history', async () => {
         test.setTimeout(600000);
         const bidData = loadBidData();
         if (!bidData.bidUrl) test.skip(true, 'bidUrl not set — run TC_BID_02 first');
@@ -457,146 +357,6 @@ test.describe('Verify Bids', () => {
         await bidPage.assertPiperManageVendorsNavigation();
 
         Logger.success('TC_BID_11 passed — all negative and edge cases verified');
-    });
-
-    test.skip('TC_BID_12 @regression @bid @e2eAiBidLevelling : Complete E2E — create bid, generate bid book, invite vendors, upload vendor CSV and run AI Bid Levelling Aggregate Summary', async () => {
-        test.setTimeout(3600000); // 60 min — full E2E including AI bid book generation
-        const bidData = loadBidData();
-
-        const proposalFile = path.resolve('./files/Misora_Bid_Leveling_Reference_with_data.csv');
-        if (!fs.existsSync(proposalFile)) {
-            test.skip(true, `Proposal CSV not found: ${proposalFile} — place the file and re-run`);
-        }
-
-        // ── STEP 1: Create fresh bid ──────────────────────────────────────────────
-        Logger.step('TC_BID_12 STEP 1 — Create fresh bid for AI Bid Levelling E2E');
-        const uniqueBidName = `E2E_AiBidLevelling_${Date.now()}`;
-        await bidPage.openCreateBidModal();
-        const formData = {
-            bidName:    uniqueBidName,
-            property:   bidData.property,
-            bidType:    bidData.bidType,
-            detailLevel: bidData.detailLevel,
-            priceBy:    bidData.priceBy,
-            bidDueDate: bidData.bidDueDate,
-            status:     bidData.status,
-        };
-        await bidPage.fillAndSubmitCreateBidForm(formData);
-        const newBidId  = await bidPage.waitForBidDetailPage();
-        const newBidUrl = `${process.env.BASE_URL}/bids/${newBidId}`;
-        Logger.success(`STEP 1 ✓ Bid created — "${uniqueBidName}" (ID: ${newBidId})`);
-
-        // Assert overview tab field values for the new bid
-        await bidPage.assertOverviewTab(formData);
-
-        // ── STEP 2: Generate bid book via AI ──────────────────────────────────────
-        Logger.step('TC_BID_12 STEP 2 — Navigate to Bid Book and generate AI bid book');
-        await bidPage.navigateToBidBookTab();
-        await bidPage.assertBidBookTabElements();
-
-        // Send invoke text to generate the bid book table
-        await bidPage.typeInvokeMessage(bidData.invokeText);
-        await bidPage.waitForBidBookTable();
-        await bidPage.assertBidBookIframeTable();
-        Logger.success('STEP 2 ✓ Bid book generated — iframe table verified');
-
-        // ── STEP 3: Invite vendor via Send to Vendors wizard ──────────────────────
-        Logger.step(`TC_BID_12 STEP 3 — Invite vendor "${bidData.sendToVendors.vendorName}" via Send to Vendors`);
-        await bidPage.assertSendToVendorsFlow(bidData.sendToVendors);
-        Logger.success(`STEP 3 ✓ Vendor "${bidData.sendToVendors.vendorName}" invited — "Invitations Sent" toast verified`);
-
-        // ── STEP 4: Navigate Manage Bids — assert toolbar and Compare Bids ────────
-        Logger.step('TC_BID_12 STEP 4 — Navigate Manage Bids and assert state');
-        await page.goto(newBidUrl, { waitUntil: 'load' });
-        await page.waitForTimeout(2000);
-        await bidPage.assertManageBidsTab();
-
-        const loc = bidPage.loc();
-        await expect(loc.compareBidsButton).toBeVisible({ timeout: 10000 });
-        Logger.info('"Compare Bids" button visible after vendor invitation ✓');
-
-        // Log vendor grid state (rows appear when vendors accept/submit via portal)
-        const vendorGridRows = loc.manageBidsPanel.getByRole('row').filter({ has: page.getByRole('cell') });
-        const vendorRowCount = await vendorGridRows.count().catch(() => 0);
-        Logger.info(`Manage Bids vendor rows: ${vendorRowCount} (rows appear after vendor portal acceptance)`);
-        Logger.success('STEP 4 ✓ Manage Bids tab verified — grid toolbar and Compare Bids button present');
-
-        // ── STEP 5: AI Bid Levelling — Compare Bids + CSV upload + prompt ─────────
-        Logger.step('TC_BID_12 STEP 5 — Open Compare Bids (Piper) and run AI Bid Levelling');
-        await bidPage.navigateToCompareBids();
-        await bidPage.assertPiperPanelInitialState();
-
-        // Attach the aggregate summary CSV — this provides multi-vendor bid data to Piper
-        Logger.step('TC_BID_12 STEP 5.1 — Attaching vendor proposal CSV to Piper');
-        await bidPage.attachFileToPiper(proposalFile);
-
-        // Send the Aggregate Summary AI prompt
-        const AGGREGATE_PROMPT =
-            'Create Aggregate Summary showing inventory levels under Scope Items and Allowance Items ' +
-            'with bidder columns, subtotal, grand total, lowest, highest and spread comparison.';
-
-        Logger.step('TC_BID_12 STEP 5.2 — Sending AI Bid Levelling Aggregate Summary prompt');
-        await bidPage.sendPiperMessage(AGGREGATE_PROMPT);
-        await bidPage.waitForPiperResponse();
-
-        // "Thought" button appears only when Piper uses chain-of-thought reasoning.
-        // Without submitted vendor proposals or a CSV attachment it may not appear.
-        const piperPanel = page.getByRole('tabpanel', { name: 'Manage Bids' });
-        const thoughtVisible = await piperPanel.getByRole('button', { name: 'Thought' }).first()
-            .isVisible({ timeout: 8000 }).catch(() => false);
-        if (thoughtVisible) {
-            Logger.info('Piper "Thought" button visible — AI used chain-of-thought reasoning ✓');
-        } else {
-            Logger.info('No "Thought" button — Piper gave direct response (no vendor data in context)');
-        }
-
-        // Get response text directly from the last paragraph in the panel
-        const paras = piperPanel.locator('p');
-        const paraCount = await paras.count();
-        const responseText = paraCount > 0
-            ? (await paras.nth(paraCount - 1).textContent().catch(() => '')).trim()
-            : '';
-        expect(responseText.length, 'Piper must return non-empty response').toBeGreaterThan(0);
-        Logger.info(`STEP 5 AI response (first 150 chars): "${responseText.substring(0, 150)}"`);
-
-        // Keyword check — informational only when CSV was not attached (no vendor data)
-        const lower = responseText.toLowerCase();
-        const EXPECTED_KEYWORDS = ['aggregate', 'scope', 'allowance', 'subtotal', 'total', 'lowest', 'highest', 'spread'];
-        const foundKeywords = EXPECTED_KEYWORDS.filter(kw => lower.includes(kw));
-        if (foundKeywords.length >= 3) {
-            Logger.success(`STEP 5 ✓ AI Bid Levelling Aggregate Summary validated — keywords: [${foundKeywords.join(', ')}]`);
-        } else {
-            Logger.info(`STEP 5 ✓ Piper responded — keywords found: [${foundKeywords.join(', ')}] (CSV upload skipped; full keyword match requires vendor data)`);
-        }
-
-        // ── STEP 6: Award Bid — conditional on submitted proposals ────────────────
-        Logger.step('TC_BID_12 STEP 6 — Award Bid flow (requires submitted vendor proposals)');
-
-        // Navigate back to Manage Bids to check for submitted proposals
-        await bidPage.assertPiperManageVendorsNavigation();
-        await page.goto(`${newBidUrl}?tab=manage-bids`, { waitUntil: 'load' });
-        await page.waitForTimeout(2000);
-
-        const submittedRow = page.getByRole('row').filter({ has: page.getByText(/submitted/i) });
-        const hasSubmittedProposals = await submittedRow.count().then(c => c > 0).catch(() => false);
-
-        if (hasSubmittedProposals) {
-            Logger.step('STEP 6 — Submitted vendor proposals found — executing Award Bid flow');
-            await bidPage.assertAwardBidFlow();
-            Logger.success('STEP 6 ✓ Award Bid flow completed — vendor awarded');
-        } else {
-            Logger.info(
-                'STEP 6 — No submitted proposals in current test environment. ' +
-                'Award Bid requires vendors to submit proposals via the vendor portal email link. ' +
-                'Invitation was sent in STEP 3 — once vendor submits, re-run to verify award flow.'
-            );
-        }
-
-        Logger.success(
-            `TC_BID_12 passed — Complete AI Bid Levelling E2E verified: ` +
-            `bid "${uniqueBidName}" (ID: ${newBidId}), ` +
-            `bid book generated, vendor invited, Piper Aggregate Summary validated`
-        );
     });
 
 });

@@ -84,7 +84,7 @@ test.afterAll(async () => {
 test.describe('PROPERTY FLOW TEST SUITE', () => {
   test.describe.configure({ retries: 1 });
 
-  test('@sanity @mandatory @regression @property @contract TC48 - Validate Property Export Functionality and New Property Creation', async () => {
+  test('@sanity @mandatory @regression @property @contract TC49 - Validate Property Export Functionality and New Property Creation', async () => {
     await test.step('Table View â€” BirdTable toolbar (Export) is available', async () => {
       await prop.changeView(testData.viewName);
     });
@@ -122,14 +122,14 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     });
   });
 
-  test('@regression @property TC49 - Change Property View and Validate Search Results', async () => {
+  test('@regression @property TC50 - Change Property View and Validate Search Results', async () => {
     const propertyName = getPropertyName();
     await prop.changeView(testData.viewName);
     await prop.searchProperty(propertyName);
     await prop.clearSearch("");
   });
 
-  test('@sanity @property @regression TC50 - Validate Filters: Garden, Mid-Rise, High-Rise, and Military', async () => {
+  test('@sanity @property @regression TC51 - Validate Filters: Garden, Mid-Rise, High-Rise, and Military', async () => {
     await prop.changeView(testData.viewName);
     await page.locator(propertyLocators.birdTableFilterButton).waitFor({ state: 'visible' });
     await page.locator(propertyLocators.birdTableFilterButton).click();
@@ -142,7 +142,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     await prop.filterProperty(mid_rise);
     await prop.filterProperty(high_rise);
     await prop.filterProperty(military_housing);
-    console.log('[TC50] All four property-type filter cycles complete (row counts logged per filter in filterProperty).');
+    console.log('[TC51] All four property-type filter cycles complete (row counts logged per filter in filterProperty).');
 
     await expect(filterDrawer.getByRole('button', { name: 'Reset Filters' })).toHaveCount(0);
 
@@ -150,7 +150,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     await filterDrawer.locator('.mantine-CloseButton-root').click();
   });
 
-  test('@regression @property TC51 - Validate All Column Headers in Table View', async () => {
+  test('@regression @property TC52 - Validate All Column Headers in Table View', async () => {
     await prop.changeView('Table View');
     for (let i = 0; i < testData.expectedHeaders.length; i++) {
       await prop.scrollHorizontally(i);
@@ -161,7 +161,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     await prop.scrollBackToStart();
   });
 
-  test('@regression @property TC52 - Validate Overview Fields and Property Document Actions', async () => {
+  test('@regression @property TC53 - Validate Overview Fields and Property Document Actions', async () => {
     await prop.goToProperties();
     await page.waitForTimeout(30000);
     await page.waitForTimeout(2000);
@@ -189,7 +189,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
 
   });
 
-  test('@regression @property TC53 - Validate Document Section Table', async () => {
+  test('@regression @property TC54 - Validate Document Section Table', async () => {
     await prop.goto(tcTakeoffsStartUrl);
     const propertyName = getPropertyName();
     await prop.goToProperties();
@@ -200,7 +200,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     await prop.validateFirstRowValues();
   });
 
-  test('@regression @property TC54 - validate add data form', async () => {
+  test('@regression @property TC55 - validate add data form', async () => {
     await prop.goToProperties();
     const propertyName = getPropertyName();
     console.log('Using property name:', propertyName);
@@ -212,7 +212,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
 
   });
 
-  test("@sanity @regression @property TC55 - Validate Location Tab", async () => {
+  test("@sanity @regression @property TC56 - Validate Location Tab", async () => {
     test.setTimeout(180000);
     await prop.goto(tcTakeoffsStartUrl);
     await prop.goToProperties();
@@ -245,7 +245,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     });
   });
 
-  test('@sanity @regression @property TC56 - validate takeoffs Interior panel and dropdowns', async () => {
+  test('@sanity @regression @property TC57 - validate takeoffs Interior panel and dropdowns', async () => {
     test.setTimeout(240000);
     await prop.goto(tcTakeoffsStartUrl);
     await prop.goToProperties();
@@ -265,7 +265,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     // await prop.addColumnTakeOff('interior');
   });
 
-  test('@sanity @regression @property TC57 - validate takeoffs Exterior panel and dropdowns', async () => {
+  test('@sanity @regression @property TC58 - validate takeoffs Exterior panel and dropdowns', async () => {
     test.setTimeout(240000);
     await prop.goto(tcTakeoffsStartUrl);
     await prop.goToProperties();
@@ -285,7 +285,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     // await prop.addColumnTakeOff('exterior');
   });
 
-  test('@sanity @regression @property TC58 â€“ asset viewer', async () => {
+  test('@sanity @regression @property TC59 â€“ asset viewer', async () => {
     await prop.goto(tcTakeoffsStartUrl);
     await prop.goToProperties();
     test.setTimeout(480000)
@@ -480,7 +480,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
 
   });
 
-  test('@regression @property TC59 - Validate Filters: gibberish', async () => {
+  test('@regression @property TC60 - Validate Filters: gibberish', async () => {
     await prop.goToProperties();
     await prop.changeView('Table View');
     name = 'gibberish';
@@ -493,7 +493,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
 
   });
 
-  test('@regression @property TC60 - validate No models available in asset viewer tab', async () => {
+  test('@regression @property TC61 - validate No models available in asset viewer tab', async () => {
     await prop.goto(tcTakeoffsStartUrl);
     await prop.goToProperties();
     await page.waitForTimeout(30000);
@@ -519,7 +519,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     await prop.iconAssertion();
   });
 
-  test("@sanity @property TC61 - Validate add Units rows inside Locations and no duplicate row added", async () => {
+  test("@sanity @property TC62 - Validate add Units rows inside Locations and no duplicate row added", async () => {
     await prop.goto(tcTakeoffsStartUrl);
     await prop.goToProperties();
     await prop.changeView('Table View');
@@ -637,7 +637,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
   // Saves runtime vs per-test navigation. Add baselines: npx playwright test tests/TC04_properties.spec.js -g TC04-reg-bundle --update-snapshots
   // -------------------------------------------------------------------------
   test.describe('PROPERTY REGRESSION â€” search, filters, injection, visuals', () => {
-    test('TC62 @regression @property Negative, edge, bench, visuals (single Properties load)', async () => {
+    test('TC63 @regression @property Negative, edge, bench, visuals (single Properties load)', async () => {
       const searchMask = page.locator('main input[placeholder="Search..."], main [role="textbox"][placeholder="Search..."]').first();
       const shotMain = {
         ...PROPERTY_REGRESSION_SCREENSHOT,
@@ -679,7 +679,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
           await toolbar.first().waitFor({ state: 'visible', timeout: 8_000 });
           await expect(toolbar.first()).toHaveScreenshot('properties-toolbar.png', shotStable);
         } catch (e) {
-          console.log(`[TC62] Visual toolbar soft-fail: ${e.message.split('\n')[0]}`);
+          console.log(`[TC63] Visual toolbar soft-fail: ${e.message.split('\n')[0]}`);
         }
 
         // Column headers: the stable header row of the table grid (never contains dynamic data)
@@ -689,7 +689,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
           await colHeaderRow.waitFor({ state: 'visible', timeout: 8_000 });
           await expect(colHeaderRow).toHaveScreenshot('properties-colheaders.png', shotStable);
         } catch (e) {
-          console.log(`[TC62] Visual col-headers soft-fail: ${e.message.split('\n')[0]}`);
+          console.log(`[TC63] Visual col-headers soft-fail: ${e.message.split('\n')[0]}`);
         }
       });
 
@@ -786,7 +786,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     });
   });
 
-  test('@regression @property TC270 - Reject property creation with empty name', async () => {
+  test('@regression @property TC64 - Reject property creation with empty name', async () => {
     await prop.goToProperties();
     await page.waitForTimeout(30000);
 
@@ -840,7 +840,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     await expect(dialog.first()).toBeHidden({ timeout: 10000 }).catch(() => { });
   });
 
-  test('@regression @property TC279 — Budget Variance currency column: values must stay on a single line after column is resized narrower', async () => {
+  test('@regression @property TC65 — Budget Variance currency column: values must stay on a single line after column is resized narrower', async () => {
     await prop.changeView('Table View');
     await page.waitForTimeout(1500);
 
@@ -852,12 +852,12 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     });
 
     console.log(
-      `[TC279] ${result.cellsChecked}/${result.cellCount} cells verified single-line  |  ` +
+      `[TC65] ${result.cellsChecked}/${result.cellCount} cells verified single-line  |  ` +
       `width: ${result.widthStart}px → narrowed ${result.widthAfter}px → restored ${result.widthRestored}px ✓`
     );
   });
 
-  test('@regression @property — Cover Picture: upload image to property and verify it shows on property card', async () => {
+  test('TC66 @regression @property — Cover Picture: upload image to property and verify it shows on property card', async () => {
     test.setTimeout(300000);
 
     const downloadPath = path.join(process.cwd(), 'downloads', 'property.json');
@@ -909,7 +909,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     await expect(page.locator('[style*="files.tailorbird.com"]')).toBeVisible({ timeout: 15000 });
   });
 
-  test('TC306 @property @regression : Verify reusable add column function for all column types', async ({ page }) => {
+  test('TC67 @property @regression : Verify reusable add column function for all column types', async ({ page }) => {
     test.setTimeout(600000);
     const projectPage = new ProjectPage(page);
     const addColumnPage = new AddColumnPage(page, { scope: page.locator('main') });
@@ -932,7 +932,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     }
   });
 
-  test('TC307 @capex @regression — Property column data persists after hiding all default columns and page refresh', async ({ page }) => {
+  test('TC68 @capex @regression — Property column data persists after hiding all default columns and page refresh', async ({ page }) => {
     test.setTimeout(420000); // 7 min — 3× getPropertyColumnValues + refreshCapexPage runs slow headless
     const capex = new CapexPage(page);
 

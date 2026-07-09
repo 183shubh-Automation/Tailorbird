@@ -93,7 +93,7 @@ function retainageLocators(page) {
     contractOverviewFieldValue: (label) =>
       page
         .getByRole('tabpanel', { name: 'Contracts' })
-        .locator('p', { hasText: new RegExp(`^${label}$`) })
+        .getByText(label, { exact: true })
         .locator('xpath=following-sibling::p[1]'),
     editContractOverviewButton: page.getByRole('tabpanel', { name: 'Contracts' }).getByRole('button', { name: 'Edit', exact: true }),
     contractOverviewTotalWithheldLabel: page.getByRole('tabpanel', { name: 'Contracts' }).getByText('Total Withheld', { exact: true }),

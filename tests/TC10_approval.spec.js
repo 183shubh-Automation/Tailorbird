@@ -107,7 +107,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await approvalJob.waitForPageLoad();
     });
 
-      test('@approval @Mandatory @sanity Creating approval for mandatory property', async () => {
+      test('TC168 @approval @Mandatory @sanity Creating approval for mandatory property', async () => {
         currentPropertyName = getPropertyName();
        
         try {
@@ -128,7 +128,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         }
     });
 
-    test('@approval @regression @sanity TC161 Approval Templates – Verify user can successfully create an approval template with all required elements including property, approver, amount, and mandatory flags', async () => {
+    test('@approval @regression @sanity TC169 Approval Templates – Verify user can successfully create an approval template with all required elements including property, approver, amount, and mandatory flags', async () => {
         currentPropertyName = await createNewProperty(page);
         Logger.info('Property for template: ' + currentPropertyName);
 
@@ -137,7 +137,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await approvalJob.waitForPageLoad();
 
         try {
-            Logger.step('TC161: Starting create template positive flow');
+            Logger.step('TC169: Starting create template positive flow');
 
             const templateName = 'ApprovalTemplate_' + Date.now();
             await approvalJob.createTemplateWorkflow(templateName, 'Invoice', currentPropertyName, 1000, true);
@@ -147,14 +147,14 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             await expect(page.getByRole('row').filter({ hasText: templateName })).toBeVisible({ timeout: 15000 });
             await approvalJob.clearSearch();
 
-            Logger.success('TC161 passed: Template created successfully with all elements verified');
+            Logger.success('TC169 passed: Template created successfully with all elements verified');
         } catch (error) {
-            Logger.error('TC161 failed: ' + error.message);
+            Logger.error('TC169 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC162 Approval Templates – Verify system validations and error handling when creating an approval template with missing, invalid, or incorrect inputs', async () => {
+    test('@approval @regression TC170 Approval Templates – Verify system validations and error handling when creating an approval template with missing, invalid, or incorrect inputs', async () => {
 
         // Create a new property for this test
         currentPropertyName = await createNewProperty(page);
@@ -165,7 +165,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await approvalJob.waitForPageLoad();
 
         try {
-            Logger.step('TC162: Starting create template negative flow');
+            Logger.step('TC170: Starting create template negative flow');
 
             // Open Create Template dialog
             await approvalJob.openCreateTemplateDialog();
@@ -210,16 +210,16 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             // Verify dialog closed
             const dialogClosed = await approvalJob.isDialogClosed();
             expect(dialogClosed).toBeTruthy();
-            Logger.success('TC162 passed: All negative scenarios tested and dialog cancelled');
+            Logger.success('TC170 passed: All negative scenarios tested and dialog cancelled');
         } catch (error) {
-            Logger.error('TC162 failed: ' + error.message);
+            Logger.error('TC170 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC163 Approval Templates – Verify user can apply and clear search filters successfully using valid template names', async () => {
+    test('@approval @regression TC171 Approval Templates – Verify user can apply and clear search filters successfully using valid template names', async () => {
         try {
-            Logger.step('TC163: Starting filter positive flow');
+            Logger.step('TC171: Starting filter positive flow');
 
             // Verify table visible before filtering
             const initialRowCount = await approvalJob.getTableRowCount();
@@ -244,16 +244,16 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             expect(allRowsCount).toBeGreaterThanOrEqual(filteredRowCount);
             Logger.info('All rows count after clear: ' + allRowsCount);
 
-            Logger.success('TC163 passed: Filter applied and cleared successfully');
+            Logger.success('TC171 passed: Filter applied and cleared successfully');
         } catch (error) {
-            Logger.error('TC163 failed: ' + error.message);
+            Logger.error('TC171 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC164 Approval Templates – Verify system handles invalid, special character, long text, and rapid search inputs gracefully in template filters', async () => {
+    test('@approval @regression TC172 Approval Templates – Verify system handles invalid, special character, long text, and rapid search inputs gracefully in template filters', async () => {
         try {
-            Logger.step('TC164: Starting filter negative flow');
+            Logger.step('TC172: Starting filter negative flow');
 
             const searchInput = page.getByPlaceholder('Search...').first();
 
@@ -282,16 +282,16 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             await approvalJob.clearSearch();
             await expect(searchInput).toHaveValue('', { timeout: 5000 });
 
-            Logger.success('TC164 passed: All negative filter scenarios tested');
+            Logger.success('TC172 passed: All negative filter scenarios tested');
         } catch (error) {
-            Logger.error('TC164 failed: ' + error.message);
+            Logger.error('TC172 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC165 Approval Templates – Verify user can open Manage Columns dialog and view available column options successfully', async () => {
+    test('@approval @regression TC173 Approval Templates – Verify user can open Manage Columns dialog and view available column options successfully', async () => {
         try {
-            Logger.step('TC165: Starting manage columns positive flow');
+            Logger.step('TC173: Starting manage columns positive flow');
 
             await approvalJob.expectApprovalTemplatesTableCoreColumnsVisible();
             Logger.info('Core template table columns visible before manage columns');
@@ -318,7 +318,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             }
 
             // Restore original states so column visibility is not polluted for subsequent tests
-            Logger.info('TC165: Restoring toggled columns to original state');
+            Logger.info('TC173: Restoring toggled columns to original state');
             for (let i = 0; i < originalStates.length; i++) {
                 const checkbox = allCheckboxes.nth(i);
                 const currentChecked = await checkbox.isChecked();
@@ -334,16 +334,16 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             await page.waitForTimeout(800);
             Logger.info('Manage Columns dialog closed');
 
-            Logger.success('TC165 passed: Manage Columns tested with column toggles');
+            Logger.success('TC173 passed: Manage Columns tested with column toggles');
         } catch (error) {
-            Logger.error('TC165 failed: ' + error.message);
+            Logger.error('TC173 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC166 Approval Templates – Verify system behavior when all columns are unchecked and reselected in Manage Columns dialog', async () => {
+    test('@approval @regression TC174 Approval Templates – Verify system behavior when all columns are unchecked and reselected in Manage Columns dialog', async () => {
         try {
-            Logger.step('TC166: Starting manage columns negative flow');
+            Logger.step('TC174: Starting manage columns negative flow');
 
             // Open Manage Columns dialog
             await approvalJob.clickManageColumnsButton();
@@ -380,16 +380,16 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             await page.waitForTimeout(800);
 
             await approvalJob.expectApprovalTemplatesTableCoreColumnsVisible();
-            Logger.success('TC166 passed: Manage Columns negative scenarios tested — columns restored');
+            Logger.success('TC174 passed: Manage Columns negative scenarios tested — columns restored');
         } catch (error) {
-            Logger.error('TC166 failed: ' + error.message);
+            Logger.error('TC174 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression @sanity TC167 Approval Templates – Verify user can export approval templates data successfully when valid data is available', async () => {
+    test('@approval @regression @sanity TC175 Approval Templates – Verify user can export approval templates data successfully when valid data is available', async () => {
         try {
-            Logger.step('TC167: Starting export data positive flow');
+            Logger.step('TC175: Starting export data positive flow');
 
             await approvalJob.expectApprovalTemplatesTableCoreColumnsVisible();
             Logger.info('Core columns present — export');
@@ -400,16 +400,16 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             await approvalJob.clickExportButton();
             Logger.info('Export button clicked');
 
-            Logger.success('TC167 passed: Export data initiated successfully');
+            Logger.success('TC175 passed: Export data initiated successfully');
         } catch (error) {
-            Logger.error('TC167 failed: ' + error.message);
+            Logger.error('TC175 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC168 Approval Templates – Verify Export action remains functional and stable under edge conditions and repeated export attempts', async () => {
+    test('@approval @regression TC176 Approval Templates – Verify Export action remains functional and stable under edge conditions and repeated export attempts', async () => {
         try {
-            Logger.step('TC168: Starting export data negative flow');
+            Logger.step('TC176: Starting export data negative flow');
 
             const exportBtn = page.locator('main').getByRole('button', { name: 'Export' });
             await expect(exportBtn).toBeVisible({ timeout: 10000 });
@@ -421,16 +421,16 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             Logger.info('Export button clicked');
 
             await expect(exportBtn).toBeVisible({ timeout: 5000 });
-            Logger.success('TC168 passed: Export negative flow tested — button remains visible after click');
+            Logger.success('TC176 passed: Export negative flow tested — button remains visible after click');
         } catch (error) {
-            Logger.error('TC168 failed: ' + error.message);
+            Logger.error('TC176 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC169 Approval Templates – Verify user can create, save, and close a custom table view successfully in Approval Templates', async () => {
+    test('@approval @regression TC177 Approval Templates – Verify user can create, save, and close a custom table view successfully in Approval Templates', async () => {
         try {
-            Logger.step('TC169: Starting create view positive flow');
+            Logger.step('TC177: Starting create view positive flow');
 
             await approvalJob.clickCreateViewButton();
             Logger.info('Create View button clicked');
@@ -452,16 +452,16 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             await page.keyboard.press('Escape').catch(() => { });
             await page.waitForTimeout(600);
 
-            Logger.success('TC169 passed: Create View flow completed');
+            Logger.success('TC177 passed: Create View flow completed');
         } catch (error) {
-            Logger.error('TC169 failed: ' + error.message);
+            Logger.error('TC177 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC170 Approval Templates – Verify Create View form handles empty names, special characters, and excessively long view names correctly', async () => {
+    test('@approval @regression TC178 Approval Templates – Verify Create View form handles empty names, special characters, and excessively long view names correctly', async () => {
         try {
-            Logger.step('TC170: Starting create view negative flow');
+            Logger.step('TC178: Starting create view negative flow');
 
             await approvalJob.clickCreateViewButton();
             Logger.info('Create View dialog opened');
@@ -488,16 +488,16 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             await page.keyboard.press('Escape');
             await page.waitForTimeout(600);
 
-            Logger.success('TC170 passed: Create View negative scenarios tested');
+            Logger.success('TC178 passed: Create View negative scenarios tested');
         } catch (error) {
-            Logger.error('TC170 failed: ' + error.message);
+            Logger.error('TC178 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC171 Approval Templates – Verify Create Template and Edit Template dialogs can be cancelled safely without saving any unsaved changes', async () => {
+    test('@approval @regression TC179 Approval Templates – Verify Create Template and Edit Template dialogs can be cancelled safely without saving any unsaved changes', async () => {
         try {
-            Logger.step('TC171: Starting E2E cancel flow');
+            Logger.step('TC179: Starting E2E cancel flow');
 
             // CREATE and CANCEL
             await approvalJob.openCreateTemplateDialog();
@@ -538,16 +538,16 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
                 }
             }
 
-            Logger.success('TC171 passed: E2E cancel flows tested');
+            Logger.success('TC179 passed: E2E cancel flows tested');
         } catch (error) {
-            Logger.error('TC171 failed: ' + error.message);
+            Logger.error('TC179 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC172 Approval Templates – Verify approval templates table displays all expected column headers correctly', async () => {
+    test('@approval @regression TC180 Approval Templates – Verify approval templates table displays all expected column headers correctly', async () => {
         try {
-            Logger.step('TC172: Starting table headers positive flow');
+            Logger.step('TC180: Starting table headers positive flow');
 
             const expectedHeaders = ['Name', 'Template Type', 'Properties', 'Approval Rules', 'Created By'];
             for (const expectedHeader of expectedHeaders) {
@@ -557,16 +557,16 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
                 Logger.info('Header verified: ' + expectedHeader);
             }
 
-            Logger.success('TC172 passed: All table headers verified');
+            Logger.success('TC180 passed: All table headers verified');
         } catch (error) {
-            Logger.error('TC172 failed: ' + error.message);
+            Logger.error('TC180 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC173 Approval Templates – Verify Approval Templates table displays all expected column headers with correct labels', async () => {
+    test('@approval @regression TC181 Approval Templates – Verify Approval Templates table displays all expected column headers with correct labels', async () => {
         try {
-            Logger.step('TC173: Starting table headers negative flow');
+            Logger.step('TC181: Starting table headers negative flow');
 
             // Test non-existent header
             const invalidHeaderExists = await approvalJob.getAllTableHeaders().then(headers =>
@@ -579,32 +579,32 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             const headerCount = await approvalJob.getTableHeaderCount();
             Logger.info('Column count verified: ' + headerCount);
 
-            Logger.success('TC173 passed: Invalid header checks passed');
+            Logger.success('TC181 passed: Invalid header checks passed');
         } catch (error) {
-            Logger.error('TC173 failed: ' + error.message);
+            Logger.error('TC181 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC174 Approval Templates – Verify user can open and access the Create Template flow for different approval template types successfully', async () => {
+    test('@approval @regression TC182 Approval Templates – Verify user can open and access the Create Template flow for different approval template types successfully', async () => {
         test.setTimeout(180000);
         try {
-            Logger.step('TC174: Starting non-blocking validation flow');
+            Logger.step('TC182: Starting non-blocking validation flow');
             await approvalJob.navigateToApprovalTab();
             await approvalJob.navigateToApprovalTemplatesTab();
             await approvalJob.waitForPageLoad();
             await approvalJob.openCreateTemplateDialog();
             await approvalJob.cancelDialog();
-            Logger.success('TC174 passed');
+            Logger.success('TC182 passed');
         } catch (error) {
-            Logger.error('TC174 failed: ' + error.message);
+            Logger.error('TC182 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC175 Approval Templates – Verify Create Template dialog remains stable when switching rapidly between multiple approval template types', async () => {
+    test('@approval @regression TC183 Approval Templates – Verify Create Template dialog remains stable when switching rapidly between multiple approval template types', async () => {
         try {
-            Logger.step('TC175: Starting all template types negative flow');
+            Logger.step('TC183: Starting all template types negative flow');
 
             // Test selecting type then changing multiple times
             await approvalJob.openCreateTemplateDialog();
@@ -631,14 +631,14 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             // Close dialog
             await approvalJob.cancelDialog();
 
-            Logger.success('TC175 passed: Type switching and selection tested');
+            Logger.success('TC183 passed: Type switching and selection tested');
         } catch (error) {
-            Logger.error('TC175 failed: ' + error.message);
+            Logger.error('TC183 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC176 Approval Templates – Verify approval template type remains locked during edit mode while allowing updates to editable fields like amount and approval rules', async () => {
+    test('@approval @regression TC184 Approval Templates – Verify approval template type remains locked during edit mode while allowing updates to editable fields like amount and approval rules', async () => {
         test.setTimeout(240000);
         const tc176Property = await createNewProperty(page);
         await approvalJob.navigateToApprovalTab();
@@ -651,7 +651,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await expect(page.getByRole('row').filter({ hasText: tc176Template })).toBeVisible({ timeout: 15000 });
 
         try {
-            Logger.step('TC176: Starting edit template type lock positive flow');
+            Logger.step('TC184: Starting edit template type lock positive flow');
 
             // Click Edit button on first template
             const editBtn = page.getByRole('button', { name: 'Edit' }).first();
@@ -688,9 +688,9 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             // Cancel to not save
             await approvalJob.cancelDialog();
 
-            Logger.success('TC176 passed: Template type lock in edit mode verified');
+            Logger.success('TC184 passed: Template type lock in edit mode verified');
         } catch (error) {
-            Logger.error('TC176 failed: ' + error.message);
+            Logger.error('TC184 failed: ' + error.message);
             throw error;
         } finally {
             await approvalJob.clearSearch().catch(() => { });
@@ -700,7 +700,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         }
     });
 
-    test('@approval @regression TC177 Approval Templates – Verify system prevents forced or invalid changes to template type during edit mode', async () => {
+    test('@approval @regression TC185 Approval Templates – Verify system prevents forced or invalid changes to template type during edit mode', async () => {
         test.setTimeout(240000);
         const tc177Property = await createNewProperty(page);
         await approvalJob.navigateToApprovalTab();
@@ -713,7 +713,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await expect(page.getByRole('row').filter({ hasText: tc177Template })).toBeVisible({ timeout: 15000 });
 
         try {
-            Logger.step('TC177: Starting edit template type lock negative flow');
+            Logger.step('TC185: Starting edit template type lock negative flow');
 
             // Open Edit dialog
             const editBtn = page.getByRole('button', { name: 'Edit' }).first();
@@ -754,9 +754,9 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             // Close dialog
             await approvalJob.cancelDialog();
 
-            Logger.success('TC177 passed: Type lock negative attempts tested');
+            Logger.success('TC185 passed: Type lock negative attempts tested');
         } catch (error) {
-            Logger.error('TC177 failed: ' + error.message);
+            Logger.error('TC185 failed: ' + error.message);
             throw error;
         } finally {
             await approvalJob.clearSearch().catch(() => { });
@@ -766,7 +766,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         }
     });
 
-    test('@approval @regression @positive TC178 Approval Templates – Verify newly created approval template appears correctly in search results and remains searchable after clearing and reapplying filters', async () => {
+    test('@approval @regression @positive TC186 Approval Templates – Verify newly created approval template appears correctly in search results and remains searchable after clearing and reapplying filters', async () => {
         const propertyName = await createNewProperty(page);
         await approvalJob.navigateToApprovalTab();
         await approvalJob.navigateToApprovalTemplatesTab();
@@ -789,7 +789,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await approvalJob.clearSearch();
     });
 
-    test('@approval @regression @negative TC179 Approval Templates – Verify Create Template dialog rejects template names containing only blank spaces and prevents submission', async () => {
+    test('@approval @regression @negative TC187 Approval Templates – Verify Create Template dialog rejects template names containing only blank spaces and prevents submission', async () => {
         await approvalJob.openCreateTemplateDialog();
         await approvalJob.fillTemplateName('    ');
         await approvalJob.selectTemplateType('Change Order');
@@ -807,7 +807,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         expect(await approvalJob.isDialogClosed()).toBeTruthy();
     });
 
-    test('@approval @regression @edge TC180 Approval Templates – Verify toolbar controls and approval template table remain stable when switching repeatedly between Approval Templates, My Approvals, and All Approvals tabs', async () => {
+    test('@approval @regression @edge TC188 Approval Templates – Verify toolbar controls and approval template table remain stable when switching repeatedly between Approval Templates, My Approvals, and All Approvals tabs', async () => {
         await settleApprovalWorkspace(page, 1200);
         const myApprovalsTab = page.getByRole('tab', { name: 'My Approvals' });
         const allApprovalsTab = page.getByRole('tab', { name: 'All Approvals' });
@@ -825,7 +825,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await approvalJob.expectApprovalTemplatesTableCoreColumnsVisible();
     });
 
-    test('@approval @regression @edge TC181 Approval Templates – Verify Create Template modal remains functional and all template type options stay visible during rapid template type switching', async () => {
+    test('@approval @regression @edge TC189 Approval Templates – Verify Create Template modal remains functional and all template type options stay visible during rapid template type switching', async () => {
         await approvalJob.openCreateTemplateDialog();
         await approvalJob.fillTemplateName(`TC124_${Date.now()}`);
 
@@ -843,7 +843,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await approvalJob.cancelDialog();
     });
 
-    test('@approval @regression @positive TC182 Approval Templates – Verify required controls, amount fields, approver selection, and Create button state update correctly while filling the template form', async () => {
+    test('@approval @regression @positive TC190 Approval Templates – Verify required controls, amount fields, approver selection, and Create button state update correctly while filling the template form', async () => {
         await approvalJob.openCreateTemplateDialog();
         const dialog = approvalJob.createTemplateDialog();
         const submitBtn = page.getByRole('button', { name: /^Create Template$/ }).last();
@@ -871,7 +871,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await approvalJob.cancelDialog();
     });
 
-    test('@approval @regression @negative TC183 Approval Templates – Verify Approval Template search field handles long special-character input and restores default table state after clearing search', async () => {
+    test('@approval @regression @negative TC191 Approval Templates – Verify Approval Template search field handles long special-character input and restores default table state after clearing search', async () => {
         await settleApprovalWorkspace(page, 1600);
         await approvalJob.expectApprovalTemplatesTableCoreColumnsVisible();
         const search = page.getByPlaceholder('Search...').first();
@@ -891,7 +891,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await expect(page.getByRole('button', { name: 'Create Template' }).first()).toBeVisible({ timeout: 15000 });
     });
 
-    test('@approval @regression @positive TC184 Approval Templates — Verify Filter drawer accepts Name OR filter values, displays applied filter tags, and closes without breaking the approval templates grid', async () => {
+    test('@approval @regression @positive TC192 Approval Templates — Verify Filter drawer accepts Name OR filter values, displays applied filter tags, and closes without breaking the approval templates grid', async () => {
         await settleApprovalWorkspace(page, 1400);
         await approvalJob.clearSearch();
 
@@ -924,7 +924,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await approvalJob.expectApprovalTemplatesTableCoreColumnsVisible();
     });
 
-    test('@approval @regression @positive TC185 Approval Templates — Filter drawer Template Type OR field accepts and retains value', async () => {
+    test('@approval @regression @positive TC193 Approval Templates — Filter drawer Template Type OR field accepts and retains value', async () => {
         await settleApprovalWorkspace(page, 1400);
         await approvalJob.clearSearch();
 
@@ -949,7 +949,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await approvalJob.expectApprovalTemplatesTableCoreColumnsVisible();
     });
 
-    test('@approval @regression @edge TC186 Approval Templates — Verify Approval Templates filter drawer opens successfully from toolbar controls and closes properly when toggled again without affecting the underlying approval templates grid state', async () => {
+    test('@approval @regression @edge TC194 Approval Templates — Verify Approval Templates filter drawer opens successfully from toolbar controls and closes properly when toggled again without affecting the underlying approval templates grid state', async () => {
         await settleApprovalWorkspace(page, 1000);
         await approvalJob.clickFilterButton();
         await expect(page.getByText('Filter Options').first()).toBeVisible({ timeout: 12000 });
@@ -958,14 +958,14 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await expect(page.getByText('Filter Options').first()).toBeHidden({ timeout: 10000 });
     });
 
-    test('@approval @regression @sanity TC187 Approval Templates — Verify Export action generates a downloadable CSV file successfully while keeping Approval Templates toolbar actions and table state functional after export attempt', async () => {
+    test('@approval @regression @sanity TC195 Approval Templates — Verify Export action generates a downloadable CSV file successfully while keeping Approval Templates toolbar actions and table state functional after export attempt', async () => {
         await settleApprovalWorkspace(page, 1200);
         await approvalJob.expectApprovalTemplatesTableCoreColumnsVisible();
 
         try {
             await approvalJob.exportTemplatesCsvDownload({ timeoutMs: 25000 });
         } catch (e) {
-            Logger.error('TC187 optional download assertion: ' + e.message);
+            Logger.error('TC195 optional download assertion: ' + e.message);
             const exportBtn = page.locator('main').getByRole('button', { name: 'Export' });
             await expect(exportBtn).toBeEnabled();
             await exportBtn.click();
@@ -973,7 +973,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         }
     });
 
-    test('@approval @regression @positive TC188 Approval Templates — Verify View menu opens the “Save Current View As” dialog successfully and allows users to access custom view creation options from Approval Templates toolbar', async () => {
+    test('@approval @regression @positive TC196 Approval Templates — Verify View menu opens the “Save Current View As” dialog successfully and allows users to access custom view creation options from Approval Templates toolbar', async () => {
         await settleApprovalWorkspace(page, 1000);
         await page.locator('main').getByRole('button', { name: 'View' }).click();
         // The View button opens a "Save current view as" dialog with a name input
@@ -984,7 +984,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await page.waitForTimeout(300);
     });
 
-    test('@approval @regression @positive TC189 Approval Templates — Verify table action menu displays Hide/Show Columns management option successfully and allows users to access column visibility configuration controls', async () => {
+    test('@approval @regression @positive TC197 Approval Templates — Verify table action menu displays Hide/Show Columns management option successfully and allows users to access column visibility configuration controls', async () => {
         await settleApprovalWorkspace(page, 1000);
         await page.locator('main').getByTestId('bt-table-action').click();
         await expect(page.getByRole('button', { name: /hide.*show columns/i })).toBeVisible({ timeout: 12000 });
@@ -992,7 +992,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await page.waitForTimeout(300);
     });
 
-    test('@approval @regression @edge TC190 Approval Templates — Verify clicking Add Approval Rule (+) dynamically inserts a new approver selection row inside Create Template dialog without affecting existing approval rule entries', async () => {
+    test('@approval @regression @edge TC198 Approval Templates — Verify clicking Add Approval Rule (+) dynamically inserts a new approver selection row inside Create Template dialog without affecting existing approval rule entries', async () => {
         await approvalJob.openCreateTemplateDialog();
 
         const dialog = approvalJob.createTemplateDialog();
@@ -1006,7 +1006,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         expect(await approvalJob.isDialogClosed()).toBeTruthy();
     });
 
-    test('@approval @regression @negative TC191 Approval Templates — Verify Create Template workflow prevents template creation when property selection is opened but not committed, and validation keeps the dialog active until required property mapping is completed', async () => {
+    test('@approval @regression @negative TC199 Approval Templates — Verify Create Template workflow prevents template creation when property selection is opened but not committed, and validation keeps the dialog active until required property mapping is completed', async () => {
         await approvalJob.openCreateTemplateDialog();
         await approvalJob.fillTemplateName(`TC134_${Date.now()}`);
         await approvalJob.selectTemplateType('Invoice');
@@ -1029,7 +1029,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await approvalJob.cancelDialog();
     });
 
-    test('@approval @regression @positive TC192 Approval Templates — Verify My Approvals workspace hides template authoring actions like Create Template while preserving approval navigation and restoring template actions after returning to Approval Templates', async () => {
+    test('@approval @regression @positive TC200 Approval Templates — Verify My Approvals workspace hides template authoring actions like Create Template while preserving approval navigation and restoring template actions after returning to Approval Templates', async () => {
         await settleApprovalWorkspace(page, 1000);
         await page.getByRole('tab', { name: 'My Approvals' }).click();
         await settleApprovalWorkspace(page, 1400);
@@ -1044,7 +1044,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await expect(page.getByRole('button', { name: 'Create Template' }).first()).toBeVisible({ timeout: 15000 });
     });
 
-    test('@approval @regression @positive TC193 Approval Templates — Verify All Approvals workspace restricts template authoring controls by hiding Create Template actions and restores template management functionality after navigating back to Approval Templates', async () => {
+    test('@approval @regression @positive TC201 Approval Templates — Verify All Approvals workspace restricts template authoring controls by hiding Create Template actions and restores template management functionality after navigating back to Approval Templates', async () => {
         await settleApprovalWorkspace(page, 1000);
         await page.getByRole('tab', { name: 'All Approvals' }).click();
         await settleApprovalWorkspace(page, 1400);
@@ -1059,7 +1059,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await expect(page.getByRole('button', { name: 'Create Template' }).first()).toBeVisible({ timeout: 15000 });
     });
 
-    test('@approval @regression @positive TC194 Approval Templates — Verify cancelling template deletion preserves the approval template record, while confirming deletion permanently removes the template from Approval Templates search results', async () => {
+    test('@approval @regression @positive TC202 Approval Templates — Verify cancelling template deletion preserves the approval template record, while confirming deletion permanently removes the template from Approval Templates search results', async () => {
         test.setTimeout(240000);
         const propertyName = await createNewProperty(page);
         await approvalJob.navigateToApprovalTab();
@@ -1087,7 +1087,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await approvalJob.clearSearch();
     });
 
-    test('@approval @regression TC195 Approval Templates — Verify Go Back action closes the Create Template drawer safely without blocking subsequent template creation flows or affecting toolbar functionality', async () => {
+    test('@approval @regression TC203 Approval Templates — Verify Go Back action closes the Create Template drawer safely without blocking subsequent template creation flows or affecting toolbar functionality', async () => {
         await approvalJob.openCreateTemplateDialog();
         await expect(page.getByRole('button', { name: 'Go Back' })).toBeVisible({ timeout: 10000 });
         await page.getByRole('button', { name: 'Go Back' }).click();
@@ -1102,7 +1102,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         expect(await approvalJob.isDialogClosed()).toBeTruthy();
     });
 
-    test('@approval @regression @edge TC196 Approval Templates — Verify toolbar search functionality continues working correctly while filter drawer inputs are populated and both filtering mechanisms coexist without breaking Approval Templates grid behavior', async () => {
+    test('@approval @regression @edge TC204 Approval Templates — Verify toolbar search functionality continues working correctly while filter drawer inputs are populated and both filtering mechanisms coexist without breaking Approval Templates grid behavior', async () => {
         await settleApprovalWorkspace(page, 1200);
         await approvalJob.clearSearch();
 
@@ -1127,7 +1127,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await approvalJob.clearSearch();
     });
 
-    test('TC197 Visual Regression Suite – Verify Approval Templates workspace, approval navigation tabs, grid headers, search result states, Create Template dialog flows, approver and amount configuration screens, Manage Columns dialog, Views section, My Approvals workspace, All Approvals workspace, and restored Approval Templates state render correctly across the complete approval workflow', async () => {
+    test('TC205 Visual Regression Suite – Verify Approval Templates workspace, approval navigation tabs, grid headers, search result states, Create Template dialog flows, approver and amount configuration screens, Manage Columns dialog, Views section, My Approvals workspace, All Approvals workspace, and restored Approval Templates state render correctly across the complete approval workflow', async () => {
         test.setTimeout(720000);
         await settleApprovalWorkspace(page, 2500);
 
@@ -1259,11 +1259,11 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         });
     });
 
-    test('TC301 @regression @capex — Column settings persist after page refresh: visibility, sort and width saved server-side via table-view-config', async ({ page }) => {
+    test('TC206 @regression @capex — Column settings persist after page refresh: visibility, sort and width saved server-side via table-view-config', async ({ page }) => {
         test.setTimeout(240000);
         const capex = new CapexPage(page);
         await capex.goto();
-        Logger.step('TC301: Column settings persistence after page refresh');
+        Logger.step('TC206: Column settings persistence after page refresh');
 
         const colPersist = new CapexColumnPersistencePage(page);
         // Grid already loaded by beforeEach goto(). Confirm it is stable.
@@ -1272,14 +1272,14 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         // ── Scenario 1: Column visibility persistence ─────────────────────
         await test.step('Scenario 1 — Column visibility persistence', async () => {
             const COL = 'Invoiced Amount';
-            Logger.info(`TC301 S1: Hiding "${COL}"`);
+            Logger.info(`TC206 S1: Hiding "${COL}"`);
 
             // Ensure a clean start — show the column if a previous run left it hidden
             await colPersist.showColumn(COL);
             expect(await colPersist.isColumnVisibleInGrid(COL)).toBeTruthy();
             await colPersist.hideColumn(COL);
             expect(await colPersist.isColumnVisibleInGrid(COL)).toBeFalsy();
-            Logger.info('TC301 S1: Column hidden in grid ✓');
+            Logger.info('TC206 S1: Column hidden in grid ✓');
 
             await colPersist.reloadAndWaitForGrid();
 
@@ -1287,25 +1287,25 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
                 await colPersist.isColumnVisibleInGrid(COL),
                 `"${COL}" should still be hidden after page refresh`
             ).toBeFalsy();
-            Logger.info('TC301 S1: Column still hidden after page refresh ✓');
+            Logger.info('TC206 S1: Column still hidden after page refresh ✓');
 
             // Cleanup — restore to original visible state
             await colPersist.showColumn(COL);
             expect(await colPersist.isColumnVisibleInGrid(COL)).toBeTruthy();
-            Logger.info('TC301 S1: Column restored ✓');
+            Logger.info('TC206 S1: Column restored ✓');
         });
 
         // ── Scenario 2: Sort state persistence ───────────────────────────
         await test.step('Scenario 2 — Sort state persistence', async () => {
             const COL = 'Budget Revision';
-            Logger.info(`TC301 S2: Applying sort on "${COL}"`);
+            Logger.info(`TC206 S2: Applying sort on "${COL}"`);
 
             // Ensure clean start — remove any sort left from a previous run
             await colPersist.clearColumnSort(COL);
             await colPersist.clickColumnSortButton(COL);
             const sortedState = await colPersist.getColumnSortState(COL);
             expect(sortedState, `Sort should be active on "${COL}"`).toMatch(/sort-asc|sort-desc|sort-off/);
-            Logger.info(`TC301 S2: Sort applied — state="${sortedState}" ✓`);
+            Logger.info(`TC206 S2: Sort applied — state="${sortedState}" ✓`);
 
             const rowCountBefore = await page.evaluate(() =>
                 Array.from(document.querySelectorAll('[role="row"]'))
@@ -1320,7 +1320,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
                 `Sort on "${COL}" should persist after page refresh`
             ).toMatch(/sort-asc|sort-desc|sort-off/);
             expect(sortAfterReload).toBe(sortedState);
-            Logger.info(`TC301 S2: Sort direction "${sortAfterReload}" persisted after reload ✓`);
+            Logger.info(`TC206 S2: Sort direction "${sortAfterReload}" persisted after reload ✓`);
 
             const rowCountAfter = await page.evaluate(() =>
                 Array.from(document.querySelectorAll('[role="row"]'))
@@ -1328,25 +1328,25 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             );
             // Allow ±2 rendered-row tolerance (virtual scroll varies by scroll position)
             expect(Math.abs(rowCountAfter - rowCountBefore)).toBeLessThanOrEqual(2);
-            Logger.info('TC301 S2: Grid row count unchanged after reload with sort active ✓');
+            Logger.info('TC206 S2: Grid row count unchanged after reload with sort active ✓');
 
             // Cleanup — cycle sort back to off
             await colPersist.clearColumnSort(COL);
-            Logger.info('TC301 S2: Sort cleared ✓');
+            Logger.info('TC206 S2: Sort cleared ✓');
         });
 
         // ── Scenario 3: Column width persistence ─────────────────────────
         await test.step('Scenario 3 — Column width persistence', async () => {
             const COL = 'Approved Change Orders';
             const DELTA = 80;
-            Logger.info(`TC301 S3: Resizing "${COL}" by +${DELTA}px`);
+            Logger.info(`TC206 S3: Resizing "${COL}" by +${DELTA}px`);
 
             const initialWidth = await colPersist.getColumnWidthPx(COL);
-            Logger.info(`TC301 S3: Initial width = ${initialWidth}px`);
+            Logger.info(`TC206 S3: Initial width = ${initialWidth}px`);
             expect(initialWidth).toBeGreaterThan(0);
 
             const newWidth = await colPersist.resizeColumn(COL, DELTA);
-            Logger.info(`TC301 S3: Width after resize = ${newWidth}px`);
+            Logger.info(`TC206 S3: Width after resize = ${newWidth}px`);
             expect(
                 newWidth,
                 `Column width should increase after drag-resize`
@@ -1355,23 +1355,23 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             await colPersist.reloadAndWaitForGrid();
 
             const widthAfterReload = await colPersist.getColumnWidthPx(COL);
-            Logger.info(`TC301 S3: Width after reload = ${widthAfterReload}px`);
+            Logger.info(`TC206 S3: Width after reload = ${widthAfterReload}px`);
             expect(
                 Math.abs(widthAfterReload - newWidth),
                 `Width after reload (${widthAfterReload}px) should match width before reload (${newWidth}px)`
             ).toBeLessThanOrEqual(5);
-            Logger.info(`TC301 S3: Width ${widthAfterReload}px persisted after reload ✓`);
+            Logger.info(`TC206 S3: Width ${widthAfterReload}px persisted after reload ✓`);
 
             // Cleanup — resize back to initial
             await colPersist.resizeColumn(COL, initialWidth - widthAfterReload);
-            Logger.info('TC301 S3: Width restored to initial ✓');
+            Logger.info('TC206 S3: Width restored to initial ✓');
         });
 
         // ── Scenario 4: Combined settings persistence ─────────────────────
         await test.step('Scenario 4 — Combined: hidden column + active sort persist together', async () => {
             const HIDE_COL = 'Remaining Contract Amount';
             const SORT_COL = 'Original Contract Amount';
-            Logger.info(`TC301 S4: Hiding "${HIDE_COL}" and sorting "${SORT_COL}" simultaneously`);
+            Logger.info(`TC206 S4: Hiding "${HIDE_COL}" and sorting "${SORT_COL}" simultaneously`);
 
             // Ensure clean start for both settings
             await colPersist.showColumn(HIDE_COL);
@@ -1382,7 +1382,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             expect(await colPersist.isColumnVisibleInGrid(HIDE_COL)).toBeFalsy();
             const sortState = await colPersist.getColumnSortState(SORT_COL);
             expect(sortState).toMatch(/sort-asc|sort-desc|sort-off/);
-            Logger.info(`TC301 S4: Both settings applied — col hidden, sort="${sortState}" ✓`);
+            Logger.info(`TC206 S4: Both settings applied — col hidden, sort="${sortState}" ✓`);
 
             await colPersist.reloadAndWaitForGrid();
 
@@ -1390,28 +1390,28 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
                 await colPersist.isColumnVisibleInGrid(HIDE_COL),
                 `"${HIDE_COL}" should remain hidden after reload`
             ).toBeFalsy();
-            Logger.info(`TC301 S4: "${HIDE_COL}" still hidden after reload ✓`);
+            Logger.info(`TC206 S4: "${HIDE_COL}" still hidden after reload ✓`);
 
             const sortAfterReload = await colPersist.getColumnSortState(SORT_COL);
             expect(
                 sortAfterReload,
                 `Sort on "${SORT_COL}" should remain after reload`
             ).toMatch(/sort-asc|sort-desc|sort-off/);
-            Logger.info(`TC301 S4: "${SORT_COL}" sort "${sortAfterReload}" still active after reload ✓`);
+            Logger.info(`TC206 S4: "${SORT_COL}" sort "${sortAfterReload}" still active after reload ✓`);
 
             // Cleanup
             await colPersist.showColumn(HIDE_COL);
             await colPersist.clearColumnSort(SORT_COL);
-            Logger.info('TC301 S4: Settings restored ✓');
+            Logger.info('TC206 S4: Settings restored ✓');
         });
 
         // ── Scenario 5: Grouping UI observation (non-failing) ─────────────
         await test.step('Scenario 5 — Grouping UI observation', async () => {
             const hasGrouping = await colPersist.hasGroupingUI();
-            Logger.info(`TC301 S5: Grouping UI present = ${hasGrouping}`);
+            Logger.info(`TC206 S5: Grouping UI present = ${hasGrouping}`);
             if (!hasGrouping) {
                 Logger.info(
-                    'TC301 S5: No grouping UI detected on CapEx page. ' +
+                    'TC206 S5: No grouping UI detected on CapEx page. ' +
                     'The API stores a "grouping" field (observed as [] in table-view-config) ' +
                     'but no grouping control is exposed in the current UI — observation logged, not a failure.'
                 );
@@ -1419,10 +1419,10 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             // No assertion — observation only per investigation findings
         });
 
-        Logger.success('TC301 ✓');
+        Logger.success('TC206 ✓');
     });
 
-    test('@approval @regression @positive TC198 Approval Templates — Verify Add Approval Rules approver combobox groups matches under "Roles" and "Users" headings, supports multiple approvers/roles in a single input, and the template is created successfully using dynamically discovered (non-hardcoded) roles and users', async () => {
+    test('@approval @regression @positive TC207 Approval Templates — Verify Add Approval Rules approver combobox groups matches under "Roles" and "Users" headings, supports multiple approvers/roles in a single input, and the template is created successfully using dynamically discovered (non-hardcoded) roles and users', async () => {
         test.setTimeout(420000);
         const fs = require('fs');
         const path = require('path');
@@ -1458,7 +1458,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         const usersHeading = dropdown.locator('.mantine-MultiSelect-groupLabel', { hasText: 'Users' });
         await expect(rolesHeading, 'FAIL: "Roles" group heading should be visible in the approver combobox').toBeVisible({ timeout: 10000 });
         await expect(usersHeading, 'FAIL: "Users" group heading should be visible in the approver combobox').toBeVisible({ timeout: 10000 });
-        Logger.success('TC198: Approver combobox shows both "Roles" and "Users" headings');
+        Logger.success('TC207: Approver combobox shows both "Roles" and "Users" headings');
 
         const rolesGroup = dropdown.locator('.mantine-MultiSelect-group', { hasText: 'Roles' });
         const usersGroup = dropdown.locator('.mantine-MultiSelect-group', { hasText: 'Users' });
@@ -1468,10 +1468,10 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await page.waitForTimeout(300);
 
         if (discoveredRoles.length === 0 || discoveredUsers.length === 0) {
-            Logger.error(`TC198: Approver combobox returned ${discoveredRoles.length} role(s) and ${discoveredUsers.length} user(s) — cannot proceed without at least one of each.`);
+            Logger.error(`TC207: Approver combobox returned ${discoveredRoles.length} role(s) and ${discoveredUsers.length} user(s) — cannot proceed without at least one of each.`);
             throw new Error(`TC198 FAILED: No roles and/or users available in the approver combobox (roles=${discoveredRoles.length}, users=${discoveredUsers.length}).`);
         }
-        Logger.info(`TC198: Discovered ${discoveredRoles.length} role(s) and ${discoveredUsers.length} user(s) from the live combobox`);
+        Logger.info(`TC207: Discovered ${discoveredRoles.length} role(s) and ${discoveredUsers.length} user(s) from the live combobox`);
 
         // Persist the full discovered lists to data/approverRolesAndUsers.json
         const dataDir = path.join(process.cwd(), 'data');
@@ -1481,25 +1481,39 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             rolesUsersFile,
             JSON.stringify({ roles: discoveredRoles, users: discoveredUsers, capturedAt: new Date().toISOString() }, null, 2)
         );
-        Logger.info(`TC198: Persisted discovered roles/users to ${rolesUsersFile}`);
+        Logger.info(`TC207: Persisted discovered roles/users to ${rolesUsersFile}`);
 
         // Select random approvers/roles from the persisted JSON only — never hardcoded
         const persisted = JSON.parse(fs.readFileSync(rolesUsersFile, 'utf-8'));
         if (!persisted.roles?.length || !persisted.users?.length) {
-            Logger.error(`TC198: Persisted JSON at ${rolesUsersFile} has no roles/users to select from.`);
+            Logger.error(`TC207: Persisted JSON at ${rolesUsersFile} has no roles/users to select from.`);
             throw new Error(`TC198 FAILED: ${rolesUsersFile} contains no roles and/or users.`);
         }
         if (persisted.users.length < 3) {
-            Logger.error(`TC198: Need at least 3 users (2 for approver row 1, 1 for approver row 3) — only ${persisted.users.length} available.`);
+            Logger.error(`TC207: Need at least 3 users (2 for approver row 1, 1 for approver row 3) — only ${persisted.users.length} available.`);
             throw new Error(`TC198 FAILED: Fewer than 3 users available in ${rolesUsersFile}.`);
         }
         if (persisted.roles.length < 2) {
-            Logger.error(`TC198: Need at least 2 distinct roles to prove approver row 2 accepts multiple roles — only ${persisted.roles.length} available.`);
+            Logger.error(`TC207: Need at least 2 distinct roles to prove approver row 2 accepts multiple roles — only ${persisted.roles.length} available.`);
             throw new Error(`TC198 FAILED: Fewer than 2 roles available in ${rolesUsersFile}.`);
         }
 
-        // Replace whatever is currently selected in an approver cell with a fresh set of values
-        async function setApproverCell(cell, input, values) {
+        // Many discovered users (yopmail test accounts, etc.) don't have access to a freshly-created
+        // property, which was making the retry loop below burn through most/all attempts on invalid
+        // candidates. Users containing "sumit" are known-good property-access accounts, so approver
+        // ROW selection (not roles — roles are untouched) is restricted to that subset only. Search
+        // term used against the combobox is "sumit" itself, so only these accounts are ever suggested.
+        const sumitUsers = persisted.users.filter(u => u.toLowerCase().includes('sumit'));
+        if (sumitUsers.length < 3) {
+            Logger.error(`TC207: Need at least 3 users containing "sumit" (2 for approver row 1, 1 for approver row 3) — only ${sumitUsers.length} available: ${sumitUsers.join(', ')}`);
+            throw new Error(`TC198 FAILED: Fewer than 3 "sumit" users available in ${rolesUsersFile} (found: ${sumitUsers.join(', ')}).`);
+        }
+        Logger.info(`TC207: Restricting user-approver candidates to "sumit" accounts only: ${sumitUsers.join(', ')}`);
+
+        // Replace whatever is currently selected in an approver cell with a fresh set of values.
+        // searchTerm lets user cells filter the combobox by "sumit" while still selecting the exact
+        // suggested option for `value` — role cells are unaffected (no searchTerm, same as before).
+        async function setApproverCell(cell, input, values, { searchTerm } = {}) {
             const clearBtn = cell.locator('.mantine-InputClearButton-root');
             if (await clearBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
                 await clearBtn.click();
@@ -1507,10 +1521,10 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             }
             for (const value of values) {
                 await input.click();
-                await input.fill(value);
+                await input.fill(searchTerm || value);
                 await page.waitForTimeout(1800);
                 const dd = page.locator('.mantine-MultiSelect-dropdown:visible').first();
-                await expect(dd, `FAIL: combobox should reopen while filtering for "${value}"`).toBeVisible({ timeout: 15000 });
+                await expect(dd, `FAIL: combobox should reopen while filtering for "${searchTerm || value}"`).toBeVisible({ timeout: 15000 });
                 await dd.getByRole('option', { name: value, exact: true }).click();
             }
             await page.keyboard.press('Escape');
@@ -1534,15 +1548,15 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await approvalJob.checkAlwaysRequiredInTemplateDialog(3);
 
         for (let attempt = 1; attempt <= maxAttempts && !created; attempt++) {
-            const usersPool = persisted.users.filter(u => !excluded.has(u));
+            const usersPool = sumitUsers.filter(u => !excluded.has(u));
             const rolesPool = persisted.roles.filter(r => !excluded.has(r));
 
             if (usersPool.length < 3) {
-                Logger.error(`TC198: Ran out of valid candidate users after ${attempt - 1} attempt(s). Excluded so far: ${[...excluded].join(', ')}`);
-                throw new Error(`TC198 FAILED: Could not find 3 users with property access among the discovered users (excluded: ${[...excluded].join(', ')}).`);
+                Logger.error(`TC207: Ran out of valid "sumit" candidate users after ${attempt - 1} attempt(s). Excluded so far: ${[...excluded].join(', ')}`);
+                throw new Error(`TC198 FAILED: Could not find 3 "sumit" users with property access (excluded: ${[...excluded].join(', ')}).`);
             }
             if (rolesPool.length < 2) {
-                Logger.error(`TC198: Ran out of valid candidate roles after ${attempt - 1} attempt(s). Excluded so far: ${[...excluded].join(', ')}`);
+                Logger.error(`TC207: Ran out of valid candidate roles after ${attempt - 1} attempt(s). Excluded so far: ${[...excluded].join(', ')}`);
                 throw new Error(`TC198 FAILED: Could not find 2 roles with property access among the discovered roles (excluded: ${[...excluded].join(', ')}).`);
             }
 
@@ -1550,10 +1564,10 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             const shuffledRoles = [...rolesPool].sort(() => Math.random() - 0.5);
             const [u1, u2, u3] = shuffledUsers;
             const [r1, r2] = shuffledRoles;
-            Logger.info(`TC198: Attempt ${attempt}/${maxAttempts} — approver1=["${u1}", "${u2}"], approver2=["${r1}", "${r2}"], approver3="${u3}"`);
+            Logger.info(`TC207: Attempt ${attempt}/${maxAttempts} — approver1=["${u1}", "${u2}"], approver2=["${r1}", "${r2}"], approver3="${u3}"`);
 
             // ── Scenario 1: approver row 1 — more than one approver in the SAME input ──
-            await setApproverCell(approver1Cell, approver1, [u1, u2]);
+            await setApproverCell(approver1Cell, approver1, [u1, u2], { searchTerm: 'sumit' });
             await expect(approver1Cell.getByText(u1, { exact: true }), `FAIL: approver row 1 should show "${u1}" as a pill`).toBeVisible({ timeout: 10000 });
             await expect(approver1Cell.getByText(u2, { exact: true }), `FAIL: approver row 1 should show "${u2}" as a pill in the SAME input`).toBeVisible({ timeout: 10000 });
 
@@ -1563,7 +1577,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             await expect(approver2Cell.getByText(r2, { exact: true }), `FAIL: approver row 2 should show "${r2}" as a pill in the SAME input`).toBeVisible({ timeout: 10000 });
 
             // Complete approver row 3 so the template can be submitted
-            await setApproverCell(approver3Cell, approver3, [u3]);
+            await setApproverCell(approver3Cell, approver3, [u3], { searchTerm: 'sumit' });
 
             await approvalJob.submitCreateTemplate();
 
@@ -1580,11 +1594,11 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             const errorText = (await accessError.textContent().catch(() => '')) || '';
             const flagged = [u1, u2, u3, r1, r2].filter(candidate => errorText.includes(candidate));
             if (flagged.length === 0) {
-                Logger.error(`TC198: Submission failed with an unrecognized validation error: ${errorText}`);
+                Logger.error(`TC207: Submission failed with an unrecognized validation error: ${errorText}`);
                 throw new Error(`TC198 FAILED: Unexpected validation error on submit: ${errorText}`);
             }
             flagged.forEach(name => excluded.add(name));
-            Logger.info(`TC198: Attempt ${attempt} rejected — excluding invalid approver(s) from future attempts: ${flagged.join(', ')}`);
+            Logger.info(`TC207: Attempt ${attempt} rejected — excluding invalid approver(s) from future attempts: ${flagged.join(', ')}`);
         }
 
         if (!created) {
@@ -1592,7 +1606,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         }
 
         await expect(dialog, 'FAIL: Create Template dialog should close after successful submission').toBeHidden({ timeout: 20000 });
-        Logger.success(`TC198: Template submitted successfully with approver1=["${finalUsers[0]}", "${finalUsers[1]}"], approver2=["${finalRoles[0]}", "${finalRoles[1]}"], approver3="${finalUsers[2]}"`);
+        Logger.success(`TC207: Template submitted successfully with approver1=["${finalUsers[0]}", "${finalUsers[1]}"], approver2=["${finalRoles[0]}", "${finalRoles[1]}"], approver3="${finalUsers[2]}"`);
 
         try {
             await approvalJob.searchTemplate(templateName);
@@ -1601,7 +1615,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
                 `FAIL: Newly created template "${templateName}" should appear in the Approval Templates grid`
             ).toBeVisible({ timeout: 15000 });
             await approvalJob.clearSearch();
-            Logger.success(`TC198 passed: template "${templateName}" created successfully using dynamically discovered (non-hardcoded) approvers/roles`);
+            Logger.success(`TC207 passed: template "${templateName}" created successfully using dynamically discovered (non-hardcoded) approvers/roles`);
         } finally {
             await approvalJob.clearSearch().catch(() => {});
             await approvalJob.searchTemplate(templateName).catch(() => {});
@@ -1610,7 +1624,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         }
     });
 
-    test('@approval @regression @positive TC199 Approval Templates — Verify a template can be created with approval rules assigned to roles only (no individual user approvers), using dynamically discovered (non-hardcoded) roles', async () => {
+    test('@approval @regression @positive TC208 Approval Templates — Verify a template can be created with approval rules assigned to roles only (no individual user approvers), using dynamically discovered (non-hardcoded) roles', async () => {
         test.setTimeout(240000);
         const fs = require('fs');
         const path = require('path');
@@ -1653,10 +1667,10 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         await page.waitForTimeout(300);
 
         if (discoveredRoles.length === 0) {
-            Logger.error(`TC199: Approver combobox returned 0 roles — cannot create a roles-only template.`);
+            Logger.error(`TC208: Approver combobox returned 0 roles — cannot create a roles-only template.`);
             throw new Error('TC199 FAILED: No roles available in the approver combobox.');
         }
-        Logger.info(`TC199: Discovered ${discoveredRoles.length} role(s) and ${discoveredUsers.length} user(s) from the live combobox`);
+        Logger.info(`TC208: Discovered ${discoveredRoles.length} role(s) and ${discoveredUsers.length} user(s) from the live combobox`);
 
         // Persist the full discovered lists to data/approverRolesAndUsers.json — same file/shape as TC198
         const dataDir = path.join(process.cwd(), 'data');
@@ -1666,19 +1680,19 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             rolesUsersFile,
             JSON.stringify({ roles: discoveredRoles, users: discoveredUsers, capturedAt: new Date().toISOString() }, null, 2)
         );
-        Logger.info(`TC199: Persisted discovered roles/users to ${rolesUsersFile}`);
+        Logger.info(`TC208: Persisted discovered roles/users to ${rolesUsersFile}`);
 
         // Select roles for all 3 approver rows from the persisted JSON only — never hardcoded
         const persisted = JSON.parse(fs.readFileSync(rolesUsersFile, 'utf-8'));
         if (!persisted.roles?.length) {
-            Logger.error(`TC199: Persisted JSON at ${rolesUsersFile} has no roles to select from.`);
+            Logger.error(`TC208: Persisted JSON at ${rolesUsersFile} has no roles to select from.`);
             throw new Error(`TC199 FAILED: ${rolesUsersFile} contains no roles.`);
         }
 
         const shuffledRoles = [...persisted.roles].sort(() => Math.random() - 0.5);
         // Reuse roles round-robin if the org has fewer than 3 — every row still needs a value to submit.
         const rowRoles = [0, 1, 2].map(i => shuffledRoles[i % shuffledRoles.length]);
-        Logger.info(`TC199: Randomly selected roles for approver rows 1/2/3 = ${JSON.stringify(rowRoles)}`);
+        Logger.info(`TC208: Randomly selected roles for approver rows 1/2/3 = ${JSON.stringify(rowRoles)}`);
 
         for (let i = 0; i < 3; i++) {
             const input = approverInputs.nth(i);
@@ -1703,7 +1717,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
                 `FAIL: approver row ${i + 1} should contain only a role, but found an email-style entry suggesting a user was added: ${cellText}`
             ).toBe(false);
         }
-        Logger.success(`TC199: All 3 approver rows populated with roles only (no individual user approvers) — ${JSON.stringify(rowRoles)}`);
+        Logger.success(`TC208: All 3 approver rows populated with roles only (no individual user approvers) — ${JSON.stringify(rowRoles)}`);
 
         await approvalJob.fillAmount(1000);
         await approvalJob.checkAlwaysRequiredInTemplateDialog(3);
@@ -1712,11 +1726,11 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         const unexpectedError = dialog.getByText(/do not have access|error/i).first();
         if (await unexpectedError.isVisible({ timeout: 3000 }).catch(() => false)) {
             const errorText = (await unexpectedError.textContent().catch(() => '')) || '';
-            Logger.error(`TC199: Submission failed unexpectedly for a roles-only template: ${errorText}`);
+            Logger.error(`TC208: Submission failed unexpectedly for a roles-only template: ${errorText}`);
             throw new Error(`TC199 FAILED: Unexpected validation error when submitting a roles-only template: ${errorText}`);
         }
         await expect(dialog, 'FAIL: Create Template dialog should close after successful submission').toBeHidden({ timeout: 20000 });
-        Logger.success(`TC199: Roles-only template submitted successfully with roles ${JSON.stringify(rowRoles)}`);
+        Logger.success(`TC208: Roles-only template submitted successfully with roles ${JSON.stringify(rowRoles)}`);
 
         try {
             await approvalJob.searchTemplate(templateName);
@@ -1739,7 +1753,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
             }
 
             await approvalJob.clearSearch();
-            Logger.success(`TC199 passed: template "${templateName}" created successfully using roles only (${JSON.stringify(rowRoles)}), dynamically discovered — no individual approvers used`);
+            Logger.success(`TC208 passed: template "${templateName}" created successfully using roles only (${JSON.stringify(rowRoles)}), dynamically discovered — no individual approvers used`);
         } finally {
             await approvalJob.clearSearch().catch(() => {});
             await approvalJob.searchTemplate(templateName).catch(() => {});

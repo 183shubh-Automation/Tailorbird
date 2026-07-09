@@ -38,7 +38,7 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         loc = retainageLocators(page);
     });
 
-    test('TC211 @regression @retainage : Invoice list grid exposes Retainage Withheld/Released/Outstanding/Net Payable columns', async () => {
+    test('TC321 @regression @retainage : Invoice list grid exposes Retainage Withheld/Released/Outstanding/Net Payable columns', async () => {
         await retainagePage.gotoInvoiceList(fixture.jobId);
 
         const jobNotFound = await page.getByText(fixture.messages.jobNotFoundOnInvoiceList, { exact: false }).isVisible({ timeout: 5000 }).catch(() => false);
@@ -51,7 +51,7 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         Logger.success('Invoice list grid Retainage columns are all visible.');
     });
 
-    test('TC212 @regression @retainage : Existing invoice row shows correct Retainage figures in the list grid', async () => {
+    test('TC322 @regression @retainage : Existing invoice row shows correct Retainage figures in the list grid', async () => {
         await retainagePage.gotoInvoiceList(fixture.jobId);
         // The list grid virtualizes rows and this job accumulates more invoices over time (via
         // other tests in this suite), so #14080 can scroll out of the default view — search
@@ -71,7 +71,7 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         Logger.success(`Invoice row Retainage Withheld (${fixture.expected.listRowWithheldText}) and Net Payable (${fixture.expected.listRowNetPayableText}) verified.`);
     });
 
-    test('TC213 @regression @retainage : Invoice Details Overview shows Retainage %, Gross Amount, Withheld, Released and Net Payable', async () => {
+    test('TC323 @regression @retainage : Invoice Details Overview shows Retainage %, Gross Amount, Withheld, Released and Net Payable', async () => {
         await retainagePage.gotoInvoiceDetail(fixture.jobId, fixture.invoiceId);
 
         const notFound = await page.getByText(fixture.messages.notFoundGeneric, { exact: false }).isVisible({ timeout: 5000 }).catch(() => false);
@@ -89,7 +89,7 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         Logger.success(`Overview fields present with expected formatting: ${JSON.stringify(values)}`);
     });
 
-    test('TC214 @regression @retainage : Retainage % locks once the invoice is Approved; Gross Amount, Withheld, Released and Net Payable are always read-only', async () => {
+    test('TC324 @regression @retainage : Retainage % locks once the invoice is Approved; Gross Amount, Withheld, Released and Net Payable are always read-only', async () => {
         await retainagePage.gotoInvoiceDetail(fixture.jobId, fixture.invoiceId);
         await expect(loc.retainagePercentInput).toBeVisible({ timeout: 20000 });
 
@@ -115,7 +115,7 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         Logger.success('Gross Amount / Retainage Withheld / Retainage Released / Net Payable are disabled computed fields regardless of approval state.');
     });
 
-    test('TC215 @regression @retainage : Net Payable = Gross Amount - Retainage Withheld + Retainage Released', async () => {
+    test('TC325 @regression @retainage : Net Payable = Gross Amount - Retainage Withheld + Retainage Released', async () => {
         await retainagePage.gotoInvoiceDetail(fixture.jobId, fixture.invoiceId);
         await expect(loc.retainagePercentInput).toBeVisible({ timeout: 20000 });
 
@@ -130,7 +130,7 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         Logger.success(`Net Payable formula verified: ${gross} + (${withheld}) + ${released} = ${netPayable}`);
     });
 
-    test('TC216 @regression @retainage : Invoice line-items grid exposes per-line Retainage columns', async () => {
+    test('TC326 @regression @retainage : Invoice line-items grid exposes per-line Retainage columns', async () => {
         await retainagePage.gotoInvoiceDetail(fixture.jobId, fixture.invoiceId);
         await expect(loc.retainagePercentInput).toBeVisible({ timeout: 20000 });
 
@@ -143,7 +143,7 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         Logger.success('Line-items grid Retainage %, Retainage ($), Retainage Released, Total Withheld to Date, Outstanding Retainage and Net Payable headers are all visible.');
     });
 
-    test('TC217 @regression @retainage : Go Back returns from Invoice Details to the Invoice list', async () => {
+    test('TC327 @regression @retainage : Go Back returns from Invoice Details to the Invoice list', async () => {
         await retainagePage.gotoInvoiceDetail(fixture.jobId, fixture.invoiceId);
         await expect(loc.goBackButton).toBeVisible({ timeout: 20000 });
 
@@ -152,7 +152,7 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         Logger.success('Go Back navigated from Invoice Details drawer back to the Invoice list.');
     });
 
-    test('TC218 @regression @retainage : No console errors while loading the Retainage UI', async () => {
+    test('TC328 @regression @retainage : No console errors while loading the Retainage UI', async () => {
         const errors = [];
         page.on('console', (msg) => {
             if (msg.type() === 'error') errors.push(msg.text());
@@ -169,7 +169,7 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         Logger.success('No console errors observed while loading the Invoice list or Invoice Details Retainage UI.');
     });
 
-    test('TC230 @regression @retainage : Invoice line-items grid shows the correct per-line Retainage %, Retainage ($), Retainage Released, Total Withheld to Date, Outstanding Retainage and Net Payable values', async () => {
+    test('TC329 @regression @retainage : Invoice line-items grid shows the correct per-line Retainage %, Retainage ($), Retainage Released, Total Withheld to Date, Outstanding Retainage and Net Payable values', async () => {
         await retainagePage.gotoInvoiceDetail(fixture.jobId, fixture.invoiceId);
         await expect(loc.retainagePercentInput).toBeVisible({ timeout: 20000 });
 
@@ -240,7 +240,7 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         Logger.success(`Invoice line-items grid: all 7 Retainage columns and the calculation between Invoice Amount / Retainage % / Retainage ($) / Net Payable are verified for "${fixture.lineItem.label}".`);
     });
 
-    test('TC231 @regression @retainage : Retainage calculation formula is verified explicitly — Invoice Amount x Retainage % = Retainage Withheld, and Invoice Amount - Retainage Withheld + Retainage Released = Net Payable', async () => {
+    test('TC330 @regression @retainage : Retainage calculation formula is verified explicitly — Invoice Amount x Retainage % = Retainage Withheld, and Invoice Amount - Retainage Withheld + Retainage Released = Net Payable', async () => {
         await retainagePage.gotoInvoiceDetail(fixture.jobId, fixture.invoiceId);
         await expect(loc.retainagePercentInput).toBeVisible({ timeout: 20000 });
 
@@ -286,7 +286,7 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         expect(illustrativeNetPayable).toBe(950);
     });
 
-    test('TC235 @regression @retainage : Invoice inherits the job/contract Retainage % by default, and can be overridden at the invoice level', async () => {
+    test('TC331 @regression @retainage : Invoice inherits the job/contract Retainage % by default, and can be overridden at the invoice level', async () => {
         await retainagePage.gotoInvoiceList(fixture.jobId);
         await retainagePage.createDraftInvoice();
 
@@ -311,7 +311,7 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         Logger.success(`Invoice-level override (${fixture.overrideScenario.invoiceLevelPercent}%) cascaded to the line: Retainage ($${fixture.overrideScenario.expectedRetainageAmount}) and Net Payable ($${fixture.overrideScenario.expectedNetPayable}) both match Invoice Amount ($${fixture.overrideScenario.invoiceAmount}) x ${fixture.overrideScenario.invoiceLevelPercent}%.`);
     });
 
-    test('TC236 @regression @retainage : A single line\'s Retainage % can be overridden independently of the invoice-level value', async () => {
+    test('TC332 @regression @retainage : A single line\'s Retainage % can be overridden independently of the invoice-level value', async () => {
         await retainagePage.gotoInvoiceList(fixture.jobId);
         await retainagePage.createDraftInvoice();
         await retainagePage.setRetainagePercent(fixture.overrideScenario.invoiceLevelPercent);
@@ -340,7 +340,7 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         expect(invoiceLevelBadge).toBe('Override');
     });
 
-    test('TC237 @regression @retainage : Retainage ($) rounds to the nearest cent, not the nearest whole dollar (rounding edge case)', async () => {
+    test('TC333 @regression @retainage : Retainage ($) rounds to the nearest cent, not the nearest whole dollar (rounding edge case)', async () => {
         await retainagePage.gotoInvoiceList(fixture.jobId);
         await retainagePage.createDraftInvoice();
 
@@ -366,7 +366,7 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         Logger.success(`Rounding edge case verified: $${fixture.roundingScenario.expectedAmountAfterEntry} x ${fixture.roundingScenario.percent}% = 16.6665 rounds to ${fixture.roundingScenario.expectedRetainageAmount} (nearest cent), giving Net Payable ${fixture.roundingScenario.expectedNetPayable}.`);
     });
 
-    test('TC238 @regression @retainage : Retainage Released can be set above 0 and is reflected in Net Payable; approval succeeds when it does not exceed Withheld', async () => {
+    test('TC334 @regression @retainage : Retainage Released can be set above 0 and is reflected in Net Payable; approval succeeds when it does not exceed Withheld', async () => {
         await retainagePage.gotoInvoiceList(fixture.jobId);
         const invoiceId = await retainagePage.createDraftInvoice();
 
@@ -393,7 +393,7 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         Logger.success(`Invoice #${invoiceId} approved successfully with Retainage Released > 0 and no over-draw error.`);
     });
 
-    test('TC239 @regression @retainage : Approval is rejected when a contract line\'s cumulative Retainage Released would exceed its cumulative Retainage Withheld', async () => {
+    test('TC335 @regression @retainage : Approval is rejected when a contract line\'s cumulative Retainage Released would exceed its cumulative Retainage Withheld', async () => {
         await retainagePage.gotoInvoiceList(fixture.jobId);
         const invoiceId = await retainagePage.createDraftInvoice();
 
@@ -441,7 +441,7 @@ test.describe('Verify Contract > Retainage deep validation', () => {
         loc = retainageLocators(page);
     });
 
-    test('TC219 @regression @retainage : Contracts tab -> Retainage sub-tab loads with the correct headers', async () => {
+    test('TC336 @regression @retainage : Contracts tab -> Retainage sub-tab loads with the correct headers', async () => {
         await retainagePage.gotoContractRetainageTab(fixture.jobId);
 
         const notFound = await page.getByText(fixture.messages.notFoundGeneric, { exact: false }).isVisible({ timeout: 5000 }).catch(() => false);
@@ -459,7 +459,7 @@ test.describe('Verify Contract > Retainage deep validation', () => {
         Logger.success('Headers verified: Invoice / Line Item, Date, Withheld, Released, Outstanding.');
     });
 
-    test('TC220 @regression @retainage : Invoice row is present with correct Date/Withheld/Released/Outstanding and expands successfully', async () => {
+    test('TC337 @regression @retainage : Invoice row is present with correct Date/Withheld/Released/Outstanding and expands successfully', async () => {
         await retainagePage.gotoContractRetainageTab(fixture.jobId);
 
         const invoiceRow = retainagePage.getRetainageTabInvoiceRow(`Invoice #${fixture.invoiceId}`);
@@ -478,7 +478,7 @@ test.describe('Verify Contract > Retainage deep validation', () => {
         Logger.success('Invoice row expanded successfully — line item child row is visible.');
     });
 
-    test('TC221 @regression @retainage : Every available line item under the invoice is expanded and has no further nested rows', async () => {
+    test('TC338 @regression @retainage : Every available line item under the invoice is expanded and has no further nested rows', async () => {
         await retainagePage.gotoContractRetainageTab(fixture.jobId);
         const invoiceRow = retainagePage.getRetainageTabInvoiceRow(`Invoice #${fixture.invoiceId}`);
         await expect(invoiceRow).toBeVisible({ timeout: 15000 });
@@ -498,7 +498,7 @@ test.describe('Verify Contract > Retainage deep validation', () => {
         Logger.success('Confirmed no additional expandable rows remain under the line item — expansion is exhaustive for this fixture.');
     });
 
-    test('TC222 @regression @retainage : Expanded line item shows correct Scope/Schedule of Value label and currency values', async () => {
+    test('TC339 @regression @retainage : Expanded line item shows correct Scope/Schedule of Value label and currency values', async () => {
         await retainagePage.gotoContractRetainageTab(fixture.jobId);
         const invoiceRow = retainagePage.getRetainageTabInvoiceRow(`Invoice #${fixture.invoiceId}`);
         await retainagePage.toggleRetainageTabRow(invoiceRow);
@@ -524,7 +524,7 @@ test.describe('Verify Contract > Retainage deep validation', () => {
         Logger.success(`Parent-child hierarchy verified: line item Withheld/Released (${values.withheld}/${values.released}) match parent invoice row.`);
     });
 
-    test('TC223 @regression @retainage : Total row is correct and cross-checks against the expanded rows', async () => {
+    test('TC340 @regression @retainage : Total row is correct and cross-checks against the expanded rows', async () => {
         await retainagePage.gotoContractRetainageTab(fixture.jobId);
         const invoiceRow = retainagePage.getRetainageTabInvoiceRow(`Invoice #${fixture.invoiceId}`);
         await retainagePage.toggleRetainageTabRow(invoiceRow);
@@ -553,7 +553,7 @@ test.describe('Verify Contract > Retainage deep validation', () => {
         Logger.success(`Cross-check passed: fixture invoice #${fixture.invoiceId}'s own Withheld/Released (${invoiceValues.withheld}/${invoiceValues.released}) match the sum of its expanded line item(s), and correctly contribute to the grid-wide Total row above.`);
     });
 
-    test('TC224 @regression @retainage : Withheld amount matches Invoice Amount x Retainage % from the invoice created earlier', async () => {
+    test('TC341 @regression @retainage : Withheld amount matches Invoice Amount x Retainage % from the invoice created earlier', async () => {
         await retainagePage.gotoInvoiceDetail(fixture.jobId, fixture.invoiceId);
         await expect(loc.retainagePercentInput).toBeVisible({ timeout: 20000 });
         const overview = await retainagePage.getOverviewRetainageValues();
@@ -577,7 +577,7 @@ test.describe('Verify Contract > Retainage deep validation', () => {
         Logger.success(`Outstanding ($${actualOutstanding}) = Withheld ($${actualWithheld}) - Released ($${actualReleased}) verified.`);
     });
 
-    test('TC225 @regression @retainage : Currency formatting is correct for Withheld/Released/Outstanding', async () => {
+    test('TC342 @regression @retainage : Currency formatting is correct for Withheld/Released/Outstanding', async () => {
         await retainagePage.gotoContractRetainageTab(fixture.jobId);
         const invoiceRow = retainagePage.getRetainageTabInvoiceRow(`Invoice #${fixture.invoiceId}`);
         await expect(invoiceRow).toBeVisible({ timeout: 15000 });
@@ -601,7 +601,7 @@ test.describe('Verify Contract > Retainage deep validation', () => {
         Logger.success('Zero-amount formatting verified: Released renders as "$0" (not "$0.00" or blank).');
     });
 
-    test('TC226 @regression @retainage : Expand/collapse persists data correctly with no UI corruption across repeated cycles', async () => {
+    test('TC343 @regression @retainage : Expand/collapse persists data correctly with no UI corruption across repeated cycles', async () => {
         await retainagePage.gotoContractRetainageTab(fixture.jobId);
         const invoiceRow = retainagePage.getRetainageTabInvoiceRow(`Invoice #${fixture.invoiceId}`);
         await expect(invoiceRow).toBeVisible({ timeout: 15000 });
@@ -629,7 +629,7 @@ test.describe('Verify Contract > Retainage deep validation', () => {
         }
     });
 
-    test('TC227 @regression @retainage : Contract / Documents / Retainage sub-tab selection state is correct when switching tabs', async () => {
+    test('TC344 @regression @retainage : Contract / Documents / Retainage sub-tab selection state is correct when switching tabs', async () => {
         await retainagePage.gotoContractRetainageTab(fixture.jobId);
         await expect(loc.retainageSubTab).toHaveAttribute('aria-selected', 'true');
 
@@ -650,7 +650,7 @@ test.describe('Verify Contract > Retainage deep validation', () => {
         Logger.success('Switched back to Retainage sub-tab — selected state correct and URL reflects contractSubTab=retainage.');
     });
 
-    test('TC228 @regression @retainage : retainage-invoices API returns 200 with values matching the UI', async () => {
+    test('TC345 @regression @retainage : retainage-invoices API returns 200 with values matching the UI', async () => {
         let capturedResponse = null;
         const retainageInvoicesEndpoint = fixture.apiEndpoints.retainageInvoices.replace('{jobId}', fixture.jobId);
         page.on('response', async (response) => {
@@ -684,7 +684,7 @@ test.describe('Verify Contract > Retainage deep validation', () => {
         Logger.success(`API payload cross-checked against UI: sum of lines[].withheld (${apiWithheldFormatted}) matches the rendered invoice row Withheld (${rowValues.withheld}).`);
     });
 
-    test('TC229 @regression @retainage : No console errors, page errors, or failed API responses on the Contract > Retainage tab', async () => {
+    test('TC346 @regression @retainage : No console errors, page errors, or failed API responses on the Contract > Retainage tab', async () => {
         const consoleErrors = [];
         const pageErrors = [];
         const failedResponses = [];
@@ -710,7 +710,7 @@ test.describe('Verify Contract > Retainage deep validation', () => {
         Logger.success('No console errors, page errors, or failed (4xx/5xx) API responses observed while loading and expanding/collapsing the Contract > Retainage tab.');
     });
 
-    test('TC232 @regression @retainage : Contract Overview card shows every field, and Total Withheld / Total Released / Outstanding Balance are hidden when the contract Retainage % is 0', async () => {
+    test('TC347 @regression @retainage : Contract Overview card shows every field, and Total Withheld / Total Released / Outstanding Balance are hidden when the contract Retainage % is 0', async () => {
         await retainagePage.gotoContractRetainageTab(fixture.jobId);
         await expect(loc.contractsTabPanel).toBeVisible({ timeout: 15000 });
 
@@ -741,7 +741,7 @@ test.describe('Verify Contract > Retainage deep validation', () => {
         Logger.success('Total Withheld / Total Released / Outstanding Balance are correctly hidden on the Contract Overview card because this contract\'s Retainage % is 0.');
     });
 
-    test('TC233 @regression @retainage : Edit Contract Overview drawer locks Retainage % once the contract is finalized', async () => {
+    test('TC348 @regression @retainage : Edit Contract Overview drawer locks Retainage % once the contract is finalized', async () => {
         await retainagePage.gotoContractRetainageTab(fixture.jobId);
         await expect(loc.editContractOverviewButton).toBeVisible({ timeout: 15000 });
 
@@ -765,7 +765,7 @@ test.describe('Verify Contract > Retainage deep validation', () => {
         await retainagePage.cancelEditContractOverviewDrawer();
     });
 
-    test('TC234 @regression @retainage : Retainage sub-tab is enabled because the contract is finalized', async () => {
+    test('TC349 @regression @retainage : Retainage sub-tab is enabled because the contract is finalized', async () => {
         await retainagePage.gotoContractRetainageTab(fixture.jobId);
 
         // Per PR978, the Retainage sub-tab is enabled only once its contract is finalized. This

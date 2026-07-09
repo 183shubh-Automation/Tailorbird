@@ -1,0 +1,19 @@
+{
+  "_source": "MCP-verified live 2026-07-08 against beta.tailorbird.com/organization (Property access tab), QA Automations org. New fixture for FEAT-972 — does not duplicate fixture/organization.json (invite dialog copy) or fixture/manageTeamRoles.json (tab labels), which are reused as-is.",
+  "property_access_tab": "Property access",
+  "users_tab": "Users",
+  "transpose_view_button": "Transpose view",
+  "settings_button": "Settings",
+  "column_property": "Property",
+  "column_location": "Location",
+  "column_access": "Access",
+  "column_actions": "Actions",
+  "dialog_title_prefix": "Property access: ",
+  "dialog_user_search_placeholder": "Search by name or email",
+  "select_all_button": "Select all",
+  "deselect_all_button": "Deselect all",
+  "no_properties_found": "No properties found.",
+  "access_granted_toast_title": "Access granted",
+  "access_granted_toast_message": "Property access granted.",
+  "duplicate_invite_inline_error": "User already invited"
+}

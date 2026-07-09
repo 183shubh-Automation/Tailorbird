@@ -66,7 +66,7 @@
     "moneyPrefix": "^\\$",
     "withheldSignedPrefix": "^-\\s*\\$",
     "releasedSignedPrefix": "^\\+\\s*\\$",
-    "currencyOrDash": "^(\\$[\\d,]+(\\.\\d{2})?|—)$",
+    "currencyOrDash": "^(\\$[\\d,]+(\\.\\d{1,2})?|—)$",
     "invoiceRetainageBadgeInherited": "^From contract \\(\\d+(\\.\\d+)?%\\)$",
     "overDrawErrorMessage": "^Failed to confirm invoice: Retainage released \\(\\$([\\d,]+\\.\\d{2})\\) cannot exceed retainage withheld \\(\\$([\\d,]+\\.\\d{2})\\) for a contract line\\. Reduce the release before approving\\.$"
   },

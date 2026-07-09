@@ -22,7 +22,7 @@ test.describe('Multi Approver Invoice Approval Flow', () => {
         await expect(page).toHaveURL(process.env.DASHBOARD_URL);
     });
 
-    test('TC21 @approval @multiApprover : Two invoices route through multi-approver approval end-to-end', async () => {
+    test('TC320 @approval @multiApprover : Two invoices route through multi-approver approval end-to-end', async () => {
         const { jobName, approverEmails, approvalNotes, invoiceAmount, approvalStatus } = fixture;
 
         // Step 1: Go to Jobs tab

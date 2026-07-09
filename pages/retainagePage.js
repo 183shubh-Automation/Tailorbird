@@ -194,12 +194,33 @@ class RetainagePage {
   }
 
   /**
+   * Forces every row of the Contracts > Retainage grid to render into the DOM at once. This
+   * revo-grid instance sizes its own rendered row count to whatever currently fits in the
+   * visible viewport height — it has no scrollable overflow container, so rows below the fold
+   * are simply never instantiated in the DOM (confirmed live via MCP browser: at a short window
+   * height only 10 of 12 invoice rows existed in the DOM, and every row appeared immediately
+   * once the grid element was forced to an oversized explicit height). As this fixture job
+   * accumulates more invoices from repeated test runs, that fold moves higher, so any read that
+   * counts/sums every row must call this first.
+   */
+  async renderAllRetainageTabRows() {
+    await this.page.evaluate(() => {
+      const grid = document.querySelector('revo-grid');
+      const wrapper = document.querySelector('.retainage-history-revogrid');
+      if (grid) grid.style.setProperty('height', '20000px', 'important');
+      if (wrapper) wrapper.style.setProperty('height', '20000px', 'important');
+    });
+    await this.page.waitForTimeout(300);
+  }
+
+  /**
    * Sums Withheld/Released across every top-level invoice row currently rendered in the
    * Contracts > Retainage grid — used to cross-check the Total row without assuming there is
    * exactly one invoice on the job.
    * @returns {Promise<{withheld:number, released:number}>}
    */
   async sumAllRetainageTabInvoiceRows() {
+    await this.renderAllRetainageTabRows();
     const rows = await this.loc.retainageTabAllInvoiceRows.all();
     let withheld = 0;
     let released = 0;

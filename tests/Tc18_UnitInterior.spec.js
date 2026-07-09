@@ -87,7 +87,7 @@ test.afterAll(() => {
 // ── Suite ─────────────────────────────────────────────────────────────────────
 test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
 
-    test('TC274 @sanity @regression Verify user is able to navigate from Jobs listing to Contracts Units tab and validate complete Units page UI including tabs, labels, CTAs, toolbar buttons, grid headers, unit statuses and action controls against fixture data',
+    test('TC281 @sanity @regression Verify user is able to navigate from Jobs listing to Contracts Units tab and validate complete Units page UI including tabs, labels, CTAs, toolbar buttons, grid headers, unit statuses and action controls against fixture data',
         async () => {
             Logger.info('[TC_UI_001] START: Full navigation + fixture text assertions');
 
@@ -240,7 +240,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
         },
     );
 
-    test('TC275 @regression Verify selecting a non-expandable plain unit enables only Release Units action and keeps Update Status and Edit Scopes disabled, including validation of button reset after deselection',
+    test('TC282 @regression Verify selecting a non-expandable plain unit enables only Release Units action and keeps Update Status and Edit Scopes disabled, including validation of button reset after deselection',
         async () => {
             Logger.info('[TC_UI_002] START');
 
@@ -290,7 +290,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
         },
     );
 
-    test('TC276 @regression Verify selecting an expandable unit with scope data enables applicable unit actions and validates Update Status dropdown functionality by verifying all available status options, labels and ordering',
+    test('TC283 @regression Verify selecting an expandable unit with scope data enables applicable unit actions and validates Update Status dropdown functionality by verifying all available status options, labels and ordering',
         async () => {
             Logger.info('[TC_UI_003] START: Toggle row button states + dropdown option labels');
 
@@ -366,7 +366,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
         },
     );
 
-    test('TC277 @regression Verify Update Status functionality is working as expected by applying all supported status changes on units and validating updated grid status along with conditional status switching between multiple units',
+    test('TC284 @regression Verify Update Status functionality is working as expected by applying all supported status changes on units and validating updated grid status along with conditional status switching between multiple units',
         async () => {
             Logger.info('[TC_UI_004] START: Full Update Status E2E for all 6 options');
 
@@ -469,7 +469,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
         },
     );
 
-    test('TC278 @regression Verify Release Units functionality end-to-end by validating release dialog content, cancel flow, apply same scopes to all units functionality and successful release with updated unit status verification',
+    test('TC285 @regression Verify Release Units functionality end-to-end by validating release dialog content, cancel flow, apply same scopes to all units functionality and successful release with updated unit status verification',
         async () => {
             Logger.info('[TC_UI_005] START: Release Units dialog full E2E');
 
@@ -660,7 +660,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
         },
     );
 
-    test('TC279 @regression Verify Units tab negative and edge scenarios including default disabled actions, invalid release attempts, search filtering, no-result handling and button state reset after selection changes',
+    test('TC286 @regression Verify Units tab negative and edge scenarios including default disabled actions, invalid release attempts, search filtering, no-result handling and button state reset after selection changes',
         async () => {
             Logger.info('[TC_UI_006] START: Negative and edge cases');
 
@@ -763,7 +763,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
         },
     );
 
-    test('TC280 @visual Visual testing scenarios for Units tab including initial load, plain vs toggle row selection states, and Release Units dialog appearance',
+    test('TC287 @visual Visual testing scenarios for Units tab including initial load, plain vs toggle row selection states, and Release Units dialog appearance',
         async () => {
             Logger.info('[TC_UI_007] START: Visual regression snapshots');
 
@@ -820,7 +820,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
         },
     );
 
-    test('TC281 @regression Verify filter functionality on Units tab — Status filter (Released and In Progress hardcoded), FP Type filter and Unit Type filter each reduce grid rows to matching records only, combined filters apply AND logic, and Clear all restores the full grid',
+    test('TC288 @regression Verify filter functionality on Units tab — Status filter (Released and In Progress hardcoded), FP Type filter and Unit Type filter each reduce grid rows to matching records only, combined filters apply AND logic, and Clear all restores the full grid',
         async () => {
             Logger.info('[TC_UI_008] START: Filter functionality E2E');
 
@@ -1056,15 +1056,15 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
         },
     );
 
-    test('TC282 @regression Verify FP type presence correlates with Released tag: unit whose bid has no FP type ("-") must not show Released tag; units whose bids have FP type set must show Released tag',
+    test('TC289 @regression Verify FP type presence correlates with Released tag: unit whose bid has no FP type ("-") must not show Released tag; units whose bids have FP type set must show Released tag',
         async () => {
-            Logger.info('[TC282] START — navigating to "FP type testing" job for FP type ↔ Released validation');
+            Logger.info('[TC289] START — navigating to "FP type testing" job for FP type ↔ Released validation');
             await po.navigateToJobUnitsTab('FP type testing');
-            Logger.success('[TC282] Contracts > Units sub-tab loaded');
+            Logger.success('[TC289] Contracts > Units sub-tab loaded');
 
             // ── S1: Unit 1001 — Bid 3 has FP type "-" → must NOT show Released ──────
             await test.step('S1: Unit 1001 — bid has no FP type ("-") → must NOT show Released tag', async () => {
-                Logger.info('[TC282-S1] Searching for unit 1001');
+                Logger.info('[TC289-S1] Searching for unit 1001');
                 await loc.unitSearchInput.fill('1001');
                 await loc.unitSearchInput.press('Enter');
                 await page.waitForTimeout(1200);
@@ -1075,7 +1075,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
                 ).toBeVisible({ timeout: 10000 });
 
                 const status = await po.getUnitStatus(1001);
-                Logger.info(`[TC282-S1] Unit 1001: bid "Bid 3" has FP type "-" (not entered) → grid status: "${status}"`);
+                Logger.info(`[TC289-S1] Unit 1001: bid "Bid 3" has FP type "-" (not entered) → grid status: "${status}"`);
                 InteractionLogger.logAssertion(
                     'FPType→Released',
                     'Unit 1001 (Bid 3 FP type: "-")',
@@ -1087,13 +1087,13 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
                     status,
                     `Unit 1001: its Bid 3 has no FP type set ("-") — unit must NOT show Released tag. Actual status: "${status}"`,
                 ).not.toContain('Released');
-                Logger.success('[TC282-S1] ✔ Unit 1001 does NOT show Released tag (Bid 3 FP type is "-")');
+                Logger.success('[TC289-S1] ✔ Unit 1001 does NOT show Released tag (Bid 3 FP type is "-")');
             });
 
             // ── S2: Units 1002/1003/1004 — FP type set → MUST show Released ──────────
             for (const unitNum of [1002, 1003, 1004]) {
                 await test.step(`S2: Unit ${unitNum} — FP type is set → must show Released tag`, async () => {
-                    Logger.info(`[TC282-S2] Searching for unit ${unitNum}`);
+                    Logger.info(`[TC289-S2] Searching for unit ${unitNum}`);
                     await loc.unitSearchInput.fill(String(unitNum));
                     await loc.unitSearchInput.press('Enter');
                     await page.waitForTimeout(1200);
@@ -1104,7 +1104,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
                     ).toBeVisible({ timeout: 10000 });
 
                     const status = await po.getUnitStatus(unitNum);
-                    Logger.info(`[TC282-S2] Unit ${unitNum}: FP type is set → grid status: "${status}"`);
+                    Logger.info(`[TC289-S2] Unit ${unitNum}: FP type is set → grid status: "${status}"`);
                     InteractionLogger.logAssertion(
                         'FPType→Released',
                         `Unit ${unitNum} (FP type: set)`,
@@ -1116,12 +1116,12 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
                         status,
                         `Unit ${unitNum}: FP type is set — unit must show Released tag. Actual status: "${status}"`,
                     ).toBe('Released');
-                    Logger.success(`[TC282-S2] ✔ Unit ${unitNum} shows Released tag (FP type is set)`);
+                    Logger.success(`[TC289-S2] ✔ Unit ${unitNum} shows Released tag (FP type is set)`);
                 });
             }
 
             Logger.success(
-                '[TC282] COMPLETE: FP type ↔ Released tag rule verified — ' +
+                '[TC289] COMPLETE: FP type ↔ Released tag rule verified — ' +
                 'unit 1001 (Bid 3 FP type "-") is not Released; units 1002/1003/1004 (FP type set) are Released',
             );
         },

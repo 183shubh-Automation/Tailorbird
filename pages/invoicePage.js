@@ -2653,6 +2653,25 @@ class InvoicePage {
         Logger.error(`[TC109 recovery] Invoice "${searchTerm}" still "${status}" after ${maxAttempts} attempt(s).`);
         return { recovered: false, finalStatus: status, attempts: maxAttempts };
     }
+
+    /**
+     * TC130 helper — for flows that create several invoices first and confirm them
+     * afterward. Reuses the existing, already-verified ensureInvoiceIsPendingApproval()
+     * for each invoice number in sequence; does not duplicate or modify any of its
+     * search/View-Invoice/confirm logic, and does not touch any other existing method.
+     * @param {string[]} invoiceNumbers - e.g. ["Invoice #14656", "Invoice #14657"]
+     * @param {number} maxAttemptsPerInvoice
+     * @returns {Promise<Array<{searchTerm: string, recovered: boolean, finalStatus: string|null, attempts: number}>>}
+     */
+    async confirmInvoicesPendingApproval(invoiceNumbers, maxAttemptsPerInvoice = 3) {
+        const results = [];
+        for (const searchTerm of invoiceNumbers) {
+            Logger.step(`[TC130] Confirming invoice "${searchTerm}" to reach Pending Approval...`);
+            const outcome = await this.ensureInvoiceIsPendingApproval(searchTerm, maxAttemptsPerInvoice);
+            results.push({ searchTerm, ...outcome });
+        }
+        return results;
+    }
 }
 
 module.exports = { InvoicePage };
