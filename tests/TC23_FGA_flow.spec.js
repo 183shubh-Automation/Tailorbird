@@ -312,75 +312,276 @@ test.describe("FEAT-972 FGA User Management", () => {
             expect(orgUser, `Activated user "${email}" must exist in /api/organization/users`).not.toBeNull();
             expect(orgUser.status, "Activated user must no longer be in pending status").not.toBe("pending");
 
-            // ── Strict FGA scope validation: profile menu options for a Member with single-property access ──
-            Logger.step("[TC355] Validating profile menu options for the activated Member user");
-            const profileMenuOptions = await activation.getProfileMenuOptions(email);
-            Logger.info(`[TC355] Profile menu options visible: ${JSON.stringify(profileMenuOptions)}`);
-            expect(profileMenuOptions, "Profile menu must contain exactly Profile and Logout, in that order").toEqual(["Profile", "Logout"]);
-            for (const forbiddenOption of ["Manage Approvers", "Manage Organization", "Switch Organization"]) {
-                expect(profileMenuOptions, `Profile menu must NOT contain "${forbiddenOption}" for this Member user`).not.toContain(forbiddenOption);
-            }
-            Logger.success("[TC355] ✅ Profile menu correctly limited to Profile and Logout only");
-
-            // ── Strict FGA scope validation: every row's Property column, on every list page, must be
-            // exactly TARGET_PROPERTY — logs and asserts each row individually, never just the first ──
-            async function assertGridPropertyColumn(pageLabel) {
-                // The grid shell (and its checkbox column) can render before the "Property"
-                // column's own data finishes fetching — poll instead of reading once immediately.
-                await expect
-                    .poll(async () => (await activation.getGridColumnValues("Property")).length, {
-                        timeout: 20000,
-                        message: `${pageLabel}: waiting for Property column rows to load`,
-                    })
-                    .toBeGreaterThan(0);
-
-                const values = await activation.getGridColumnValues("Property");
-                Logger.info(`[TC355] ${pageLabel} table contains ${values.length} row(s)`);
-                values.forEach((value, idx) => {
-                    Logger.info(`[TC355] ${pageLabel} Row ${idx + 1} Property = ${value}`);
-                });
-                expect(values.length, `${pageLabel} must contain at least one row scoped to "${TARGET_PROPERTY}"`).toBeGreaterThan(0);
-                values.forEach((value, idx) => {
-                    expect(value, `${pageLabel} Row ${idx + 1} Property must equal exactly "${TARGET_PROPERTY}" — no other property allowed`).toBe(TARGET_PROPERTY);
-                });
-                Logger.success(`[TC355] ✅ ${pageLabel}: all ${values.length} row(s) scoped to "${TARGET_PROPERTY}"`);
-            }
-
-            Logger.step("[TC355] Navigating to Projects page to validate Property column scope");
-            await activation.gotoProjectsPage();
-            await assertGridPropertyColumn("Projects");
-
-            Logger.step("[TC355] Navigating to Jobs page to validate Property column scope");
-            await activation.gotoJobsPage();
-            await assertGridPropertyColumn("Jobs");
-
-            Logger.step("[TC355] Navigating to Bids page to validate Property column scope");
-            await activation.gotoBidsPage();
-            await assertGridPropertyColumn("Bids");
-
-            Logger.step("[TC355] Navigating to Change Orders page to validate Property column scope");
-            await activation.gotoChangeOrdersPage();
-            await assertGridPropertyColumn("Change Orders");
-
-            Logger.step("[TC355] Navigating to Invoices page to validate Property column scope");
-            await activation.gotoInvoicesPage();
-            await assertGridPropertyColumn("Invoices");
-
-            Logger.step("[TC355] Navigating to CapEx page to validate Property column scope");
-            await activation.gotoCapexPage();
-            await assertGridPropertyColumn("CapEx");
-
-            Logger.step("[TC355] Navigating to Budget page to validate the Property dropdown scope");
-            await activation.gotoBudgetPage();
-            const budgetPropertyOptions = await activation.getBudgetPropertyDropdownOptions();
-            Logger.info(`[TC355] Budget Property dropdown options: ${JSON.stringify(budgetPropertyOptions)}`);
-            expect(budgetPropertyOptions, "Budget Property dropdown must contain exactly one option").toHaveLength(1);
-            expect(budgetPropertyOptions, `Budget Property dropdown must contain only "${TARGET_PROPERTY}"`).toEqual([TARGET_PROPERTY]);
-            Logger.success(`[TC355] ✅ Budget Property dropdown scoped to exactly one property — "${TARGET_PROPERTY}"`);
-
             Logger.success(`[TC355] ✅ Full activation completed for ${email} (${firstName} ${lastName})`);
         } finally {
             await activation.close();
+        }
+    });
+});
+
+/**
+ * FGA scope validation for an activated Member user with single-property access.
+ *
+ * TC355 (above) proves the activation flow itself. Everything that used to run inline at
+ * the end of that one giant test — profile menu options, per-module grid/dropdown scope —
+ * is broken out here into 8 test cases, one per module, per the requested breakdown.
+ *
+ * Session reuse: activating a user via yopmail + AuthKit is by far the slowest part of this
+ * flow (multiple inbox polls, ~30-90s). Repeating it for all 8 cases below would be both
+ * slow and wasteful, so it runs exactly ONCE in beforeAll, and its authenticated
+ * storageState is captured and reused to spin up a fresh, independent context/page per
+ * test — the same "session file" pattern used elsewhere in this framework
+ * (test.use({ storageState: 'sessionState.json' })), just captured at runtime instead of
+ * being a pre-existing checked-in file, since this session belongs to a brand-new user
+ * created fresh on every run.
+ *
+ * Parallel-safe: every test below creates its own context/page from the shared
+ * storageState and closes it when done, so none share mutable state and
+ * test.describe.configure({ mode: 'parallel' }) can safely schedule them concurrently.
+ * Note: with this repo's playwright.config.js pinned to workers: 1, they still execute
+ * one at a time in practice; the beforeAll below would only re-run per additional worker
+ * process if that pin is ever raised.
+ */
+test.describe("FEAT-972 FGA scope validation — activated Member user (single-property access)", () => {
+    test.describe.configure({ mode: "parallel" });
+
+    /** @type {Awaited<ReturnType<import('@playwright/test').BrowserContext['storageState']>> | null} */
+    let sharedStorageState = null;
+    let sharedEmail = null;
+
+    test.beforeAll(async ({ browser }) => {
+        test.skip(!dashboardLandingUrl, "DASHBOARD_URL or fixture dashboard required");
+
+        const adminContext = await browser.newContext({ storageState: "sessionState.json" });
+        const adminPage = await adminContext.newPage();
+        const fga = new FgaUserManagementPage(adminPage);
+        const { email, randomSuffix } = generateFgaTestUser("fga_scope");
+        const firstName = "Test";
+        const lastName = `Test${randomSuffix}`;
+        const password = process.env.TEST_PASSWORD || "Pitney51@@";
+
+        Logger.step(`[FGA scope setup] Inviting new member for scope validation: ${email}`);
+        await fga.gotoOrganization(dashboardLandingUrl);
+        const inviteResult = await fga.inviteMemberAndCaptureApi(email);
+        expect(inviteResult.status).toBe(201);
+        expect(inviteResult.ok).toBeTruthy();
+        saveCreatedUser({ email, role: "Member", testCase: "TC356-374", purpose: "FGA scope validation (shared session)", createdAt: new Date().toISOString() });
+        await fga.validateInvitedBadge(email);
+
+        Logger.step(`[FGA scope setup] Granting property access on "${TARGET_PROPERTY}" so the activated user has exactly one property`);
+        await fga.openPropertyAccessTab();
+        await fga.searchProperty(TARGET_PROPERTY);
+        const assignResult = await fga.assignUserToProperty(TARGET_PROPERTY, email);
+        expect(assignResult.status).toBe(200);
+        expect(assignResult.ok).toBeTruthy();
+        await fga.expectAccessGrantedToast();
+        await fga.closePropertySettings(TARGET_PROPERTY);
+        await adminContext.close();
+        Logger.success(`[FGA scope setup] Property access granted on "${TARGET_PROPERTY}" for ${email}`);
+
+        const activation = await UserActivationPage.create(browser);
+        try {
+            Logger.step("[FGA scope setup] Opening yopmail and the invite email");
+            await activation.openInbox(email);
+            await activation.openInviteEmailAndLaunchActivation();
+            await activation.acceptInvitation();
+            await activation.fillNameAndContinue(firstName, lastName);
+            await activation.setPasswordAndContinue(password);
+            await activation.completeEmailVerificationIfPrompted();
+            await activation.selectOrganizationIfPrompted("2026");
+            await activation.expectLandedOnDashboard(process.env.DASHBOARD_URL || /financials\/capex/);
+
+            sharedStorageState = await activation.context.storageState();
+            sharedEmail = email;
+            Logger.success(`[FGA scope setup] ✅ Activated ${email} and captured its session for reuse across all scope-validation cases`);
+        } finally {
+            await activation.close();
+        }
+    });
+
+    /**
+     * Spins up a fresh, isolated context/page from the shared activated-user session and
+     * navigates it straight to the dashboard (so gotoXPage()'s relative navigation has a
+     * real origin to resolve against — a brand-new page starts at about:blank).
+     * @param {import('@playwright/test').Browser} browser
+     */
+    async function newAuthenticatedActivation(browser) {
+        const context = await browser.newContext({ storageState: sharedStorageState });
+        const page = await context.newPage();
+        await page.goto(process.env.DASHBOARD_URL || dashboardLandingUrl, { waitUntil: "load" });
+        return { context, activation: UserActivationPage.fromAuthenticatedSession(context, page) };
+    }
+
+    /** Poll-then-read: the grid shell can render before the named column's data finishes fetching. */
+    async function getScopedGridValues(activation, columnHeader, pageLabel) {
+        await expect
+            .poll(async () => (await activation.getGridColumnValues(columnHeader)).length, {
+                timeout: 20000,
+                message: `${pageLabel}: waiting for ${columnHeader} column rows to load`,
+            })
+            .toBeGreaterThan(0);
+        const values = await activation.getGridColumnValues(columnHeader);
+        values.forEach((value, idx) => Logger.info(`[FGA scope] ${pageLabel} Row ${idx + 1} ${columnHeader} = ${value}`));
+        return values;
+    }
+
+    test("TC356 @regression @FGA @scope : Profile menu access is scoped correctly — Profile/Logout visible, org-admin options restricted", async ({ browser }) => {
+        const { context, activation } = await newAuthenticatedActivation(browser);
+        try {
+            const options = await activation.getProfileMenuOptions(sharedEmail);
+            Logger.info(`[TC356] Profile menu options: ${JSON.stringify(options)}`);
+
+            expect(options, 'Profile menu must contain "Profile"').toContain("Profile");
+            Logger.success('[TC356] ✅ "Profile" option is visible');
+
+            expect(options, 'Profile menu must contain "Logout"').toContain("Logout");
+            Logger.success('[TC356] ✅ "Logout" option is visible');
+
+            for (const forbiddenOption of ["Manage Approvers", "Manage Organization", "Switch Organization"]) {
+                expect(options, `Profile menu must NOT contain "${forbiddenOption}" for this Member user`).not.toContain(forbiddenOption);
+                Logger.success(`[TC356] ✅ "${forbiddenOption}" correctly restricted`);
+            }
+
+            Logger.success("[TC356] ✅ Verified Profile menu access and validated restricted options are hidden.");
+        } finally {
+            await context.close();
+        }
+    });
+
+    test("TC357 @regression @FGA @scope : Project visibility is limited to the assigned property only", async ({ browser }) => {
+        const { context, activation } = await newAuthenticatedActivation(browser);
+        try {
+            await activation.gotoProjectsPage();
+            const values = await getScopedGridValues(activation, "Property", "Projects");
+            Logger.info(`[TC357] Projects table contains ${values.length} row(s)`);
+
+            expect(values.length, `Projects must contain at least one row scoped to "${TARGET_PROPERTY}"`).toBeGreaterThan(0);
+            expect(values, `"${TARGET_PROPERTY}" must be visible in the Projects Property column`).toContain(TARGET_PROPERTY);
+
+            values.forEach((value, idx) => {
+                expect(value, `Projects Row ${idx + 1} Property must equal exactly "${TARGET_PROPERTY}" — no other property allowed`).toBe(TARGET_PROPERTY);
+            });
+
+            Logger.success(`[TC357] ✅ Verified Project visibility is limited to the assigned property only (${values.length} row(s), all "${TARGET_PROPERTY}").`);
+        } finally {
+            await context.close();
+        }
+    });
+
+    test("TC358 @regression @FGA @scope : Job visibility is limited to the assigned property only", async ({ browser }) => {
+        const { context, activation } = await newAuthenticatedActivation(browser);
+        try {
+            await activation.gotoJobsPage();
+            const values = await getScopedGridValues(activation, "Property", "Jobs");
+            Logger.info(`[TC358] Jobs table contains ${values.length} row(s)`);
+
+            expect(values.length, `Jobs must contain at least one row scoped to "${TARGET_PROPERTY}"`).toBeGreaterThan(0);
+            expect(values, `"${TARGET_PROPERTY}" must be visible in the Jobs Property column`).toContain(TARGET_PROPERTY);
+
+            values.forEach((value, idx) => {
+                expect(value, `Jobs Row ${idx + 1} Property must equal exactly "${TARGET_PROPERTY}" — no other property allowed`).toBe(TARGET_PROPERTY);
+            });
+
+            Logger.success(`[TC358] ✅ Verified Job visibility is limited to the assigned property only (${values.length} row(s), all "${TARGET_PROPERTY}").`);
+        } finally {
+            await context.close();
+        }
+    });
+
+    test("TC359 @regression @FGA @scope : CapEx module shows only the assigned property", async ({ browser }) => {
+        const { context, activation } = await newAuthenticatedActivation(browser);
+        try {
+            await activation.gotoCapexPage();
+            const values = await getScopedGridValues(activation, "Property", "CapEx");
+            Logger.info(`[TC359] CapEx table contains ${values.length} row(s)`);
+
+            expect(values.length, `CapEx must contain at least one row scoped to "${TARGET_PROPERTY}"`).toBeGreaterThan(0);
+            expect(values, `"${TARGET_PROPERTY}" must be visible in the CapEx Property column`).toContain(TARGET_PROPERTY);
+
+            values.forEach((value, idx) => {
+                expect(value, `CapEx Row ${idx + 1} Property must equal exactly "${TARGET_PROPERTY}" — no additional property allowed`).toBe(TARGET_PROPERTY);
+            });
+
+            Logger.success(`[TC359] ✅ Verified CapEx module shows only the assigned property (${values.length} row(s), all "${TARGET_PROPERTY}").`);
+        } finally {
+            await context.close();
+        }
+    });
+
+    test("TC360 @regression @FGA @scope : Bid visibility is limited to the assigned property only", async ({ browser }) => {
+        const { context, activation } = await newAuthenticatedActivation(browser);
+        try {
+            await activation.gotoBidsPage();
+            const values = await getScopedGridValues(activation, "Property", "Bids");
+            Logger.info(`[TC360] Bids table contains ${values.length} row(s)`);
+
+            expect(values.length, `Bids must contain at least one row scoped to "${TARGET_PROPERTY}"`).toBeGreaterThan(0);
+            expect(values, `"${TARGET_PROPERTY}" must be visible in the Bids Property column`).toContain(TARGET_PROPERTY);
+
+            values.forEach((value, idx) => {
+                expect(value, `Bids Row ${idx + 1} Property must equal exactly "${TARGET_PROPERTY}" — no other property allowed`).toBe(TARGET_PROPERTY);
+            });
+
+            Logger.success(`[TC360] ✅ Verified Bid visibility is limited to the assigned property only (${values.length} row(s), all "${TARGET_PROPERTY}").`);
+        } finally {
+            await context.close();
+        }
+    });
+
+    test("TC361 @regression @FGA @scope : Change Order visibility is limited to the assigned property only", async ({ browser }) => {
+        const { context, activation } = await newAuthenticatedActivation(browser);
+        try {
+            await activation.gotoChangeOrdersPage();
+            const values = await getScopedGridValues(activation, "Property", "Change Orders");
+            Logger.info(`[TC361] Change Orders table contains ${values.length} row(s)`);
+
+            expect(values.length, `Change Orders must contain at least one row scoped to "${TARGET_PROPERTY}"`).toBeGreaterThan(0);
+            expect(values, `"${TARGET_PROPERTY}" must be visible in the Change Orders Property column`).toContain(TARGET_PROPERTY);
+
+            values.forEach((value, idx) => {
+                expect(value, `Change Orders Row ${idx + 1} Property must equal exactly "${TARGET_PROPERTY}" — no other property allowed`).toBe(TARGET_PROPERTY);
+            });
+
+            Logger.success(`[TC361] ✅ Verified Change Order visibility is limited to the assigned property only (${values.length} row(s), all "${TARGET_PROPERTY}").`);
+        } finally {
+            await context.close();
+        }
+    });
+
+    test("TC362 @regression @FGA @scope : Invoice visibility is limited to the assigned property only", async ({ browser }) => {
+        const { context, activation } = await newAuthenticatedActivation(browser);
+        try {
+            await activation.gotoInvoicesPage();
+            const values = await getScopedGridValues(activation, "Property", "Invoices");
+            Logger.info(`[TC362] Invoices table contains ${values.length} row(s)`);
+
+            expect(values.length, `Invoices must contain at least one row scoped to "${TARGET_PROPERTY}"`).toBeGreaterThan(0);
+            expect(values, `"${TARGET_PROPERTY}" must be visible in the Invoices Property column`).toContain(TARGET_PROPERTY);
+
+            values.forEach((value, idx) => {
+                expect(value, `Invoices Row ${idx + 1} Property must equal exactly "${TARGET_PROPERTY}" — no other property allowed`).toBe(TARGET_PROPERTY);
+            });
+
+            Logger.success(`[TC362] ✅ Verified Invoice visibility is limited to the assigned property only (${values.length} row(s), all "${TARGET_PROPERTY}").`);
+        } finally {
+            await context.close();
+        }
+    });
+
+    test("TC363 @regression @FGA @scope : Budget property dropdown contains only the assigned property", async ({ browser }) => {
+        const { context, activation } = await newAuthenticatedActivation(browser);
+        try {
+            await activation.gotoBudgetPage();
+            const budgetPropertyOptions = await activation.getBudgetPropertyDropdownOptions();
+            Logger.info(`[TC363] Budget Property dropdown options: ${JSON.stringify(budgetPropertyOptions)}`);
+
+            expect(budgetPropertyOptions, `Budget Property dropdown must contain "${TARGET_PROPERTY}"`).toContain(TARGET_PROPERTY);
+            expect(budgetPropertyOptions, "Budget Property dropdown must contain exactly one option").toHaveLength(1);
+            expect(budgetPropertyOptions, `Budget Property dropdown must contain only "${TARGET_PROPERTY}" — no additional property`).toEqual([TARGET_PROPERTY]);
+
+            Logger.success(`[TC363] ✅ Verified Budget property dropdown contains only the assigned property ("${TARGET_PROPERTY}").`);
+        } finally {
+            await context.close();
         }
     });
 });

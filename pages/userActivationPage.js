@@ -32,6 +32,20 @@ class UserActivationPage {
         return new UserActivationPage(context, yopmailPage);
     }
 
+    /**
+     * Wraps an already-authenticated page/context (typically created from a storageState
+     * captured after a prior run of the full activation flow) so callers can reuse the
+     * post-activation navigation/assertion methods (gotoXPage, getProfileMenuOptions,
+     * getGridColumnValues, ...) without repeating the yopmail + AuthKit dance every time.
+     * @param {import('@playwright/test').BrowserContext} context
+     * @param {import('@playwright/test').Page} page
+     */
+    static fromAuthenticatedSession(context, page) {
+        const instance = new UserActivationPage(context, null);
+        instance.activationPage = page;
+        return instance;
+    }
+
     inboxFrame() {
         return this.yopmailPage.frameLocator('iframe[name="ifinbox"]');
     }
