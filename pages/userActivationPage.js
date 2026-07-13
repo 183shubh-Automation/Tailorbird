@@ -189,7 +189,7 @@ class UserActivationPage {
             Logger.step(`[Activation] Organization-selection screen shown — choosing org containing "${orgNameFragment}"`);
             await this.activationPage
                 .locator('.ak-OrgSelection')
-                .getByRole('button', { name: new RegExp(orgNameFragment) })
+                .getByRole('button', { name: orgNameFragment })
                 .click();
         } else {
             Logger.info('[Activation] No organization-selection screen — user redirected directly (single-org invite)');

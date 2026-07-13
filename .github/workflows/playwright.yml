@@ -26,11 +26,11 @@ jobs:
 
       # Run mandatory tests first in serial
       - name: Run @mandatory tests
-        run: npx playwright test --grep "@mandatory" --workers=1
+        run: npx playwright test --grep "@login" --workers=1
 
       # Run all remaining tests except mandatory
       - name: Run remaining tests
-        run: npx playwright test --grep-invert "@mandatory" --workers=4
+        run: npx playwright test --grep "@FGA" --workers=4
 
       - name: Upload Playwright report
         if: always()
