@@ -1,8 +1,8 @@
 {
   "jobName": "Automation job for multi approver flow",
   "approverEmails": {
-    "email1": "admin_1783321052746@yopmail.com",
-    "email2": "admin_1783341186610@yopmail.com"
+    "email1": "admin_1783684429271@yopmail.com",
+    "email2": "admin_1783935704500@yopmail.com"
   },
   "approvalNotes": "Approved via automation - multi approver flow test",
   "invoiceAmount": {

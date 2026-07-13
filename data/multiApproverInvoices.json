@@ -2,17 +2,17 @@
   "jobName": "Automation job for multi approver flow",
   "invoices": [
     {
-      "invoiceNumberLabel": "Invoice #14240",
-      "invoiceNumber": "14240",
-      "title": "MultiApprover_Invoice_1783404388402_7ZO7",
-      "amount": 596
+      "invoiceNumberLabel": "Invoice #16005",
+      "invoiceNumber": "16005",
+      "title": "MultiApprover_Invoice_1783942844299_XQBW",
+      "amount": 95
     },
     {
-      "invoiceNumberLabel": "Invoice #14241",
-      "invoiceNumber": "14241",
-      "title": "MultiApprover_Invoice_1783404394072_ZPD4",
-      "amount": 494
+      "invoiceNumberLabel": "Invoice #16006",
+      "invoiceNumber": "16006",
+      "title": "MultiApprover_Invoice_1783942849129_F9RH",
+      "amount": 377
     }
   ],
-  "createdAt": "2026-07-07T06:06:35.692Z"
+  "createdAt": "2026-07-13T11:40:50.795Z"
 }
