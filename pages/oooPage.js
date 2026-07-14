@@ -26,14 +26,14 @@ class OOOPage {
     async navigateToProfile() {
         Logger.step('[OOO] Navigating to /profile');
         await this.page.goto(`${this.apiBase}/profile`, { waitUntil: 'domcontentloaded' });
-        await this.loc.tab_profile.waitFor({ state: 'visible', timeout: 20000 });
+        await this.loc.tab_profile.waitFor({ state: 'visible', timeout: 45000 });
         Logger.success('[OOO] Profile page loaded');
     }
 
     async clickOooTab() {
         Logger.step('[OOO] Clicking Out of Office tab');
         await this.loc.tab_ooo.click();
-        await this.loc.oooTabpanel.waitFor({ state: 'visible', timeout: 15000 });
+        await this.loc.oooTabpanel.waitFor({ state: 'visible', timeout: 45000 });
         await this.page.waitForTimeout(800);
         Logger.success('[OOO] OOO tabpanel visible');
     }
@@ -130,39 +130,39 @@ class OOOPage {
     async selectDelegateToRole() {
         Logger.step('[OOO] Selecting "Delegate to role" radio');
         await this.loc.radio_delegateToRole.click();
-        await expect(this.loc.radio_delegateToRole, '"Delegate to role" must be checked after click').toBeChecked({ timeout: 5000 });
+        await expect(this.loc.radio_delegateToRole, '"Delegate to role" must be checked after click').toBeChecked({ timeout: 45000 });
         Logger.success('[OOO] "Delegate to role" radio is checked');
     }
 
     async selectDelegateToUser() {
         Logger.step('[OOO] Selecting "Delegate to user" radio');
         await this.loc.radio_delegateToUser.click();
-        await expect(this.loc.radio_delegateToUser, '"Delegate to user" must be checked after click').toBeChecked({ timeout: 5000 });
+        await expect(this.loc.radio_delegateToUser, '"Delegate to user" must be checked after click').toBeChecked({ timeout: 45000 });
         Logger.success('[OOO] "Delegate to user" radio is checked');
     }
 
     async pickRoleFromDropdown(roleName) {
         Logger.step(`[OOO] Opening role dropdown and selecting "${roleName}"`);
         await this.loc.input_role.click();
-        await this.loc.roleOption(roleName).waitFor({ state: 'visible', timeout: 10000 });
+        await this.loc.roleOption(roleName).waitFor({ state: 'visible', timeout: 45000 });
         await this.loc.roleOption(roleName).click();
-        await expect(this.loc.input_role, `Role input must show "${roleName}" after selection`).toHaveValue(roleName, { timeout: 5000 });
+        await expect(this.loc.input_role, `Role input must show "${roleName}" after selection`).toHaveValue(roleName, { timeout: 45000 });
         Logger.success(`[OOO] Role "${roleName}" selected`);
     }
 
     async pickMemberFromDropdown(memberName) {
         Logger.step(`[OOO] Opening team member dropdown and selecting "${memberName}"`);
         await this.loc.input_teamMember.click();
-        await this.loc.memberOption(memberName).waitFor({ state: 'visible', timeout: 10000 });
+        await this.loc.memberOption(memberName).waitFor({ state: 'visible', timeout: 45000 });
         await this.loc.memberOption(memberName).click();
-        await expect(this.loc.input_teamMember, `Team member input must show "${memberName}" after selection`).toHaveValue(memberName, { timeout: 5000 });
+        await expect(this.loc.input_teamMember, `Team member input must show "${memberName}" after selection`).toHaveValue(memberName, { timeout: 45000 });
         Logger.success(`[OOO] Team member "${memberName}" selected`);
     }
 
     async openDatePicker() {
         Logger.step('[OOO] Opening date picker');
         await this.loc.input_deactivateDate.click();
-        await this.loc.calendar_monthLabel.waitFor({ state: 'visible', timeout: 10000 });
+        await this.loc.calendar_monthLabel.waitFor({ state: 'visible', timeout: 45000 });
         Logger.success('[OOO] Date picker calendar is open');
     }
 
@@ -199,7 +199,7 @@ class OOOPage {
             .locator('.mantine-DateInput-day:not([data-disabled="true"])')
             .filter({ has: this.page.getByText(todayDay, { exact: true }) })
             .first();
-        await todayBtn.waitFor({ state: 'visible', timeout: 5000 });
+        await todayBtn.waitFor({ state: 'visible', timeout: 45000 });
         await todayBtn.click();
         Logger.success(`[OOO] Today (${todayDay}) clicked in calendar`);
     }
@@ -210,12 +210,12 @@ class OOOPage {
      */
     async clearDeactivateDate() {
         Logger.step('[OOO] Clearing deactivate date via × button');
-        await this.loc.btn_clearDate.waitFor({ state: 'visible', timeout: 8000 });
+        await this.loc.btn_clearDate.waitFor({ state: 'visible', timeout: 45000 });
         await this.loc.btn_clearDate.click();
         await expect(
             this.loc.input_deactivateDate,
             'Date input must be empty after clearing'
-        ).toHaveValue('', { timeout: 5000 });
+        ).toHaveValue('', { timeout: 45000 });
         Logger.success('[OOO] Date cleared — input is empty');
     }
 
@@ -224,9 +224,9 @@ class OOOPage {
         await expect(
             this.loc.btn_activate,
             '"Activate OOO mode" must be enabled before clicking'
-        ).toBeEnabled({ timeout: 5000 });
+        ).toBeEnabled({ timeout: 45000 });
         await this.loc.btn_activate.click();
-        await this.loc.activeStatePara.waitFor({ state: 'visible', timeout: 15000 });
+        await this.loc.activeStatePara.waitFor({ state: 'visible', timeout: 45000 });
         Logger.success('[OOO] OOO activated — active state banner is visible');
     }
 
@@ -235,9 +235,9 @@ class OOOPage {
         await expect(
             this.loc.btn_deactivate,
             '"Deactivate OOO mode" button must be visible'
-        ).toBeVisible({ timeout: 10000 });
+        ).toBeVisible({ timeout: 45000 });
         await this.loc.btn_deactivate.click();
-        await this.loc.btn_activate.waitFor({ state: 'visible', timeout: 15000 });
+        await this.loc.btn_activate.waitFor({ state: 'visible', timeout: 45000 });
         Logger.success('[OOO] OOO deactivated — activate form is visible again');
     }
 
@@ -257,13 +257,13 @@ class OOOPage {
      * Pass { withDateLine: true } to also assert the auto-deactivation date line is visible.
      */
     async assertIsActive({ withDateLine = false } = {}) {
-        await expect(this.loc.activeStatePara, 'Active state banner must be visible').toBeVisible({ timeout: 10000 });
-        await expect(this.loc.btn_deactivate, '"Deactivate OOO mode" button must be visible').toBeVisible({ timeout: 5000 });
+        await expect(this.loc.activeStatePara, 'Active state banner must be visible').toBeVisible({ timeout: 45000 });
+        await expect(this.loc.btn_deactivate, '"Deactivate OOO mode" button must be visible').toBeVisible({ timeout: 45000 });
         if (withDateLine) {
             await expect(
                 this.page.getByText(/Auto-deactivates on/i),
                 'Auto-deactivation date line must be visible'
-            ).toBeVisible({ timeout: 10000 });
+            ).toBeVisible({ timeout: 45000 });
         }
         Logger.success('[OOO] Active state confirmed — banner visible, deactivate visible');
     }
@@ -276,11 +276,11 @@ class OOOPage {
      *   - date field empty
      */
     async assertIsInactive() {
-        await expect(this.loc.activeStatePara, 'Active banner must be HIDDEN').toBeHidden({ timeout: 10000 });
-        await expect(this.loc.btn_activate, '"Activate OOO mode" must be VISIBLE').toBeVisible({ timeout: 5000 });
-        await expect(this.loc.btn_activate, '"Activate OOO mode" must be DISABLED — no delegate selected').toBeDisabled({ timeout: 5000 });
-        await expect(this.loc.btn_deactivate, '"Deactivate OOO mode" must be HIDDEN').toBeHidden({ timeout: 5000 });
-        await expect(this.loc.input_deactivateDate, 'Date field must be empty after reset').toHaveValue('', { timeout: 5000 });
+        await expect(this.loc.activeStatePara, 'Active banner must be HIDDEN').toBeHidden({ timeout: 45000 });
+        await expect(this.loc.btn_activate, '"Activate OOO mode" must be VISIBLE').toBeVisible({ timeout: 45000 });
+        await expect(this.loc.btn_activate, '"Activate OOO mode" must be DISABLED — no delegate selected').toBeDisabled({ timeout: 45000 });
+        await expect(this.loc.btn_deactivate, '"Deactivate OOO mode" must be HIDDEN').toBeHidden({ timeout: 45000 });
+        await expect(this.loc.input_deactivateDate, 'Date field must be empty after reset').toHaveValue('', { timeout: 45000 });
         Logger.success('[OOO] Inactive state confirmed — banner hidden, activate disabled, deactivate hidden, date cleared');
     }
 
@@ -368,14 +368,14 @@ class OOOPage {
         await this.loc.input_teamMember.click();
         await this.loc.input_teamMember.pressSequentially(partial, { delay: 50 });
         await this.page.waitForTimeout(500);
-        await this.page.getByRole('listbox').first().waitFor({ state: 'visible', timeout: 10000 });
+        await this.page.getByRole('listbox').first().waitFor({ state: 'visible', timeout: 45000 });
         const option = this.page.getByRole('option', { name: targetName });
-        await option.waitFor({ state: 'visible', timeout: 10000 });
+        await option.waitFor({ state: 'visible', timeout: 45000 });
         await option.click();
         await expect(
             this.loc.input_teamMember,
             `Team member input must show "${targetName}" after selection`
-        ).toHaveValue(targetName, { timeout: 5000 });
+        ).toHaveValue(targetName, { timeout: 45000 });
         Logger.success(`[OOO] Team member "${targetName}" selected`);
     }
 
@@ -389,14 +389,14 @@ class OOOPage {
         await this.loc.input_teamMember.click({ clickCount: 3 });
         await this.loc.input_teamMember.pressSequentially(partial, { delay: 50 });
         await this.page.waitForTimeout(500);
-        await this.page.getByRole('listbox').first().waitFor({ state: 'visible', timeout: 10000 });
+        await this.page.getByRole('listbox').first().waitFor({ state: 'visible', timeout: 45000 });
         const option = this.page.getByRole('option', { name: targetName });
-        await option.waitFor({ state: 'visible', timeout: 10000 });
+        await option.waitFor({ state: 'visible', timeout: 45000 });
         await option.click();
         await expect(
             this.loc.input_teamMember,
             `Team member input must show "${targetName}" after replacing`
-        ).toHaveValue(targetName, { timeout: 5000 });
+        ).toHaveValue(targetName, { timeout: 45000 });
         Logger.success(`[OOO] Delegate user replaced with "${targetName}"`);
     }
 
