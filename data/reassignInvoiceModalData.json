@@ -1,8 +1,8 @@
 {
   "heading": "Reassign Invoice",
-  "currentProject": "Project1 for Reassigning_Automation",
-  "currentJob": "Job1 for Reassigning_Automation",
-  "currentScope": "Bid1 with material",
+  "currentProject": "Project2 for Reassigning_automation",
+  "currentJob": "Job2 for Reassigning_automation",
+  "currentScope": "Bid2 with material",
   "newProjectLabel": "New Project *",
   "newJobLabel": "New Job *",
   "newProjectPlaceholder": "Select project",
@@ -14,12 +14,11 @@
     "project3 for reassigning_automation"
   ],
   "newJobOptions": [
-    "Job2 for Reassigning_automation",
-    "job4 fromproject 2 reassigning"
+    "Job 8 for reassigning automation",
+    "Job3 for reassigning_automation"
   ],
   "scopeOptions": [
-    "Bid2 with material",
-    "Bid3 with material",
-    "Bid4 with material"
+    "Bid for project 3",
+    "another bid for project 3"
   ]
 }

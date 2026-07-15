@@ -94,6 +94,18 @@ async function countInvoicesInJob(rip, propertyName, jobName) {
         rip.page.getByText('No invoices added yet').waitFor({ state: 'visible', timeout: 15000 }).catch(() => {}),
     ]);
 
+    const noInvoicesVisible = await rip.page.getByText('No invoices added yet').isVisible().catch(() => false);
+    if (noInvoicesVisible) return 0;
+
+    // revo-grid VIRTUALIZES rows — it only paints what fits the current viewport, so once a job's
+    // invoice list grows past one screen, invoiceDataRows.count() undercounts the true total (proven
+    // live via MCP browser: 20 invoices in the API response / aria-rowcount="20", only 9 painted in
+    // the DOM). aria-rowcount on the grid element reflects revo-grid's real dataset size regardless
+    // of what's currently rendered, so prefer that; fall back to the DOM count if it's ever absent.
+    const ariaRowCount = await rip.loc.invoiceGridScope.getAttribute('aria-rowcount').catch(() => null);
+    const parsed = parseInt(ariaRowCount, 10);
+    if (Number.isFinite(parsed)) return parsed;
+
     return rip.loc.invoiceDataRows.count();
 }
 
