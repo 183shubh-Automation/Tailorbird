@@ -1,0 +1,25 @@
+{
+  "heading": "Reassign Invoice",
+  "currentProject": "Project1 for Reassigning_Automation",
+  "currentJob": "Job1 for Reassigning_Automation",
+  "currentScope": "Bid1 with material",
+  "newProjectLabel": "New Project *",
+  "newJobLabel": "New Job *",
+  "newProjectPlaceholder": "Select project",
+  "cancelButtonText": "Cancel",
+  "confirmButtonText": "Confirm Reassignment",
+  "newProjectOptions": [
+    "Project1 for Reassigning_Automation",
+    "Project2 for Reassigning_automation",
+    "project3 for reassigning_automation"
+  ],
+  "newJobOptions": [
+    "Job2 for Reassigning_automation",
+    "job4 fromproject 2 reassigning"
+  ],
+  "scopeOptions": [
+    "Bid2 with material",
+    "Bid3 with material",
+    "Bid4 with material"
+  ]
+}
