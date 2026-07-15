@@ -26,6 +26,10 @@ function bidLocators(page) {
         // Row link by bid name
         bidRowLink:           (name) => page.getByRole('link', { name, exact: true }),
 
+        // Left panel navigation — "Bids" item under Construction Management.
+        // Multiple matches can render in the nav (e.g. collapsed/expanded rail) — take the first.
+        leftNavBidsLink:      page.locator('nav').getByText('Bids', { exact: true }).first(),
+
         // ── Create Bid Modal ───────────────────────────────────────────────────────
         createBidDialog:      page.getByRole('dialog'),
         createBidHeading:     page.getByRole('heading', { name: /add ai_bid/i }),
@@ -75,6 +79,7 @@ function bidLocators(page) {
                                   .getByRole('button', { name: 'Save Changes' }),
         editCancelBtn:        page.getByRole('dialog', { name: 'Edit Bid' })
                                   .getByRole('button', { name: 'Cancel' }),
+        editBidSuccessToast:  page.getByRole('alert').filter({ hasText: 'Bid updated successfully' }),
 
         // ── Bid Book AI Assisted Tab ──────────────────────────────────────────────
         bidBookPanel:         page.getByRole('tabpanel', { name: 'Bid Book AI Assisted' }),

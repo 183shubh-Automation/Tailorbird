@@ -1762,4 +1762,36 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         }
     });
 
+    test('@approval @regression @positive TC364 All Approvals — Verify "Remind Approver" option is present in Approval Details and sends a reminder to the pending approver', async () => {
+        Logger.step('TC364: Starting Remind Approver flow in All Approvals');
+
+        await approvalJob.navigateToAllApprovalsTab();
+        await settleApprovalWorkspace(page, 1500);
+
+        // Open the Approval Details dialog for the first row in the grid via its eye icon.
+        const viewDetailsBtn = page.locator('[role="treegrid"] button:has(svg.lucide-eye):visible').first();
+        await expect(viewDetailsBtn, 'FAIL: No "View Details" (eye icon) button found in All Approvals grid').toBeVisible({ timeout: 15000 });
+        await viewDetailsBtn.click();
+
+        const dialog = page.getByRole('dialog').filter({ hasText: /Approval Details/i });
+        await expect(dialog).toBeVisible({ timeout: 20000 });
+        Logger.info('TC364: Approval Details dialog opened');
+
+        // Assert the "Remind Approver" option is present
+        const remindApproverBtn = dialog.getByRole('button', { name: 'Remind Approver' });
+        await expect(remindApproverBtn, 'FAIL: "Remind Approver" button should be visible in Approval Details').toBeVisible({ timeout: 10000 });
+        Logger.success('TC364: "Remind Approver" option verified as present');
+
+        // Click it and assert the success toast
+        await remindApproverBtn.click();
+
+        const successToast = page.getByRole('alert').filter({ hasText: /Reminder Sent/i });
+        await expect(successToast, 'FAIL: Success toast "Reminder Sent" should be visible after clicking Remind Approver').toBeVisible({ timeout: 15000 });
+        await expect(successToast).toContainText(/Reminder email sent to the pending approver/i);
+        Logger.success('TC364 passed: Remind Approver sent a reminder and success toast was shown');
+
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(300);
+    });
+
 });

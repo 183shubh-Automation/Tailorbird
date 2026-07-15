@@ -253,6 +253,83 @@ class BidPage {
         Logger.success(`Due date edit verified — Overview shows: "${dueDateText.trim()}"`);
     }
 
+    // ── Left Panel Navigation ────────────────────────────────────────────────────
+
+    async navigateToBidsPageViaLeftNav() {
+        const loc = this.loc();
+        Logger.step('Navigating to Bids via left panel nav...');
+        await expect(loc.leftNavBidsLink).toBeVisible({ timeout: 15000 });
+        await loc.leftNavBidsLink.click();
+        await expect(this.page).toHaveURL(/\/bids$/, { timeout: 15000 });
+        await this.page.waitForTimeout(2000);
+        Logger.success('On Bids list page (via left panel nav)');
+    }
+
+    /**
+     * Opens the first bid row from the Bids list and waits for the bid detail page.
+     * @returns {Promise<string>} the opened bid's name
+     */
+    async openFirstBidFromList() {
+        const loc = this.loc();
+        Logger.step('Selecting the first bid from the list...');
+        await expect(loc.bidGrid).toBeVisible({ timeout: 15000 });
+
+        const firstBidLink = this.page.getByRole('row')
+            .filter({ has: this.page.getByRole('link') })
+            .first()
+            .getByRole('link');
+        await expect(firstBidLink).toBeVisible({ timeout: 15000 });
+        const bidName = (await firstBidLink.textContent()).trim();
+
+        await firstBidLink.click();
+        await this.page.waitForURL(/\/bids\/\d+/, { timeout: 15000 });
+        await this.page.waitForTimeout(2000);
+        Logger.success(`Opened bid detail page: "${bidName}"`);
+        return bidName;
+    }
+
+    /**
+     * From the Overview tab, opens Edit Bid, changes the due date, saves, and verifies:
+     *  - the Overview panel reflects the new due date
+     *  - a success toast appears
+     * @param {string} newDueDateInput      Value to type into the date field, e.g. "12/24/2026"
+     * @param {string} expectedOverviewText Text expected in Overview's Bid Due Date field, e.g. "Dec 24, 2026"
+     * @returns {Promise<string>} the success toast's full text
+     */
+    async editDueDateFromOverviewAndAssertToast(newDueDateInput, expectedOverviewText) {
+        const loc = this.loc();
+        Logger.step(`Editing due date from Overview tab — new value: ${newDueDateInput}`);
+
+        await loc.overviewTab.click();
+        await loc.overviewPanel.waitFor({ state: 'visible', timeout: 15000 });
+
+        await expect(loc.editButton).toBeVisible();
+        await loc.editButton.click();
+        await expect(loc.editBidDialog).toBeVisible({ timeout: 10000 });
+        await expect(loc.editBidDueDateInput).toBeVisible();
+
+        await loc.editBidDueDateInput.fill(newDueDateInput);
+        await this.page.waitForTimeout(300);
+        await expect(loc.editSaveChangesBtn).toBeEnabled();
+
+        await loc.editSaveChangesBtn.click();
+        await expect(loc.editBidDialog).not.toBeVisible({ timeout: 15000 });
+        Logger.info('Edit Bid dialog closed after save');
+
+        // Overview must reflect the newly saved due date
+        await expect(loc.overviewFieldValue('Bid Due Date')).toContainText(expectedOverviewText, { timeout: 10000 });
+        Logger.success(`Overview "Bid Due Date" updated to "${expectedOverviewText}"`);
+
+        // Success toast must appear
+        await expect(loc.editBidSuccessToast).toBeVisible({ timeout: 10000 });
+        const toastText = (await loc.editBidSuccessToast.textContent()).trim();
+        expect(toastText).toContain('Updated');
+        expect(toastText).toContain('Bid updated successfully.');
+        Logger.success(`Success toast verified — "${toastText}"`);
+
+        return toastText;
+    }
+
     // ── Bid Book AI Assisted Tab ──────────────────────────────────────────────────
 
     async navigateToBidBookTab() {
