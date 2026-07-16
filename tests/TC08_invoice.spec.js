@@ -1009,5 +1009,97 @@ test.describe('Verify Invoice tab', () => {
         await page.screenshot({ path: path.join(TC08_SNAPSHOT_DIR, 'invoice_after_confirm.png') });
     });
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // NEW CASE: TC136
+    // Coverage: global (portfolio-wide) Invoices page — reached via the left-nav
+    // "Invoices" link (distinct from the job-scoped Invoice tab used throughout
+    // this file) — export the invoice list and verify the exported CSV's
+    // "Invoice Number" column values are never formatted as dates.
+    // Confirmed via live MCP browser investigation: current data exports Invoice
+    // Number as plain quoted text (e.g. "Invoice #16837"), so this test passes
+    // today — it exists to catch a regression if a future export change causes
+    // Invoice Number values to render in date form.
+    // ─────────────────────────────────────────────────────────────────────────
+    test('TC136 @regression @changeOrderAndinvoice : Should export invoices from the global Invoices page (left nav) and verify every Invoice Number value in the CSV is logged and never formatted as a date', async () => {
+        Logger.step('TC136: Navigate to global Invoices page via left nav and validate exported CSV Invoice Number formatting');
+
+        // ── 1. Go to "Invoices" from the left nav (global, portfolio-wide page) ──
+        const invoicesNavLink = page.locator('nav').locator('a').filter({ hasText: 'Invoices' }).first();
+        await invoicesNavLink.click();
+        // The current job-scoped URL's query params (propertyId, tab=invoices) carry over onto
+        // the new path, e.g. "/invoices?propertyId=8369&tab=invoices" — match on pathname only.
+        await page.waitForURL(/\/invoices(\?|$)/, { timeout: 15000 });
+        await expect(page, 'URL should be on the global Invoices page after clicking "Invoices" in the left nav').toHaveURL(/\/invoices(\?|$)/);
+        Logger.info(`TC136 step1: Navigated to global Invoices page via left nav — URL: ${page.url()} ✓`);
+
+        // ── 2. Export the invoices — a CSV file is generated ──
+        const exportBtn = page.getByRole('button', { name: 'Export' }).first();
+        await expect(exportBtn, 'Export button should be visible on the Invoices page').toBeVisible({ timeout: 10000 });
+        const [download] = await Promise.all([
+            page.waitForEvent('download', { timeout: 15000 }),
+            exportBtn.click(),
+        ]);
+        const downloadsDir = path.join(process.cwd(), 'downloads');
+        if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir, { recursive: true });
+        const suggestedFilename = download.suggestedFilename();
+        const savePath = path.join(downloadsDir, suggestedFilename);
+        await download.saveAs(savePath);
+        expect(fs.existsSync(savePath), `Exported CSV should exist on disk at "${savePath}"`).toBeTruthy();
+        Logger.info(`TC136 step2: CSV exported — filename="${suggestedFilename}", savedTo="${savePath}" ✓`);
+
+        // ── 3. Read the CSV and locate the "Invoice Number" column ──
+        const content = fs.readFileSync(savePath, 'utf-8');
+        const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
+        expect(lines.length, 'CSV should contain a header row plus at least one data row').toBeGreaterThan(1);
+
+        // Minimal RFC4180-style row parser — handles quoted fields with embedded commas
+        // (several Job/Description values in this export contain literal commas).
+        const parseCsvRow = (line) => {
+            const cells = [];
+            let cur = '';
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (inQuotes) {
+                    if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+                    else if (ch === '"') { inQuotes = false; }
+                    else { cur += ch; }
+                } else if (ch === '"') {
+                    inQuotes = true;
+                } else if (ch === ',') {
+                    cells.push(cur); cur = '';
+                } else {
+                    cur += ch;
+                }
+            }
+            cells.push(cur);
+            return cells;
+        };
+
+        const header = parseCsvRow(lines[0]);
+        const invoiceNumberIdx = header.findIndex((h) => h.trim().toLowerCase() === 'invoice number');
+        expect(invoiceNumberIdx, `CSV header should contain an "Invoice Number" column — got [${header.join(' | ')}]`).toBeGreaterThanOrEqual(0);
+        Logger.info(`TC136 step3: CSV header — [${header.join(' | ')}] — "Invoice Number" at index ${invoiceNumberIdx} ✓`);
+
+        // ── 4. Log every Invoice Number value in the column and assert none is date-formatted ──
+        // Note: this environment has several legitimate Invoice Number formats
+        // ("Invoice #16837", "AUTO-<timestamp>-<seq>", "INVESTIGATE-<timestamp>") from
+        // different automation flows, so we only check for date-like formatting here —
+        // not a single fixed pattern for the whole column.
+        const DATE_LIKE_PATTERN = /^\d{1,2}[\/\-]\d{1,2}([\/\-]\d{2,4})?$|^\d{4}-\d{1,2}-\d{1,2}$/;
+
+        const dataRows = lines.slice(1);
+        const invoiceNumberValues = dataRows.map((line) => (parseCsvRow(line)[invoiceNumberIdx] || '').trim());
+
+        Logger.info(`TC136 step4: Full "Invoice Number" column (${invoiceNumberValues.length} value(s)): ${JSON.stringify(invoiceNumberValues)}`);
+
+        const dateFormattedValues = invoiceNumberValues.filter((v) => DATE_LIKE_PATTERN.test(v));
+
+        Logger.info(`TC136 step4: ${dateFormattedValues.length} date-formatted value(s) found`);
+        expect(dateFormattedValues, `No Invoice Number value should be formatted as a date — found: ${JSON.stringify(dateFormattedValues)}`).toHaveLength(0);
+
+        Logger.success(`TC136 passed: exported CSV has ${invoiceNumberValues.length} invoice row(s), no Invoice Number value is formatted as a date`);
+    });
+
 });
 

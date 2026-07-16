@@ -400,4 +400,144 @@ test.describe('Vendors Directory - E2E', () => {
         Logger.success('TC242 passed: visual baselines saved to committed_ui_snapshots/TC14_manageVendor.spec.js/');
     });
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // NEW CASE: TC243
+    // Coverage: Vendor Website field — edit with a freshly generated random URL,
+    // fill any still-empty required fields (Trade / Service Area / POC), save,
+    // and confirm the saved website persists by reopening the Edit Vendor modal.
+    // NOTE (confirmed via live investigation): the vendor Overview tab does NOT
+    // render a "Website" row at all — the value is present in the vendor API
+    // response and in the Edit modal on reopen, but never surfaces on the
+    // Overview/Activity tabs, even in the raw page HTML. Persistence is
+    // therefore verified via the Edit Vendor modal, the only place it is
+    // actually visible.
+    // ─────────────────────────────────────────────────────────────────────────
+    test('TC243 @vendor @regression : Verify vendor Website can be edited with a freshly generated random URL, required fields are filled, changes save successfully, and the saved website persists in the Edit Vendor modal', async () => {
+        Logger.step('TC243: Edit vendor Website with a random URL and verify persistence via modal');
+
+        // ── 1. Go to site -> click "Directory" from left nav ──
+        const directoryNavLink = page.locator('nav').getByText('Directory', { exact: true }).first();
+        await directoryNavLink.click();
+        await page.waitForURL(/vendors\/directory/, { timeout: 15000 });
+        await vendorPage.waitForDirectoryReady();
+        await expect(page, 'URL should be on the Vendor Directory after clicking "Directory" in the left nav').toHaveURL(/vendors\/directory/);
+        await expect(vendorPage.locators.searchInput, 'Directory search box should be visible once the page is ready').toBeVisible();
+        Logger.info(`TC243 step1: Navigated to Vendor Directory via left nav "Directory" link — URL: ${page.url()} ✓`);
+
+        // ── 2. Search "Sumit corp" and view its details ──
+        await vendorPage.locators.searchInput.fill('Sumit corp');
+        await page.keyboard.press('Enter');
+        await page.waitForTimeout(1200);
+        const firstRow = vendorPage.locators.dataRows.first();
+        await expect(firstRow, 'Search for "Sumit corp" should return at least one matching vendor row').toBeVisible({ timeout: 8000 });
+        const firstRowText = (await firstRow.textContent()) || '';
+        expect(firstRowText, `First search result row should contain "Sumit corp" — got "${firstRowText.trim()}"`).toMatch(/Sumit corp/i);
+        Logger.info(`TC243 step2: Search "Sumit corp" matched row: "${firstRowText.trim().slice(0, 60)}" ✓`);
+
+        await vendorPage.openFirstVendorDetails();
+        await expect(page, 'URL should be on a vendor detail page after View Details').toHaveURL(/vendors\/\d+/);
+        const companyNameText = ((await vendorPage.locators.companyNameLabel.evaluate((el) => {
+            const parent = el.closest('div') || el.parentElement;
+            return parent ? parent.textContent || '' : '';
+        }).catch(() => '')) || '');
+        expect(companyNameText, `Vendor detail page should show "sumit corp" as the Company Name — got "${companyNameText.trim()}"`).toMatch(/sumit corp/i);
+        Logger.info(`TC243 step2: Opened vendor details for "sumit corp" — URL: ${page.url()}, Company Name section: "${companyNameText.trim()}" ✓`);
+
+        // ── 3. Open Edit dialog ──
+        await vendorPage.locators.editBtn.click();
+        await page.waitForTimeout(1500);
+        const dialog = vendorPage.locators.editDialog;
+        await expect(dialog, 'Edit Vendor dialog should open').toBeVisible({ timeout: 8000 });
+        await expect(dialog.getByRole('heading', { name: 'Edit Vendor' }), 'Edit Vendor dialog heading should be visible').toBeVisible();
+        Logger.info('TC243 step3: Edit Vendor dialog opened ✓');
+
+        // ── 4. Fill every required field that is still empty (Trade / Service Area / POC) ──
+        const tradeInput = dialog.getByRole('textbox', { name: 'Trade' });
+        const tradeChip = dialog.locator('text=Plumbing').first();
+        const tradeAlreadySet = await tradeChip.isVisible({ timeout: 1000 }).catch(() => false);
+        if (!tradeAlreadySet) {
+            await tradeInput.click();
+            await tradeInput.fill('Plumb');
+            await page.waitForTimeout(1200);
+            const tradeOption = page.getByRole('option', { name: 'Plumbing', exact: true });
+            await expect(tradeOption, 'Trade dropdown should offer "Plumbing" as a selectable option').toBeVisible({ timeout: 3000 });
+            await tradeOption.click();
+            // Dismiss the still-open Trade multi-select dropdown by clicking the dialog heading —
+            // Escape closes the ENTIRE Edit Vendor dialog here, not just the open listbox.
+            await dialog.getByRole('heading', { name: 'Edit Vendor' }).click();
+            await page.waitForTimeout(400);
+        }
+        await expect(tradeChip, 'Trade should show "Plumbing" as a selected chip').toBeVisible({ timeout: 5000 });
+        Logger.info(`TC243 step4: Trade confirmed set to "Plumbing" (${tradeAlreadySet ? 'already set from a prior run' : 'filled this run'}) ✓`);
+
+        const serviceAreaInput = dialog.getByRole('textbox', { name: /Search and select cities or regions/i });
+        const serviceAreaChip = dialog.locator('text=Nationwide').first();
+        const serviceAreaEditable = await serviceAreaInput.isVisible({ timeout: 1000 }).catch(() => false)
+            && await serviceAreaInput.isEnabled().catch(() => false);
+        if (serviceAreaEditable) {
+            await serviceAreaInput.click();
+            await serviceAreaInput.fill('Nationwide');
+            await page.waitForTimeout(1200);
+            const serviceAreaOption = page.getByRole('option', { name: 'Nationwide' });
+            await expect(serviceAreaOption, 'Service Area dropdown should offer "Nationwide" as a selectable option').toBeVisible({ timeout: 3000 });
+            await serviceAreaOption.click();
+            await page.waitForTimeout(400);
+        }
+        await expect(serviceAreaChip, 'Service Area should show "Nationwide" as the selected value').toBeVisible({ timeout: 5000 });
+        Logger.info(`TC243 step4: Service Area confirmed set to "Nationwide" (${serviceAreaEditable ? 'filled this run' : 'already set from a prior run'}) ✓`);
+
+        const pocInput = dialog.getByRole('textbox', { name: 'POC' });
+        const pocValueBefore = await pocInput.inputValue().catch(() => '');
+        const pocWasEmpty = await pocInput.isVisible({ timeout: 1000 }).catch(() => false) && !pocValueBefore;
+        if (pocWasEmpty) {
+            await pocInput.click();
+            await page.waitForTimeout(1000);
+            const pocOption = page.getByRole('option').first();
+            await expect(pocOption, 'POC dropdown should offer at least one primary-contact option').toBeVisible({ timeout: 3000 });
+            await pocOption.click();
+            await page.waitForTimeout(400);
+        }
+        const pocValueAfter = await pocInput.inputValue().catch(() => '');
+        expect(pocValueAfter, 'POC (Primary Contact) should have a non-empty value').not.toBe('');
+        Logger.info(`TC243 step4: POC confirmed set to "${pocValueAfter}" (${pocWasEmpty ? 'selected this run' : 'already set from a prior run'}) ✓`);
+
+        // ── 5. Generate a random website URL every run and fill it ──
+        const randomWebsite = `www.vendorsite${Date.now()}.com`;
+        const websiteInput = dialog.getByRole('textbox', { name: 'Website' });
+        await websiteInput.fill(randomWebsite);
+        await expect(websiteInput, 'Website field should reflect the freshly generated URL immediately after filling').toHaveValue(randomWebsite);
+        Logger.info(`TC243 step5: Website filled with freshly generated URL "${randomWebsite}" ✓`);
+
+        // ── 6. Save Changes ──
+        const saveBtn = vendorPage.locators.saveBtn.first();
+        await expect(saveBtn, 'Save Changes should be enabled once all required fields are valid').toBeEnabled({ timeout: 5000 });
+        await saveBtn.click();
+        Logger.info('TC243 step6: Save Changes clicked ✓');
+
+        // ── 7. Assert success toast ──
+        const successToast = page.getByRole('alert').filter({ hasText: /Vendor updated successfully/i });
+        await expect(successToast.first(), 'Success toast should confirm the vendor was updated').toBeVisible({ timeout: 8000 });
+        const toastText = (await successToast.first().textContent()) || '';
+        Logger.info(`TC243 step7: Success toast confirmed — text: "${toastText.trim()}" ✓`);
+        await expect(dialog, 'Edit Vendor dialog should close after a successful save').toBeHidden({ timeout: 8000 });
+        Logger.info('TC243 step7: Edit Vendor dialog closed after save ✓');
+        await page.waitForTimeout(1000);
+
+        // ── 8. Re-open Edit Vendor modal and assert the saved website persisted ──
+        await vendorPage.locators.editBtn.click();
+        await page.waitForTimeout(1500);
+        await expect(dialog, 'Edit Vendor dialog should reopen').toBeVisible({ timeout: 8000 });
+        const websiteInputAfterReopen = dialog.getByRole('textbox', { name: 'Website' });
+        await expect(websiteInputAfterReopen, 'Website value should persist exactly as saved when the Edit Vendor modal is reopened').toHaveValue(randomWebsite, { timeout: 8000 });
+        const websiteValueAfterReopen = await websiteInputAfterReopen.inputValue();
+        Logger.info(`TC243 step8: Website "${websiteValueAfterReopen}" confirmed saved and persisted in Edit Vendor modal ✓`);
+
+        // Close dialog cleanly without further changes
+        await dialog.getByRole('button', { name: 'Cancel' }).click();
+        await expect(dialog, 'Edit Vendor dialog should close after Cancel').toBeHidden({ timeout: 5000 });
+        Logger.info('TC243 step8: Edit Vendor dialog cancelled and closed cleanly ✓');
+
+        Logger.success(`TC243 passed: vendor Website "${randomWebsite}" saved successfully and persists in the Edit Vendor modal`);
+    });
+
 });

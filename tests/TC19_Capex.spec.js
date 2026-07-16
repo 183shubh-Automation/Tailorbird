@@ -1033,5 +1033,35 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC310 ✓');
     });
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // NEW CASE: TC311
+    // Coverage: Budget Remaining column — every row's value logged and asserted
+    // non-negative. Confirmed via live MCP browser investigation that this
+    // shared portfolio currently has rows with a genuinely negative Budget
+    // Remaining (over-budget properties), so this test is EXPECTED TO FAIL —
+    // it exists to surface that condition explicitly in the test report.
+    // ─────────────────────────────────────────────────────────────────────────
+    test('TC311 @regression @capex — Budget Remaining column: every row value logged and asserted non-negative', async ({ page }) => {
+        Logger.step('TC311: Logging and validating every Budget Remaining column value');
+
+        const rows = await capex.getAllGridRowData();
+        expect(rows.length, 'Grid should have at least one row of data').toBeGreaterThan(0);
+
+        const negativeRows = [];
+        for (const row of rows) {
+            const label = row.isTotal ? 'Total' : row.rowLabel;
+            const cell = row['Budget Remaining'];
+            Logger.info(`TC311: Row "${label}" — Budget Remaining = ${cell.raw} (parsed: ${cell.value})`);
+            if (cell.value !== null && cell.value < 0) {
+                negativeRows.push({ label, raw: cell.raw, value: cell.value });
+            }
+        }
+
+        Logger.info(`TC311: ${negativeRows.length} row(s) with negative Budget Remaining — ${JSON.stringify(negativeRows)}`);
+        expect(negativeRows, `Every Budget Remaining value should be non-negative — found ${negativeRows.length} negative row(s): ${JSON.stringify(negativeRows)}`).toHaveLength(0);
+
+        Logger.success('TC311 passed: no negative Budget Remaining values found');
+    });
+
 });
 
