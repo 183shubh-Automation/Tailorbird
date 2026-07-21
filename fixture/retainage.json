@@ -2,44 +2,43 @@
   "projectName": "Project_Automation_Retainage_flow",
   "propertyName": "Test Property3 Automation Retainage flow",
   "jobName": "Automation_Job_for_Retainage_flow",
-  "jobId": 4145,
-  "invoiceId": 14080,
-  "invoiceListUrl": "https://beta.tailorbird.com/jobs/4145?tab=invoices",
-  "invoiceDetailUrl": "https://beta.tailorbird.com/jobs/4145/invoices/14080",
+  "jobId": 4304,
+  "invoiceId": 17630,
+  "invoiceListUrl": "https://beta.tailorbird.com/jobs/4304?tab=invoices",
+  "invoiceDetailUrl": "https://beta.tailorbird.com/jobs/4304/invoices/17630",
   "discoveredVia": "mcp-browser-playwright",
-  "discoveredAt": "2026-07-06T10:42:00.000Z",
-  "notes": "Pre-existing fixture found live in staging under Projects. Purpose-built for Retainage automation (project/job/invoice names all say 'Retainage flow'). If this fixture is ever deleted, update jobId/invoiceId here after locating its replacement — TC22_Retainage.spec.js and pages/retainagePage.js read only from this file, no code changes needed.",
+  "discoveredAt": "2026-07-21T00:00:00.000Z",
+  "notes": "Rebuilt 2026-07-21 — the prior fixture invoice (#14080) no longer existed on job 4304 (staging data drift) and every invoice amount used by this suite has been capped at $10 or below per policy. Invoice #17630 (Gross $10, invoice-level Retainage % override to 10%) was created and approved live via MCP browser specifically because 10% on $10 yields a clean whole-dollar Retainage Withheld ($1) with zero rounding ambiguity anywhere (line-items grid, invoice list, Invoice Details Overview panel, and the Math.round-to-nearest-dollar check in TC329/TC330) — smaller overrides (e.g. 4%) produce sub-$1 withheld amounts that the Overview panel (but not the grid) rounds down to $0 on display, which looked like a bug but isn't. If this fixture invoice is ever deleted, recreate one the same way (small whole-dollar-clean Retainage Withheld) and update invoiceId here — TC22_Retainage.spec.js and pages/retainagePage.js read only from this file, no code changes needed.",
 
   "lineItem": {
     "scope": "Bid with material",
     "scheduleOfValue": "76000",
     "label": "Bid with material · 76000",
-    "invoiceAmount": "$5,000",
-    "retainagePercentValue": "4",
-    "retainageAmount": "$200",
+    "invoiceAmount": "$10",
+    "retainagePercentValue": "10",
+    "retainageAmount": "$1",
     "retainageReleased": "$0",
-    "netPayable": "$4,800"
+    "netPayable": "$9"
   },
 
   "expected": {
-    "listRowWithheldText": "$200",
-    "listRowNetPayableText": "$4,800",
+    "listRowWithheldText": "$1",
+    "listRowNetPayableText": "$9",
     "dashText": "—",
     "retainageTab": {
-      "withheld": "$200",
-      "released": "$0",
-      "outstanding": "$200"
+      "withheld": "$1",
+      "released": "$0"
     }
   },
 
   "contractOverview": {
     "property": "Test Property3 Automation Retainage flow",
-    "budgetCategory": "Concrete",
-    "contractId": "4145",
+    "budgetCategory": "Bathroom fixtures install",
+    "contractId": "4304",
     "vendor": "sumit corp",
     "vendorAddress": "Noida",
-    "duration": "Jul 1, 2026 -> Jul 31, 2026",
-    "estimatedTotalCost": "$0.00",
+    "duration": "Jul 1, 2026 -> Jan 1, 2029",
+    "estimatedTotalCost": "$900,000.00",
     "contractTerms": "-",
     "labels": {
       "totalWithheld": "Total Withheld",
@@ -73,28 +72,28 @@
 
   "overrideScenario": {
     "invoiceLevelPercent": 6,
-    "invoiceAmount": 1000,
-    "expectedRetainageAmount": 60,
-    "expectedNetPayable": 940,
+    "invoiceAmount": 10,
+    "expectedRetainageAmount": 0.6,
+    "expectedNetPayable": 9.4,
     "lineOverridePercent": 9,
-    "expectedLineOverrideRetainageAmount": 90,
-    "expectedLineOverrideNetPayable": 910
+    "expectedLineOverrideRetainageAmount": 0.9,
+    "expectedLineOverrideNetPayable": 9.1
   },
 
   "roundingScenario": {
-    "amountEntered": "333.335",
+    "amountEntered": "9.335",
     "percent": 5,
-    "expectedAmountAfterEntry": "$333.33",
-    "expectedRetainageAmount": "$16.67",
-    "expectedNetPayable": "$316.66"
+    "expectedAmountAfterEntry": "$9.33",
+    "expectedRetainageAmount": "$0.47",
+    "expectedNetPayable": "$8.86"
   },
 
   "releaseScenario": {
-    "amount": 333.33,
-    "percent": 5,
-    "releasedAmount": 10,
-    "expectedRetainageAmount": 16.67,
-    "expectedNetPayable": 326.66
+    "amount": 10,
+    "percent": 20,
+    "releasedAmount": 1,
+    "expectedRetainageAmount": 2,
+    "expectedNetPayable": 9
   },
 
   "overDrawScenario": {

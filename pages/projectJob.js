@@ -1661,9 +1661,9 @@ exports.ProjectJob = class ProjectJob {
             await finalizeBtn.click();
     
             const confirmBtn = page.getByRole('button', { name: /Finalize|Confirm/i }).last();
-            if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-                await confirmBtn.click();
-            }
+            // if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+            //     await confirmBtn.click();
+            // }
     
             await page.waitForLoadState('load');
             const finalizeResponse = await finalizeResponsePromise;

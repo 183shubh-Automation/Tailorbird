@@ -68,8 +68,8 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
         fs.writeFileSync(downloadsPropertyPath, JSON.stringify(propertyPayload, null, 2));
 
         Logger.step('TC226: Budget revision + create project (TC31)');
-        const budgetDataPath = path.resolve(process.cwd(), 'files', 'budget_data.csv');
-        expect(fs.existsSync(budgetDataPath), 'files/budget_data.csv must exist').toBeTruthy();
+        const budgetDataPath = path.resolve(process.cwd(), 'files', 'budget_data_for_E2EFlow.csv');
+        expect(fs.existsSync(budgetDataPath), 'files/budget_data_for_E2EFlow.csv must exist').toBeTruthy();
 
         await page.waitForTimeout(4000);
 
