@@ -59,8 +59,8 @@ test('TC71 @regression @sanity @mandatory @projectAndJob @contract : User should
     }
 
     const budgetJob = new BudgetJob(page);
-    const budgetDataPath = path.resolve(process.cwd(), 'files', 'budget_data.csv');
-    expect(fs.existsSync(budgetDataPath), 'files/budget_data.csv must exist for budget upload').toBeTruthy();
+    const budgetDataPath = path.resolve(process.cwd(), 'files', 'budget_data_for_E2EFlow.csv');
+    expect(fs.existsSync(budgetDataPath), 'files/budget_data_for_E2EFlow.csv must exist for budget upload').toBeTruthy();
 
     await budgetJob.navigateToBudget();
     // await budgetJob.waitForPageLoad();
