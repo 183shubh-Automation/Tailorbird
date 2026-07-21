@@ -2412,4 +2412,170 @@ exports.BudgetJob = class BudgetJob {
     async assertRevisionAINoteVisible(expectedText) {
         await expect(this.page.getByText(expectedText)).toBeVisible({ timeout: 15000 });
     }
+
+    // ===================== TC271: Budget Revision Reallocation Flow =====================
+
+    /**
+     * Adds a new budget line item via "Add Budget Item" in the revision editor and
+     * fills Category, Budget Item and Description. Original Budget is only filled
+     * when a truthy amount is passed - omitting it leaves the row at $0 original budget.
+     */
+    async addBudgetItemInRevision(categoryLabel, itemName, description, originalBudget) {
+        const addBtn = this.page.getByRole('button', { name: 'Add Budget Item' });
+        await expect(addBtn).toBeVisible({ timeout: 15000 });
+        const countBefore = await budget.treegridDataRows.count();
+        await addBtn.click();
+
+        // The new row's insertion position (top vs. current index) isn't guaranteed by
+        // timing, so wait for the row count to grow instead of assuming `.first()`.
+        await expect(async () => {
+            expect(await budget.treegridDataRows.count()).toBeGreaterThan(countBefore);
+        }).toPass({ timeout: 10000 });
+        await this.page.waitForTimeout(800);
+
+        // Identify the newly added row by content (its Budget Item cell still shows the
+        // empty-state "—" placeholder) rather than by position, since every previously
+        // added row already has its Budget Item filled in at this point.
+        const rows = budget.treegridDataRows;
+        const rowCount = await rows.count();
+        let newRowIndex = -1;
+        for (let i = 0; i < rowCount; i++) {
+            const itemCellText = ((await rows.nth(i).locator('[role="gridcell"]').nth(1).textContent().catch(() => '')) || '').trim();
+            if (itemCellText === '—') {
+                newRowIndex = i;
+                break;
+            }
+        }
+        if (newRowIndex < 0) throw new Error('Could not locate the newly added budget item row after clicking "Add Budget Item"');
+        await expect(rows.nth(newRowIndex)).toBeVisible({ timeout: 10000 });
+
+        // Category (cell 0) - opens a listbox of predefined category codes. Assigning a
+        // category can trigger RevoGrid to re-sort/re-index rows, so every subsequent
+        // step below re-locates the row by its (now unique and stable) category text
+        // instead of reusing a row reference captured by index.
+        await rows.nth(newRowIndex).locator('[role="gridcell"]').nth(0).dblclick();
+        await this.page.waitForTimeout(500);
+        await this.page.getByRole('option', { name: categoryLabel, exact: true }).first().click();
+        await this.page.waitForTimeout(800);
+
+        const rowByCategory = () => budget.treegridDataRows.filter({ hasText: categoryLabel }).first();
+
+        // Budget Item (cell 1)
+        let row = rowByCategory();
+        await expect(row, `Row for category "${categoryLabel}" must be visible`).toBeVisible({ timeout: 10000 });
+        await row.locator('[role="gridcell"]').nth(1).dblclick();
+        await this.page.waitForTimeout(300);
+        await this.page.locator('input[type="text"]').first().fill(itemName);
+        await this.page.keyboard.press('Enter');
+        await this.page.waitForTimeout(800);
+
+        // Description (cell 2)
+        row = rowByCategory();
+        await expect(row, `Row for category "${categoryLabel}" must be visible`).toBeVisible({ timeout: 10000 });
+        await row.locator('[role="gridcell"]').nth(2).dblclick();
+        await this.page.waitForTimeout(300);
+        await this.page.locator('input[type="text"]').first().fill(description);
+        await this.page.keyboard.press('Enter');
+        await this.page.waitForTimeout(800);
+
+        // Original Budget (cell 3)
+        if (originalBudget) {
+            row = rowByCategory();
+            await expect(row, `Row for category "${categoryLabel}" must be visible`).toBeVisible({ timeout: 10000 });
+            await row.locator('[role="gridcell"]').nth(3).dblclick();
+            await this.page.waitForTimeout(300);
+            await this.page.locator('input[type="text"]').first().fill(String(originalBudget));
+            await this.page.keyboard.press('Enter');
+            await this.page.waitForTimeout(800);
+        }
+
+        Logger.success(`Added budget item "${itemName}" (${categoryLabel}), original budget: ${originalBudget || '0 (none)'}`);
+    }
+
+    /**
+     * Opens the "Reallocate From" popup for the row matching destinationItemName,
+     * selects sourceItemName as the source budget, enters amount, and saves.
+     * Generates an AI note on the destination row (e.g. Moved "$X" money from "...").
+     */
+    async reallocateBudgetAmount(destinationItemName, sourceItemName, amount) {
+        const row = budget.treegridDataRows.filter({ hasText: destinationItemName }).first();
+        await expect(row, `Row "${destinationItemName}" must be visible before reallocating`).toBeVisible({ timeout: 15000 });
+        // Scroll the row toward the middle of the viewport first - the Reallocate From
+        // popup anchors to this button, and a button near the viewport edge can push
+        // the popup (and its Save button) partly outside the visible area.
+        await row.scrollIntoViewIfNeeded().catch(() => { });
+        await this.page.waitForTimeout(300);
+        const reallocateCell = row.locator('[role="gridcell"]').nth(7);
+        const reallocateBtn = reallocateCell.locator('button').first();
+        await reallocateBtn.click();
+
+        const popup = this.page.getByRole('dialog').filter({ has: this.page.getByRole('textbox', { name: 'Select category' }) }).last();
+        await expect(popup, 'Reallocate From popup must open').toBeVisible({ timeout: 10000 });
+
+        await popup.getByRole('textbox', { name: 'Select category' }).click();
+        await this.page.waitForTimeout(500);
+        await this.page.getByRole('option', { name: sourceItemName }).first().click();
+        await this.page.waitForTimeout(500);
+
+        await popup.getByRole('textbox', { name: '$' }).fill(String(amount));
+        await this.page.keyboard.press('Tab');
+        await this.page.waitForTimeout(300);
+
+        const saveBtn = popup.getByRole('button', { name: 'Save', exact: true });
+        await expect(saveBtn, 'Save button must become enabled after entering a valid allocation').toBeEnabled({ timeout: 10000 });
+        await saveBtn.scrollIntoViewIfNeeded().catch(() => { });
+        await saveBtn.click({ timeout: 20000 });
+        await this.page.waitForTimeout(2500);
+
+        Logger.success(`Reallocated $${amount} from "${sourceItemName}" to "${destinationItemName}"`);
+    }
+
+    /**
+     * Returns the trimmed AI-generated Notes text (last data column) for the
+     * row matching itemName - e.g. Moved "$5,900.00" money from "... - Budget A ...".
+     */
+    async getRevisionRowNotesText(itemName) {
+        const row = budget.treegridDataRows.filter({ hasText: itemName }).first();
+        await expect(row, `Row "${itemName}" must be visible to read its Notes`).toBeVisible({ timeout: 10000 });
+        const notesCell = row.locator('[role="gridcell"]').nth(11);
+        return ((await notesCell.textContent()) || '').trim();
+    }
+
+    /**
+     * Returns the trimmed full text of the row matching itemName - used to assert
+     * the complete generated row (all columns) renders correctly and is non-empty.
+     */
+    async getRevisionRowFullText(itemName) {
+        const row = budget.treegridDataRows.filter({ hasText: itemName }).first();
+        await expect(row, `Row "${itemName}" must be visible before reading its text`).toBeVisible({ timeout: 10000 });
+        return ((await row.textContent()) || '').trim();
+    }
+
+    /**
+     * Iterates every row (including the totals row) currently rendered in the
+     * revision editor grid and returns their trimmed full text content.
+     */
+    async getAllRevisionRowTexts() {
+        const rows = budget.treegridDataRows;
+        const count = await rows.count();
+        const texts = [];
+        for (let i = 0; i < count; i++) {
+            await expect(rows.nth(i), `Row index ${i} must be visible`).toBeVisible({ timeout: 10000 });
+            texts.push(((await rows.nth(i).textContent()) || '').trim());
+        }
+        return texts;
+    }
+
+    /**
+     * Asserts none of the given row texts contain the word "Conflict" (case-insensitive),
+     * and that the revision editor as a whole shows no global Conflict banner.
+     */
+    async assertNoConflictInRevisionEditor(rowTexts) {
+        rowTexts.forEach((text, index) => {
+            expect(text.toLowerCase(), `Row ${index} must not contain "Conflict": "${text}"`).not.toContain('conflict');
+        });
+        const dialog = budget.revisionDialog.first();
+        const dialogText = ((await dialog.textContent().catch(() => '')) || '').toLowerCase();
+        expect(dialogText, 'Revision editor must not show a global Conflict banner').not.toContain('conflict');
+    }
 };

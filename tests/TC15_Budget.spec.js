@@ -484,4 +484,155 @@ test.describe('Budget Workflow - E2E Tests', () => {
         Logger.success('TC270 Step 10: Revision #1 Notes confirmed changed after approval — TC270 PASSED');
     });
 
+    // ===== TC271: Budget Revision Reallocation E2E — Multiple reallocations, AI notes, no Conflict =====
+
+    test('TC271 @budget @e2e @revision @reallocation : Budget Revision Reallocation Flow — Verify multiple budget reallocations within a single revision produce correct AI-generated rows with no Conflict status', async () => {
+        test.setTimeout(600000); // 10 minutes — full E2E lifecycle
+
+        // A taller viewport gives the "Reallocate From" popover room to render fully
+        // on-screen regardless of where its trigger row sits in the revision grid.
+        await page.setViewportSize({ width: 1600, height: 1000 });
+
+        const timestamp = Date.now();
+        const propertyName = `TC271_ReallocProp_${timestamp}`;
+        const templateName = `TC271_ReallocTemplate_${timestamp}`;
+
+        const BUDGET_A = 'Budget A - Appliances Reserve';
+        const BUDGET_C = 'Budget C - Cabinets (No Original Budget)';
+        const BUDGET_D = 'Budget D - Carpet (No Original Budget)';
+        const BUDGET_E = 'Budget E - Vanity (Small Original Budget)';
+
+        const approvalJob = new ApprovalJob(page);
+
+        // ===== STEP 1: Create new property =====
+        Logger.step('TC271 Step 1: Creating new property');
+        await approvalJob.createProperty(
+            propertyName,
+            'Domestic Terminal, College Park, GA 30337, USA',
+            'College Park',
+            'GA',
+            '30337',
+            'Garden Style'
+        );
+        Logger.success(`TC271 Step 1: Property created — ${propertyName}`);
+
+        // ===== STEP 2: Create Budget Approval template for the new property =====
+        Logger.step('TC271 Step 2: Creating Budget Approval template');
+        await approvalJob.navigateToApprovalTab();
+        await approvalJob.createBudgetApprovalTemplateForTest(templateName, propertyName);
+        Logger.success(`TC271 Step 2: Template created — ${templateName}`);
+
+        // ===== STEP 3: Build initial budget — Category A large, C & D no original budget, E small =====
+        Logger.step('TC271 Step 3: Building initial budget (Budget A large / C & D none / E small)');
+        await budgetJob.navigateToBudget();
+        await page.waitForTimeout(5000);
+        await budgetJob.selectPropertyByName(propertyName);
+        await page.waitForTimeout(5000);
+        await budgetJob.openRevisionEditor();
+
+        await budgetJob.addBudgetItemInRevision('301 - INT_Appliances', BUDGET_A,
+            'Large reserve budget item used as reallocation source (Budget A)', '60000');
+        await budgetJob.addBudgetItemInRevision('302 - INT_Cabinets', BUDGET_C,
+            'New budget line with no original budget allocated (Budget C)');
+        await budgetJob.addBudgetItemInRevision('303 - INT_Carpet', BUDGET_D,
+            'New budget line with no original budget allocated (Budget D)');
+        await budgetJob.addBudgetItemInRevision('304 - INT_Vanity', BUDGET_E,
+            'Small existing budget line used as reallocation destination (Budget E)', '800');
+
+        await budgetJob.clickSubmitForApproval();
+        Logger.success('TC271 Step 3: Initial budget submitted for approval');
+
+        // ===== STEP 4: Approve the initial budget via "Approve on Behalf" =====
+        Logger.step('TC271 Step 4: Approving initial budget in All Approvals');
+        await approvalJob.navigateToAllApprovalsTab();
+        await approvalJob.approveRevisionOnBehalfByPropertyInAllApprovals(propertyName);
+        Logger.success('TC271 Step 4: Initial budget approved');
+
+        // ===== STEP 5: Open the Budget Revision used for all three reallocations =====
+        Logger.step('TC271 Step 5: Opening Budget Revision — grid + AI section must load first');
+        await budgetJob.navigateToBudget();
+        await page.waitForTimeout(5000);
+        await budgetJob.selectPropertyByName(propertyName);
+        await page.waitForTimeout(5000);
+        await budgetJob.openRevisionEditor();
+        await budgetJob.verifyRevisionEditorOpen();
+
+        const rowsBeforeReallocation = await budgetJob.getAllRevisionRowTexts();
+        expect(rowsBeforeReallocation.length, 'Revision grid must be loaded with the 4 existing budget rows before reallocating').toBeGreaterThanOrEqual(4);
+        Logger.success(`TC271 Step 5: Revision editor loaded with ${rowsBeforeReallocation.length} rows`);
+
+        // ===== REALLOCATION 1: Budget A -> Budget C, $5,900 =====
+        Logger.step('TC271 Reallocation 1: Budget A -> Budget C ($5,900)');
+        await budgetJob.reallocateBudgetAmount(BUDGET_C, BUDGET_A, 5900);
+
+        const rowCTextAfter1 = await budgetJob.getRevisionRowFullText(BUDGET_C);
+        expect(rowCTextAfter1, 'Reallocation row must be visible and non-empty').toBeTruthy();
+        expect(rowCTextAfter1).toContain(BUDGET_C);
+        expect(rowCTextAfter1).toContain('$5,900');
+
+        const notes1 = await budgetJob.getRevisionRowNotesText(BUDGET_C);
+        Logger.info(`TC271 Reallocation 1 AI-generated note: "${notes1}"`);
+        expect(notes1, 'AI generated note must not be empty').toBeTruthy();
+        expect(notes1).toContain('$5,900.00');
+        expect(notes1).toContain(BUDGET_A);
+        expect(notes1.toLowerCase()).not.toContain('conflict');
+        Logger.success('TC271 Reallocation 1: Budget A -> Budget C validated (source, destination, amount, AI note)');
+
+        // ===== REALLOCATION 2: Budget A -> Budget D, $1,500 =====
+        Logger.step('TC271 Reallocation 2: Budget A -> Budget D ($1,500)');
+        await budgetJob.reallocateBudgetAmount(BUDGET_D, BUDGET_A, 1500);
+
+        const rowDTextAfter2 = await budgetJob.getRevisionRowFullText(BUDGET_D);
+        expect(rowDTextAfter2, 'Reallocation row must be visible and non-empty').toBeTruthy();
+        expect(rowDTextAfter2).toContain(BUDGET_D);
+        expect(rowDTextAfter2).toContain('$1,500');
+
+        const notes2 = await budgetJob.getRevisionRowNotesText(BUDGET_D);
+        Logger.info(`TC271 Reallocation 2 AI-generated note: "${notes2}"`);
+        expect(notes2, 'AI generated note must not be empty').toBeTruthy();
+        expect(notes2).toContain('$1,500.00');
+        expect(notes2).toContain(BUDGET_A);
+        expect(notes2.toLowerCase()).not.toContain('conflict');
+        Logger.success('TC271 Reallocation 2: Budget A -> Budget D validated (source, destination, amount, AI note)');
+
+        // ===== REALLOCATION 3: Budget A -> Budget E, $45,000 =====
+        Logger.step('TC271 Reallocation 3: Budget A -> Budget E ($45,000)');
+        await budgetJob.reallocateBudgetAmount(BUDGET_E, BUDGET_A, 45000);
+
+        const rowETextAfter3 = await budgetJob.getRevisionRowFullText(BUDGET_E);
+        expect(rowETextAfter3, 'Reallocation row must be visible and non-empty').toBeTruthy();
+        expect(rowETextAfter3).toContain(BUDGET_E);
+        expect(rowETextAfter3).toContain('$45,800'); // $800 original + $45,000 reallocated
+
+        const notes3 = await budgetJob.getRevisionRowNotesText(BUDGET_E);
+        Logger.info(`TC271 Reallocation 3 AI-generated note: "${notes3}"`);
+        expect(notes3, 'AI generated note must not be empty').toBeTruthy();
+        expect(notes3).toContain('$45,000.00');
+        expect(notes3).toContain(BUDGET_A);
+        expect(notes3.toLowerCase()).not.toContain('conflict');
+        Logger.success('TC271 Reallocation 3: Budget A -> Budget E validated (source, destination, amount, AI note)');
+
+        // ===== FINAL GRID VALIDATIONS: every row visible, non-empty text =====
+        Logger.step('TC271: Final grid validation — every row must be visible with non-empty text');
+        const allRowTexts = await budgetJob.getAllRevisionRowTexts();
+        expect(allRowTexts.length, 'All budget rows (A, C, D, E + totals) must remain in the grid').toBeGreaterThanOrEqual(4);
+        allRowTexts.forEach((text, index) => {
+            expect(text.length, `Row ${index} text must not be empty`).toBeGreaterThan(0);
+        });
+
+        // ===== CONFLICT VALIDATION: no row / no global banner may contain "Conflict" =====
+        await budgetJob.assertNoConflictInRevisionEditor(allRowTexts);
+        Logger.success('TC271: Conflict validation passed — no row or banner contains "Conflict"');
+
+        // ===== FINAL ASSERTIONS =====
+        await expect(page.getByText('$52,400.00').first(), 'Total Reallocated summary must equal $5,900 + $1,500 + $45,000').toBeVisible({ timeout: 10000 });
+
+        const submitBtn = page.getByRole('dialog').getByRole('button', { name: /Submit for Approval/i }).first();
+        await expect(submitBtn, 'Submit for Approval must remain enabled after all reallocations').toBeEnabled();
+        Logger.success('TC271: Total Reallocated amount and Submit button state verified');
+
+        await budgetJob.clickSubmitForApproval();
+        Logger.success('TC271: Budget Reallocation revision submitted for approval — TC271 PASSED');
+    });
+
 });
