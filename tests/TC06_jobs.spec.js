@@ -692,10 +692,10 @@ test.describe('Verify Create Project and Add Job flow', () => {
 
                 /* ---------- Confirmation ---------- */
 
-                const confirmBtn = page.getByRole("button", { name: /Finalize|Confirm/i }).last();
-                if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-                    await confirmBtn.click();
-                }
+                // const confirmBtn = page.getByRole("button", { name: /Finalize|Confirm/i }).last();
+                // if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+                //     await confirmBtn.click();
+                // }
 
                 // await page.waitForTimeout(30000);
                 await page.waitForTimeout(5000);
