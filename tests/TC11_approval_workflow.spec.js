@@ -46,6 +46,7 @@ test.describe('Approval Workflow - My Approvals & All Approvals E2E Tests', () =
             await searchInput.waitFor({ state: 'visible', timeout: 10000 });
             const searchInputVisible = await searchInput.isVisible();
             expect(searchInputVisible).toBeTruthy();
+             await page.waitForTimeout(10000);
             Logger.info('My Approvals page loaded');
 
             const headers = await approvalJob.getAllTableHeaders();

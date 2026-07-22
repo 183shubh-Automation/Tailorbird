@@ -974,7 +974,7 @@ exports.ApprovalJob = class ApprovalJob {
         }
     }
 
-     async fillTwoApproversAmount(amount) {
+    async fillTwoApproversAmount(amount) {
         const fieldTimeout = 15000;
         try {
             Logger.step('Filling amount: ' + amount);
@@ -1514,12 +1514,26 @@ exports.ApprovalJob = class ApprovalJob {
 
     async getAllTableHeaders() {
         try {
+            await approval.tableHeaders.first().waitFor({
+                state: 'visible',
+                timeout: 10000,
+            });
+
             return await approval.tableHeaders.allTextContents();
         } catch (error) {
-            Logger.error('Error getting table headers: ' + error.message);
+            Logger.error(`Error getting table headers: ${error.message}`);
             return [];
         }
     }
+
+    // async getAllTableHeaders() {
+    //     try {
+    //         return await approval.tableHeaders.allTextContents({timeout:10000});
+    //     } catch (error) {
+    //         Logger.error('Error getting table headers: ' + error.message);
+    //         return [];
+    //     }
+    // }
 
     async verifyHeaderExists(headerName) {
         try {

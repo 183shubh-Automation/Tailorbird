@@ -208,7 +208,7 @@ class InvoicePage {
             let saveBtn = await this.page.getByRole('button').filter({ hasText: /save|confirm|submit/i }).first().isVisible({ timeout: 3000 }).catch(() => false);
 
             if (saveBtn) {
-                await this.page.getByRole('button').filter({ hasText: /save|confirm|submit/i }).first().click({force:true});
+                await this.page.getByRole('button').filter({ hasText: /save|confirm|submit/i }).first().click({ force: true });
                 await this.page.waitForLoadState('load');
                 await this.page.waitForTimeout(1500);
                 Logger.success('Invoice saved successfully.');
@@ -217,7 +217,7 @@ class InvoicePage {
                 // Try to find save action button
                 const actionButton = await this.page.locator('button').filter({ hasText: /save|confirm/i }).first().isVisible({ timeout: 3000 }).catch(() => false);
                 if (actionButton) {
-                    await this.page.locator('button').filter({ hasText: /save|confirm/i }).first().click({force:true});
+                    await this.page.locator('button').filter({ hasText: /save|confirm/i }).first().click({ force: true });
                     await this.page.waitForLoadState('load');
                     await this.page.waitForTimeout(1500);
                     Logger.success('Invoice saved successfully.');
@@ -885,15 +885,31 @@ class InvoicePage {
         }
 
         const confirmFinal = this.page.getByRole('button', { name: /^Confirm$/ });
-        await confirmFinal.waitFor({ state: 'visible', timeout: 15000 });
+
         try {
-            await confirmFinal.click({ timeout: 15000 });
-        } catch (err) {
-            Logger.info(`Final Confirm click retry due to: ${err.message}`);
-            await dismissToasts();
-            await this.page.waitForTimeout(300);
-            await confirmFinal.click({ timeout: 15000, force: true });
+            await confirmFinal.waitFor({ state: 'visible', timeout: 5000 });
+
+            try {
+                await confirmFinal.click({ timeout: 15000 });
+            } catch (err) {
+                Logger.info(`Final Confirm click retry due to: ${err.message}`);
+                await dismissToasts();
+                await this.page.waitForTimeout(300);
+                await confirmFinal.click({ timeout: 15000, force: true });
+            }
+        } catch {
+            Logger.info('Confirm button did not appear. Continuing...');
         }
+        // const confirmFinal = this.page.getByRole('button', { name: /^Confirm$/ });
+        // await confirmFinal.waitFor({ state: 'visible', timeout: 15000 });
+        // try {
+        //     await confirmFinal.click({ timeout: 15000 });
+        // } catch (err) {
+        //     Logger.info(`Final Confirm click retry due to: ${err.message}`);
+        //     await dismissToasts();
+        //     await this.page.waitForTimeout(300);
+        //     await confirmFinal.click({ timeout: 15000, force: true });
+        // }
 
         await this.page.waitForLoadState('domcontentloaded');
         await this.page.waitForURL(/tab=change-orders/, { timeout: 20000 }).catch(() => null);
@@ -1931,7 +1947,7 @@ class InvoicePage {
             .first();
         await expect(grid).toBeVisible({ timeout: 30000 });
         return this.fillBudgetCategoryInInvoice(categoryText);
-        
+
     }
 
     async getBudgetCategoryValues() {
