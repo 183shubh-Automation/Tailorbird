@@ -1,0 +1,71 @@
+{
+  "budgetOverviewControls": {
+    "filter": {
+      "heading": "Filters",
+      "subheading": "Filter Options",
+      "fields": [
+        "Budget Item",
+        "Original Budget",
+        "Reallocation",
+        "Current Budget",
+        "Committed",
+        "Drawn",
+        "Budget Remaining",
+        "Progress %"
+      ],
+      "comparatorOptions": [
+        "Equals",
+        "Greater than",
+        "Less than",
+        "Between"
+      ]
+    },
+    "view": {
+      "heading": "Save current view as",
+      "placeholder": "Enter a view name"
+    },
+    "table": {
+      "addCustomColumnText": "Add custom column",
+      "heading": "Manage Columns",
+      "groupLabel": "Default Columns",
+      "columns": [
+        "Budget Item",
+        "Budget Remaining",
+        "Committed",
+        "Current Budget",
+        "Drawn",
+        "Original Budget",
+        "Progress %",
+        "Reallocation"
+      ]
+    },
+    "export": {
+      "filename": "draw-budget-overview-data.csv"
+    }
+  },
+  "historicalDrawsControls": {
+    "view": {
+      "heading": "Save current view as",
+      "placeholder": "Enter a view name"
+    },
+    "table": {
+      "addCustomColumnText": "Add custom column",
+      "heading": "Manage Columns",
+      "groupLabel": "Default Columns",
+      "columns": [
+        "Draw Amount",
+        "Draw Name",
+        "Draw PDF",
+        "Previously Drawn",
+        "Property",
+        "Remaining at Submission",
+        "Status",
+        "Submitted on",
+        "Total Draw at Submission"
+      ]
+    },
+    "export": {
+      "filename": "draw-data.csv"
+    }
+  }
+}

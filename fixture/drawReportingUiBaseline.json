@@ -1,0 +1,50 @@
+{
+  "tabs": [
+    "Overview",
+    "Historical Draws"
+  ],
+  "headings": [],
+  "buttons": [
+    "Create Draw",
+    "Overview",
+    "Historical Draws",
+    "Filter",
+    "View",
+    "Table",
+    "Export",
+    "Continue Editing"
+  ],
+  "textLabels": [
+    "$0.00",
+    "/",
+    "0",
+    "0% Drawn ($0.00)",
+    "100% Remaining ($0.00)",
+    "Active Draw (Draw in progress)",
+    "Budget Items",
+    "Budget Overview",
+    "Capex Status",
+    "Continue Editing",
+    "Create Draw",
+    "Draw Amount",
+    "Draw Reporting",
+    "Draw in Progress",
+    "Drawn VS Remaining",
+    "Draws to Date",
+    "Export",
+    "Filter",
+    "Historical Draws",
+    "Home",
+    "Invoices Included",
+    "Last edited --/--/----",
+    "No draw budget overviews added yet",
+    "Overview",
+    "Pending Invoices",
+    "Remaining Budget",
+    "Table",
+    "Total Budget",
+    "Use + or Create Button to create one",
+    "View",
+    "Warnings"
+  ]
+}
