@@ -41,7 +41,7 @@ async function ensureLeftPanelExpanded(page) {
     await navbar.waitFor({ state: 'visible' });
 
     const alreadyPinned = await navbar
-        .getByRole('button', { name: UNPIN_BUTTON_NAME })
+        .locator(UNPIN_BUTTON_SELECTOR)
         .first()
         .isVisible()
         .catch(() => false);
@@ -59,11 +59,11 @@ async function ensureLeftPanelExpanded(page) {
     Logger.info(`[LeftPanelExpander] Panel collapsed (width=${width}px) — expanding and pinning.`);
     await navbar.hover();
 
-    const pinButton = navbar.getByRole('button', { name: PIN_BUTTON_NAME }).first();
+    const pinButton = navbar.locator(PIN_BUTTON_SELECTOR).first();
     await pinButton.waitFor({ state: 'visible', timeout: 15000 });
     await pinButton.click();
 
-    await expect(navbar.getByRole('button', { name: UNPIN_BUTTON_NAME }).first()).toBeVisible();
+    await expect(navbar.locator(UNPIN_BUTTON_SELECTOR).first()).toBeVisible();
     await expect.poll(() => getNavbarWidth(page)).toBeGreaterThanOrEqual(COLLAPSED_WIDTH_THRESHOLD);
 
     Logger.success('[LeftPanelExpander] Panel expanded and pinned open.');
