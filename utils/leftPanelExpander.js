@@ -50,6 +50,29 @@ async function isPanelConfirmedPinned(page, navbar) {
 }
 
 /**
+ * Triggers the hover-reveal through three independent mechanisms so the
+ * reveal isn't dependent on any single one working in a given environment:
+ * headless/CI Chromium has been observed to not reliably register the
+ * single-jump pointer move that Locator.hover() performs on its own, where a
+ * local headed run doesn't show the same gap.
+ *   1. A real, multi-step mouse move to the navbar's center (page.mouse.move
+ *      with steps) — closer to genuine pointer movement than a single jump.
+ *   2. Locator.hover() as a second, actionability-checked pointer move.
+ *   3. Direct mouseenter/mouseover dispatch on the navbar element — confirmed
+ *      (via live DOM inspection) to independently trigger this app's
+ *      hover-expand state, regardless of pointer simulation quirks.
+ */
+async function triggerNavbarHover(page, navbar) {
+    const box = await navbar.boundingBox().catch(() => null);
+    if (box) {
+        await page.mouse.move(box.x + box.width / 2, box.y + Math.min(100, box.height / 2), { steps: 15 }).catch(() => { });
+    }
+    await navbar.hover().catch(() => { });
+    await navbar.dispatchEvent('mouseenter').catch(() => { });
+    await navbar.dispatchEvent('mouseover').catch(() => { });
+}
+
+/**
  * Expands the left navigation panel and pins it open, but only if it is
  * currently collapsed. Does nothing if the panel is already expanded/pinned.
  * Retries the hover+pin sequence up to MAX_PIN_ATTEMPTS times, re-verifying
@@ -72,7 +95,7 @@ async function ensureLeftPanelExpanded(page) {
             Logger.info(
                 `[LeftPanelExpander] Attempt ${attempt}/${MAX_PIN_ATTEMPTS}: panel not confirmed pinned (width=${width}px) — expanding and pinning.`
             );
-            await navbar.hover();
+            await triggerNavbarHover(page, navbar);
 
             const pinButton = navbar.locator(PIN_BUTTON_SELECTOR).first();
             await pinButton.waitFor({ state: 'visible', timeout: 45000 });
