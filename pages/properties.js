@@ -5,6 +5,8 @@ const ModalHandler = require('../pages/modalHandler');
 import { propertyLocators } from '../locators/propertyLocator.js';
 import testData from '../fixture/property.json';
 const prop = require('../locators/locationLocator');
+const { CapexGridStabilityPage } = require('../pages/capexGridStabilityPage');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 class PropertiesHelper {
     constructor(page) {
@@ -138,6 +140,7 @@ class PropertiesHelper {
         }
         const apiWait = this.waitForApi200('goToProperties:menu', [/\/api\/properties/, /\/api\/bird-table\?table_name=property/, /\/api\/table-view-config\?tableName=property/], 60_000);
         await propertiesLink.click();
+        await ensureLeftPanelExpanded(this.page);
         await this.page.locator(propertyLocators.breadcrumbsProperties).waitFor({ state: "visible" });
         await expect(this.page).toHaveURL(/.*\/properties/);
         await apiWait;
@@ -229,6 +232,7 @@ class PropertiesHelper {
                 const origin = new URL(this.page.url()).origin;
                 await this.page.goto(`${origin}/properties`, { waitUntil: 'domcontentloaded' });
             } else {
+                await ensureLeftPanelExpanded(this.page);
                 await this.page.locator(propertyLocators.propertiesNavLink).nth(0).waitFor({ state: "visible" });
                 await this.page.locator(propertyLocators.propertiesNavLink).nth(0).click();
             }
