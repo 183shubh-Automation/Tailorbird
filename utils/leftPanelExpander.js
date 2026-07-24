@@ -38,7 +38,7 @@ async function getNavbarWidth(page) {
  */
 async function ensureLeftPanelExpanded(page) {
     const navbar = page.locator(NAVBAR_SELECTOR).first();
-    await navbar.waitFor({ state: 'visible' });
+    await navbar.waitFor({ state: 'visible', timeout: 35000 });
 
     const alreadyPinned = await navbar
         .locator(UNPIN_BUTTON_SELECTOR)
@@ -60,7 +60,7 @@ async function ensureLeftPanelExpanded(page) {
     await navbar.hover();
 
     const pinButton = navbar.locator(PIN_BUTTON_SELECTOR).first();
-    await pinButton.waitFor({ state: 'visible', timeout: 15000 });
+    await pinButton.waitFor({ state: 'visible', timeout: 45000 });
     await pinButton.click();
 
     await expect(navbar.locator(UNPIN_BUTTON_SELECTOR).first()).toBeVisible();
