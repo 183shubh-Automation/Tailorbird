@@ -10,6 +10,7 @@ const { test, expect } = require("@playwright/test");
 const { Logger } = require("../utils/logger");
 const { LoginPage } = require("../pages/loginPage");
 const { InteractionLogger } = require("../utils/InteractionLogger");
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 const {
   ManageTeamRolesHelper,
   manageTeamRolesBench: roleManagementUiLabels,

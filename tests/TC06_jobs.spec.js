@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const PropertiesHelper = require('../pages/properties');
 const { setTabsDisabledState } = require('../utils/tabsDisabledHelper');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 test.use({
     storageState: 'sessionState.json',
@@ -49,6 +50,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         }
 
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'load' });
+        await ensureLeftPanelExpanded(page);
         await expect(page).toHaveURL(process.env.DASHBOARD_URL);
         await page.waitForTimeout(10000);
 
@@ -590,77 +592,101 @@ test.describe('Verify Create Project and Add Job flow', () => {
             };
 
             /* ---------- Required 3-step flow ---------- */
-            // 1) Trigger via Contract Amount cell (existing automation behavior), then fill Cost Item.
+            // 1) Edit the Cost Item cell. Root cause (MCP-verified on the live grid by
+            // toggling it on/off): the 70% CSS zoom this suite applies to
+            // `main`/`.mantine-AppShell-navbar` in beforeEach breaks this grid's
+            // click-to-column mapping -- with zoom active, double-clicking the Cost Item
+            // cell opens the "Schedule of Value" editor instead, every time; with zoom
+            // reset to 100%, the same double-click correctly opens the Cost Item editor.
+            // Fix: temporarily restore zoom to 100% for just this interaction, then put it
+            // back to 70% immediately after, so nothing else in the test is affected.
+            const setGridZoom = async (zoomValue) => {
+                await page.evaluate(({ selector, value }) => {
+                    document.querySelectorAll(selector).forEach((el) => { el.style.zoom = value; });
+                }, { selector: 'main, .mantine-AppShell-navbar', value: zoomValue });
+            };
+
             let costItemUpdated = false;
             for (let attempt = 1; attempt <= 3 && !costItemUpdated; attempt++) {
                 await logRowCells(`Before cost item attempt ${attempt}`);
-                await setValueViaTriggeredCell({
-                    rowGrow,
-                    triggerCol: 6, // do not change: this trigger is flaky but works in automation
-                    targetCol: colMap.costItem,
-                    value: 'Fireplace',
-                    commitKey: 'Tab',
-                    label: `CostItem attempt ${attempt}`
-                });
-                const activeDebug = await page.evaluate(() => {
-                    const active = document.activeElement;
-                    const activeText = (active?.value ?? active?.textContent ?? '').toString().trim();
-                    const cell = active?.closest?.('div[role="gridcell"]');
-                    return {
-                        activeTag: active?.tagName || null,
-                        activeText,
-                        activeCellCol: cell?.getAttribute('aria-colindex') || cell?.getAttribute('data-rgcol') || null,
-                        activeCellText: (cell?.textContent || '').trim()
-                    };
-                });
-                Logger.info(`Active target after trigger attempt ${attempt} => ${JSON.stringify(activeDebug)}`);
 
-                const fireplaceOption = page.getByRole('option', { name: /fireplace/i }).first();
-                if (await fireplaceOption.isVisible({ timeout: 2000 }).catch(() => false)) {
-                    await fireplaceOption.click({ force: true });
+                await setGridZoom('100%');
+                const costItemCell = getCell(rowGrow, colMap.costItem);
+                await costItemCell.scrollIntoViewIfNeeded();
+                await costItemCell.dblclick({ force: true });
+                await page.waitForTimeout(500);
+
+                const targetBox = await costItemCell.boundingBox().catch(() => null);
+                const editor = page.locator('input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):visible, textarea:visible').last();
+                const editorVisible = await editor.isVisible({ timeout: 3000 }).catch(() => false);
+                const editorBox = editorVisible ? await editor.boundingBox().catch(() => null) : null;
+                const aligned = !!(editorVisible && editorBox && targetBox &&
+                    editorBox.x < targetBox.x + targetBox.width && editorBox.x + editorBox.width > targetBox.x);
+
+                if (aligned) {
+                    await editor.fill('Fireplace');
+                    await page.waitForTimeout(500);
+                    const fireplaceOption = page.getByRole('option', { name: /fireplace/i }).first();
+                    if (await fireplaceOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+                        await fireplaceOption.click({ force: true });
+                    } else {
+                        await editor.press('Enter');
+                    }
                     await page.waitForTimeout(1000);
+                } else {
+                    Logger.info(`Cost Item editor attempt ${attempt} still not aligned with target column even at 100% zoom.`);
+                    await page.keyboard.press('Escape').catch(() => { });
                 }
+                await setGridZoom('70%');
 
                 const currentCostItem = normalize(await getCell(rowGrow, colMap.costItem).textContent());
                 costItemUpdated = /fireplace/i.test(currentCostItem);
                 Logger.info(
-                    `CostItem monitor attempt ${attempt}: triggerCol=6(${colNameByIndex[6] || 'unknown'}), targetCol=${colMap.costItem}(${colNameByIndex[colMap.costItem]}), value="${currentCostItem}"`
+                    `CostItem monitor attempt ${attempt}: targetCol=${colMap.costItem}(${colNameByIndex[colMap.costItem]}), aligned=${aligned}, value="${currentCostItem}"`
                 );
-                if (!costItemUpdated) {
-                    // Fallback: directly edit target cost item cell and commit hard.
-                    const directCostItemCell = getCell(rowGrow, colMap.costItem);
-                    await directCostItemCell.scrollIntoViewIfNeeded();
-                    await directCostItemCell.dblclick({ force: true });
-                    const directEditor = page.locator('input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):visible, textarea:visible').last();
-                    await expect(directEditor).toBeVisible({ timeout: 5000 });
-                    await directEditor.fill('Fireplace');
-                    const directOption = page.getByRole('option', { name: /fireplace/i }).first();
-                    if (await directOption.isVisible({ timeout: 1500 }).catch(() => false)) {
-                        await directOption.click({ force: true });
-                    }
-                    await directEditor.press('Enter');
-                    await page.waitForTimeout(300);
-                    await getCell(rowGrow, colMap.contractAmount).click({ force: true }).catch(() => { });
-                    Logger.info(`Cost Item update attempt ${attempt} did not persist yet. Retrying...`);
-                    await page.waitForTimeout(1200);
-                }
                 await logRowCells(`After cost item attempt ${attempt}`);
             }
             await waitForCellValue(rowGrow, colMap.costItem, /fireplace/i, 18000);
 
-            // 2) Trigger via End Date cell, then fill Contract Amount.
+            // 2) Edit the Contract amount cell directly. The previous indirect "trigger via
+            // Days in Reno" click never opened a grid editor here (that column is not
+            // editable), so the generic "last visible input" lookup fell through to the
+            // toolbar Search box and typed the amount there instead (confirmed via trace:
+            // Search... held "30000" at the point of failure). Use the same direct,
+            // zoom-reset, alignment-verified edit as the Cost Item fix above.
             await logRowCells('Before contract amount update');
-            await setValueViaTriggeredCell({
-                rowGrow,
-                triggerCol: 9,
-                targetCol: colMap.contractAmount,
-                value: '30000',
-                commitKey: 'Enter',
-                label: 'ContractAmount'
-            });
-            Logger.info(
-                `ContractAmount monitor: triggerCol=${colMap.endDate}(${colNameByIndex[colMap.endDate]}), targetCol=${colMap.contractAmount}(${colNameByIndex[colMap.contractAmount]})`
-            );
+            let contractAmountUpdated = false;
+            for (let attempt = 1; attempt <= 3 && !contractAmountUpdated; attempt++) {
+                await setGridZoom('100%');
+                const contractAmountCell = getCell(rowGrow, colMap.contractAmount);
+                await contractAmountCell.scrollIntoViewIfNeeded();
+                await contractAmountCell.dblclick({ force: true });
+                await page.waitForTimeout(500);
+
+                const targetBox = await contractAmountCell.boundingBox().catch(() => null);
+                const editor = page.locator('input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):visible, textarea:visible').last();
+                const editorVisible = await editor.isVisible({ timeout: 3000 }).catch(() => false);
+                const editorBox = editorVisible ? await editor.boundingBox().catch(() => null) : null;
+                const aligned = !!(editorVisible && editorBox && targetBox &&
+                    editorBox.x < targetBox.x + targetBox.width && editorBox.x + editorBox.width > targetBox.x);
+
+                if (aligned) {
+                    await editor.fill('30000');
+                    await page.waitForTimeout(400);
+                    await editor.press('Enter');
+                    await page.waitForTimeout(500);
+                } else {
+                    Logger.info(`Contract Amount editor attempt ${attempt} not aligned with target column.`);
+                    await page.keyboard.press('Escape').catch(() => { });
+                }
+                await setGridZoom('70%');
+
+                const currentAmount = normalize(await getCell(rowGrow, colMap.contractAmount).textContent());
+                contractAmountUpdated = /(30000|30,000|\$30,000)/i.test(currentAmount);
+                Logger.info(
+                    `ContractAmount monitor attempt ${attempt}: targetCol=${colMap.contractAmount}(${colNameByIndex[colMap.contractAmount]}), aligned=${aligned}, value="${currentAmount}"`
+                );
+            }
             await waitForCellValue(rowGrow, colMap.contractAmount, /(30000|30,000|\$30,000)/i);
             await logRowCells('After contract amount update');
 

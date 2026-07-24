@@ -2,6 +2,7 @@ require('dotenv').config();
 const { test, expect } = require('@playwright/test');
 const { SimpleApprovalPage } = require('../pages/simpleApprovalPage');
 const { Logger } = require('../utils/logger');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 test.use({
     storageState: 'OtherSessionState.json',
@@ -26,7 +27,7 @@ test.describe('Approval Workflow - My Approvals E2E Tests with another user', ()
         await expect(page).toHaveURL(process.env.DASHBOARD_URL);
         await page.waitForTimeout(10000);
         Logger.info('Dashboard loaded from stored session');
-
+        await ensureLeftPanelExpanded(page);
         await approvalJob.navigateToApprovalTab();
         await approvalJob.waitForPageLoad();
         Logger.success('Setup complete - Navigated to Approval section');

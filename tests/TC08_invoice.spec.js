@@ -10,6 +10,7 @@ const path = require('path');
 const { ProjectPage } = require('../pages/projectPage');
 const { ProjectJob } = require('../pages/projectJob');
 const { getTabsDisabledState } = require('../utils/tabsDisabledHelper');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 const TC08_SNAPSHOT_DIR = path.join(process.cwd(), 'committed_ui_snapshots', 'TC08_invoice.spec.js');
 
@@ -99,6 +100,7 @@ test.describe('Verify Invoice tab', () => {
         }
 
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'load' });
+        await ensureLeftPanelExpanded(page);
         await expect(page).toHaveURL(process.env.DASHBOARD_URL);
         await page.waitForTimeout(10000);
 

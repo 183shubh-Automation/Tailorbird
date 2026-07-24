@@ -8,6 +8,7 @@ const PropertiesHelper = require('../pages/properties');
 const path = require('path');
 const fs = require('fs');
 const { ApprovalJob } = require('../pages/approvalPage');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 test.use({
     storageState: 'sessionState.json',
@@ -30,7 +31,7 @@ test.describe.serial('Out of Office — OOO suite', () => {
         oooPage = new OOOPage(page);
 
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'domcontentloaded' });
-
+        await ensureLeftPanelExpanded(page);
         // Ensure OOO is inactive — retry once on transient network/server failure.
         // A failing cleanup in serial mode would skip all subsequent tests, so we give
         // the server a second chance before letting the error propagate.

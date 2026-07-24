@@ -3,6 +3,7 @@ const { test, expect } = require('@playwright/test');
 const { MultiApproverPage } = require('../pages/multiApproverPage');
 const { Logger } = require('../utils/logger');
 const fixture = require('../fixture/multiApprover.json');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 test.use({
     storageState: 'sessionState.json',
@@ -20,6 +21,7 @@ test.describe('Multi Approver Invoice Approval Flow', () => {
 
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'load' });
         await expect(page).toHaveURL(process.env.DASHBOARD_URL);
+        await ensureLeftPanelExpanded(page);
     });
 
     test('TC320 @approval @multiApprover : Two invoices route through multi-approver approval end-to-end', async () => {

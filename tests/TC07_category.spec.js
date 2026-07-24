@@ -10,6 +10,7 @@ const PropertiesHelper = require('../pages/properties');
 const { CapexPage } = require('../pages/capexPage');
 const { CapexColumnPersistencePage } = require('../pages/capexColumnPersistencePage');
 const { CapexGridStabilityPage } = require('../pages/capexGridStabilityPage');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 test.use({
     storageState: 'sessionState.json',
@@ -42,6 +43,7 @@ test.describe('Verify category tab', () => {
         }
 
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'load' });
+        await ensureLeftPanelExpanded(page);
         await expect(page).toHaveURL(process.env.DASHBOARD_URL);
         await page.waitForTimeout(10000);
 

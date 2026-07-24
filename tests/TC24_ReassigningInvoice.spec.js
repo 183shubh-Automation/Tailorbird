@@ -4,7 +4,7 @@ const { ReassignInvoicePage } = require('../pages/reassignInvoicePage');
 const { Logger } = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
-
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 // Reassign Invoice is only exposed to an approver on the invoice's approval chain
 // (verified live: the invoice creator alone does not see "Reassign Invoice" in the
 // Actions column; the configured approver does) — so this suite runs as that other
@@ -260,6 +260,7 @@ test.describe('Reassign Invoice', () => {
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'load' });
         await expect(page).toHaveURL(process.env.DASHBOARD_URL);
         await page.waitForTimeout(5000);
+        await ensureLeftPanelExpanded(page);
     });
 
     // ──────────────────────────────────────────────────────────────────────────

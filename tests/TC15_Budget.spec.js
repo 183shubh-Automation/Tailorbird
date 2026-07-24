@@ -5,6 +5,7 @@ const { test, expect } = require('@playwright/test');
 const { BudgetJob } = require('../pages/budgetPage');
 const { ApprovalJob } = require('../pages/approvalPage');
 const { Logger } = require('../utils/logger');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 test.use({
     storageState: 'sessionState.json',
@@ -28,6 +29,7 @@ test.describe('Budget Workflow - E2E Tests', () => {
         await expect(page).toHaveURL(process.env.DASHBOARD_URL);
         await page.waitForTimeout(7000);
         Logger.info('Dashboard loaded from stored session');
+        await ensureLeftPanelExpanded(page);
         await budgetJob.navigateToBudgetTab();
         await budgetJob.waitForPageLoad();
         Logger.success('Setup complete - Navigated to Budget section');

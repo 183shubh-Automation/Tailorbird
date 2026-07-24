@@ -5,6 +5,7 @@ const { Logger } = require('../utils/logger');
 const PropertiesHelper = require('../pages/properties');
 const fs = require('fs');
 const path = require('path');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 const BID_DATA_PATH = path.join(__dirname, '../data/bidData.json');
 const BID_SNAPSHOT_DIR = path.join(process.cwd(), 'committed_ui_snapshots', 'Bid.spec.js');
@@ -57,6 +58,7 @@ test.describe('Verify Bids', () => {
         const propertyName = `bid_prop_${Date.now()}`;
         await setupPage.goto(process.env.BASE_URL, { waitUntil: 'load' });
         await setupPage.waitForTimeout(1500);
+        await ensureLeftPanelExpanded(page);
         await prop.goToProperties();
         await prop.createProperty(
             propertyName,

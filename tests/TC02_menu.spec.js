@@ -5,6 +5,7 @@ const { LoginPage } = require('../pages/loginPage');
 const { InteractionLogger } = require('../utils/InteractionLogger');
 const helper = require('../pages/leftPanel');
 const locators = require('../locators/leftPanelLocator');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 const data = require('../fixture/leftPanel.json');
 const uiBenchmark = require('../fixture/tailorbirdUiMessages.json');
 
@@ -28,7 +29,7 @@ test.beforeEach(async ({ page: testPage }) => {
     Logger.info(`Navigating to dashboard: ${process.env.DASHBOARD_URL}`);
     await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'load', timeout: 60000 });
     Logger.info('Dashboard loaded successfully.');
-
+    await ensureLeftPanelExpanded(page);
     page.on('domcontentloaded', async () => {
         await page.evaluate(() => {
             const elements = document.querySelectorAll('main, .mantine-AppShell-navbar');
@@ -54,6 +55,7 @@ test.afterAll(async () => {
 test.describe('Tailorbird Left Panel Flow - Modular', () => {
 
     test('TC07 @sanity @regression Verify all left panel menu options are available', async () => {
+       
         const actualLabels = await helper.getLeftPanelLabels(page);
 
         if (actualLabels.length === 0)

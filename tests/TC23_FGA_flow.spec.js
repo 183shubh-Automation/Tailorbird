@@ -10,7 +10,7 @@ const { FgaUserManagementPage } = require("../pages/fgaUserManagementPage");
 const { orgUrls } = require("../pages/manageTeamRolesHelper");
 const { UserActivationPage } = require("../pages/userActivationPage");
 const fgaTexts = require("../fixture/fga_cta_texts.json");
-
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 const dashboardLandingUrl = process.env.DASHBOARD_URL || orgUrls.dashboardUrl;
 const TARGET_PROPERTY = "Test Property 1_Cottages on Elm";
 const CREATED_USERS_FILE = path.join(__dirname, "../data/fgaCreatedUsers.json");
@@ -59,6 +59,7 @@ test.describe("FEAT-972 FGA User Management", () => {
         const { email } = generateFgaTestUser("testmember");
 
         InteractionLogger.logNavigation(dashboardLandingUrl, "Dashboard — profile menu → Manage Organization");
+        await ensureLeftPanelExpanded(page);
         await fga.gotoOrganization(dashboardLandingUrl);
         Logger.info("[TC350] Asserting: URL is /organization");
         await expect(page).toHaveURL(/\/organization/);
@@ -106,6 +107,7 @@ test.describe("FEAT-972 FGA User Management", () => {
     test("TC351 @regression @FGA : Validate property access page functionality — headers, search, sort, empty state, actions", async ({ page }) => {
         const fga = new FgaUserManagementPage(page);
         await fga.gotoOrganization(dashboardLandingUrl);
+        await ensureLeftPanelExpanded(page);
         await fga.openPropertyAccessTab();
 
         Logger.step("[TC351] Validating column headers against fga_cta_texts.json");
@@ -160,6 +162,7 @@ test.describe("FEAT-972 FGA User Management", () => {
         const { email } = generateFgaTestUser("fga_count");
 
         await fga.gotoOrganization(dashboardLandingUrl);
+        await ensureLeftPanelExpanded(page);
         Logger.step(`[TC352] Inviting new member: ${email}`);
         await fga.inviteMemberAndCaptureApi(email);
         saveCreatedUser({ email, role: "Member", testCase: "TC352", purpose: "count-delta validation", createdAt: new Date().toISOString() });
@@ -187,6 +190,7 @@ test.describe("FEAT-972 FGA User Management", () => {
         const { email } = generateFgaTestUser("fga_badge");
 
         await fga.gotoOrganization(dashboardLandingUrl);
+        await ensureLeftPanelExpanded(page);
         Logger.step(`[TC353] Inviting new member: ${email}`);
         await fga.inviteMemberAndCaptureApi(email);
         saveCreatedUser({ email, role: "Member", testCase: "TC353", purpose: "badge/status validation", createdAt: new Date().toISOString() });
@@ -213,6 +217,7 @@ test.describe("FEAT-972 FGA User Management", () => {
         const { email } = generateFgaTestUser("fga_dup");
 
         await fga.gotoOrganization(dashboardLandingUrl);
+        await ensureLeftPanelExpanded(page);
         Logger.step(`[TC354] First invite: ${email}`);
         await fga.inviteMemberAndCaptureApi(email);
         saveCreatedUser({ email, role: "Member", testCase: "TC354", purpose: "duplicate-invite negative check", createdAt: new Date().toISOString() });
@@ -246,6 +251,7 @@ test.describe("FEAT-972 FGA User Management", () => {
 
         InteractionLogger.logNavigation(dashboardLandingUrl, "Dashboard — profile menu → Manage Organization");
         await fga.gotoOrganization(dashboardLandingUrl);
+        await ensureLeftPanelExpanded(page);
         Logger.step(`[TC355] Inviting new member for activation: ${email}`);
         const inviteResult = await fga.inviteMemberAndCaptureApi(email);
         expect(inviteResult.status).toBe(201);
@@ -319,29 +325,7 @@ test.describe("FEAT-972 FGA User Management", () => {
     });
 });
 
-/**
- * FGA scope validation for an activated Member user with single-property access.
- *
- * TC355 (above) proves the activation flow itself. Everything that used to run inline at
- * the end of that one giant test — profile menu options, per-module grid/dropdown scope —
- * is broken out here into 8 test cases, one per module, per the requested breakdown.
- *
- * Session reuse: activating a user via yopmail + AuthKit is by far the slowest part of this
- * flow (multiple inbox polls, ~30-90s). Repeating it for all 8 cases below would be both
- * slow and wasteful, so it runs exactly ONCE in beforeAll, and its authenticated
- * storageState is captured and reused to spin up a fresh, independent context/page per
- * test — the same "session file" pattern used elsewhere in this framework
- * (test.use({ storageState: 'sessionState.json' })), just captured at runtime instead of
- * being a pre-existing checked-in file, since this session belongs to a brand-new user
- * created fresh on every run.
- *
- * Parallel-safe: every test below creates its own context/page from the shared
- * storageState and closes it when done, so none share mutable state and
- * test.describe.configure({ mode: 'parallel' }) can safely schedule them concurrently.
- * Note: with this repo's playwright.config.js pinned to workers: 1, they still execute
- * one at a time in practice; the beforeAll below would only re-run per additional worker
- * process if that pin is ever raised.
- */
+
 test.describe("FEAT-972 FGA scope validation — activated Member user (single-property access)", () => {
     test.describe.configure({ mode: "parallel" });
 
@@ -362,6 +346,7 @@ test.describe("FEAT-972 FGA scope validation — activated Member user (single-p
 
         Logger.step(`[FGA scope setup] Inviting new member for scope validation: ${email}`);
         await fga.gotoOrganization(dashboardLandingUrl);
+        await ensureLeftPanelExpanded(page);
         const inviteResult = await fga.inviteMemberAndCaptureApi(email);
         expect(inviteResult.status).toBe(201);
         expect(inviteResult.ok).toBeTruthy();

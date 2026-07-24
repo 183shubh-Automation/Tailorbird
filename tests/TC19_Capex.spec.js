@@ -4,6 +4,7 @@ const { CapexPage } = require('../pages/capexPage');
 const { CapexColumnPersistencePage } = require('../pages/capexColumnPersistencePage');
 const { CapexGridStabilityPage } = require('../pages/capexGridStabilityPage');
 const { Logger } = require('../utils/logger');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 test.use({
     storageState: 'sessionState.json',
@@ -23,6 +24,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
     test.beforeEach(async ({ page }) => {
         capex = new CapexPage(page);
         await capex.goto();
+        await ensureLeftPanelExpanded(page);
     });
 
     // ─────────────────────────────────────────────────────────────────────────

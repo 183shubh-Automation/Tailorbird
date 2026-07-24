@@ -6,6 +6,7 @@ const { ProjectJob } = require('../pages/projectJob');
 const { ProjectPage } = require('../pages/projectPage');
 const { BudgetJob } = require('../pages/budgetPage');
 const PropertiesHelper = require('../pages/properties');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 test.use({
     storageState: 'sessionState.json',
@@ -28,6 +29,7 @@ test.beforeEach(async ({ page }) => {
     prop = new PropertiesHelper(page);
 
     await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'domcontentloaded' });
+    await ensureLeftPanelExpanded(page);
     await expect(page).toHaveURL(process.env.DASHBOARD_URL);
     // networkidle times out on CapEx page in CI â€” wait for app shell instead
     const _appShell05 = page.locator('.mantine-AppShell-navbar, .mantine-AppShell-main, main').first();

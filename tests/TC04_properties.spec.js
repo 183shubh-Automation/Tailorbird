@@ -17,6 +17,7 @@ const { Logger } = require('../utils/logger');
 const { CapexPage } = require('../pages/capexPage');
 const { CapexColumnPersistencePage } = require('../pages/capexColumnPersistencePage');
 const { CapexGridStabilityPage } = require('../pages/capexGridStabilityPage');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 test.use({
   storageState: 'sessionState.json',
@@ -59,6 +60,7 @@ test.beforeAll(async ({ browser }) => {
   page = await context.newPage();
   prop = new PropertiesHelper(page);
   await prop.goto(tcTakeoffsStartUrl);
+  await ensureLeftPanelExpanded(page);
   await prop.goToProperties();
   page.on('domcontentloaded', async () => {
     await page.evaluate(() => {

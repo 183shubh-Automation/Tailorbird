@@ -14,6 +14,7 @@ const PropertiesHelper = require('../pages/properties');
 const { ApprovalJob } = require('../pages/approvalPage');
 const { InvoicePage } = require('../pages/invoicePage');
 const { Logger } = require('../utils/logger');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 
 test.use({
@@ -54,6 +55,7 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
         await expect(page).toHaveURL(process.env.DASHBOARD_URL);
         await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(1500);
+        await ensureLeftPanelExpanded(page);
 
         Logger.step('TC226: Create property + persist propertyData (TC14 core)');
         await prop.goToProperties();
@@ -270,6 +272,7 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
 
         const approvalJob = new ApprovalJob(page);
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'domcontentloaded' });
+        await ensureLeftPanelExpanded(page);
         await approvalJob.navigateToApprovalTab();
         await approvalJob.navigateToApprovalTemplatesTab();
         await approvalJob.waitForPageLoad();
@@ -407,6 +410,7 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
 
             const origin = new URL(process.env.DASHBOARD_URL).origin;
             await page.goto(`${origin}/approvals/all-approvals`, { waitUntil: 'domcontentloaded' });
+            await ensureLeftPanelExpanded(page);
             await page.waitForSelector('input[placeholder="Search..."]:not([data-disabled="true"])', { timeout: 30000 });
             Logger.success('TC-OOO-APPROVAL-VERIFY: All Approvals page loaded ✓');
 

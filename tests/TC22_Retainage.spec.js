@@ -1,24 +1,10 @@
 require('dotenv').config();
-/**
- * Retainage flow — discovered via a mandatory MCP browser investigation of the live staging app
- * (see artifacts/debug/*.json for the full UI inventory, network log, and locator map).
- *
- * There is no standalone "Retainage" screen: the feature lives inside the existing Invoice tab
- * (list-grid columns) and the Invoice Details drawer (Overview fields + line-items grid columns).
- * This spec drives a pre-existing staging fixture purpose-built for this flow — project
- * "Project_Automation_Retainage_flow" / job "Automation_Job_for_Retainage_flow" — whose IDs,
- * expected values, and text keywords are read from fixture/retainage.json so this file never
- * needs to change if the fixture moves.
- *
- * Complete page-object split: every selector lives in locators/retainageLocator.js, every
- * page interaction/computation is a method on pages/retainagePage.js, and every keyword/expected
- * value used in assertions is read from fixture/retainage.json.
- */
 const { test, expect } = require('@playwright/test');
 const { RetainagePage } = require('../pages/retainagePage');
 const { retainageLocators } = require('../locators/retainageLocator');
 const { Logger } = require('../utils/logger');
 const fixture = require('../fixture/retainage.json');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 test.use({
     storageState: 'sessionState.json',
@@ -36,6 +22,7 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         page = p;
         retainagePage = new RetainagePage(page);
         loc = retainageLocators(page);
+        await ensureLeftPanelExpanded(page);
     });
 
     test('TC321 @regression @retainage : Invoice list grid exposes Retainage Withheld/Released/Outstanding/Net Payable columns', async () => {

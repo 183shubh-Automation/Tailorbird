@@ -9,6 +9,7 @@ const { LoginPage } = require('../pages/loginPage');
 const { InteractionLogger } = require('../utils/InteractionLogger');
 const OrganizationHelper = require('../pages/organizationHelper');
 const organizationFixture = require('../fixture/organization.json');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 let sharedBrowserContext;
 let sharedPage;
@@ -35,7 +36,7 @@ test.beforeAll(async ({ browser }) => {
 
   await organizationHelper.goto(process.env.DASHBOARD_URL || organizationFixture.dashboardUrl);
   await applyWorkspaceZoom(sharedPage);
-
+  await ensureLeftPanelExpanded(sharedPage);
   await organizationHelper.goToOrganization();
   await applyWorkspaceZoom(sharedPage);
 

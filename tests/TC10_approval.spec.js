@@ -6,6 +6,7 @@ const PropertiesHelper = require('../pages/properties');
 const { CapexPage } = require('../pages/capexPage');
 const { CapexColumnPersistencePage } = require('../pages/capexColumnPersistencePage');
 const { CapexGridStabilityPage } = require('../pages/capexGridStabilityPage');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 import { getPropertyName } from '../utils/propertyUtils';
 
 test.use({
@@ -91,6 +92,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
 
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'domcontentloaded' });
         await expect(page).toHaveURL(process.env.DASHBOARD_URL);
+        await ensureLeftPanelExpanded(page);
         // Wait for app shell — networkidle times out on CapEx page in CI (headless Linux)
         const _appShell = page.locator('.mantine-AppShell-navbar, .mantine-AppShell-main, main').first();
         const _t0 = Date.now();

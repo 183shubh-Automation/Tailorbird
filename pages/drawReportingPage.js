@@ -692,4 +692,539 @@ exports.DrawReportingJob = class DrawReportingJob {
         Logger.success(`Historical Draws row "${drawName}" status = "${status}" (cell raw: "${statusCellText}", full row: "${rowText}")`);
         return status;
     }
+
+    // ===================== Merged from drawApprovalPage.js =====================
+    // (Draw approval template creation + All Approvals workflow)
+
+    async navigateToApprovalTemplatesTab() {
+        Logger.step('Navigating to Approval Templates tab');
+        await this.page.goto('/approvals/template', { waitUntil: 'load' });
+        await this.page.waitForTimeout(3000);
+        await expect(draw.createTemplateButton, 'Create Template button must be visible').toBeVisible({ timeout: 20000 });
+        Logger.success('Navigated to Approval Templates tab');
+    }
+
+    /**
+     * Creates a "Draw" type approval template scoped to one property with a single
+     * always-required approver — mirrors approvalPage.js's createBudgetApprovalTemplateForTest
+     * pattern, but for the new Draw approval type and exactly one approver.
+     */
+    async createDrawApprovalTemplateSingleApprover(templateName, propertyName, approverFullName) {
+        Logger.step(`Creating Draw approval template "${templateName}" for "${propertyName}" with sole approver "${approverFullName}"`);
+
+        await draw.createTemplateButton.click();
+        const dialog = draw.createDialog();
+        await expect(dialog, 'Create Approval Template dialog must open').toBeVisible({ timeout: 15000 });
+
+        await draw.templateNameInput().fill(templateName);
+        await draw.drawTypeRadio().click();
+        await this.page.waitForTimeout(400);
+        Logger.success('Template name filled and "Draw" type selected');
+
+        await draw.addPropertiesButton().click();
+        await this.page.waitForTimeout(1000);
+        await draw.templatePropertySearchInput.fill(propertyName);
+        await this.page.waitForTimeout(1200);
+        await draw.propertyOptionCheckbox(propertyName).click();
+        await draw.closePropertyPickerButton.click();
+        await this.page.waitForTimeout(500);
+        Logger.success(`Property "${propertyName}" added to template`);
+
+        // Remove approver rows 3 and 2 (in that order, high-to-low) so only row 1 remains.
+        await draw.deleteRowButtonInRow(2).click();
+        await this.page.waitForTimeout(400);
+        await draw.deleteRowButtonInRow(1).click();
+        await this.page.waitForTimeout(400);
+
+        const approverInput = draw.approverInputInRow(0);
+        await approverInput.click();
+        await approverInput.fill(approverFullName.toLowerCase());
+        await this.page.waitForTimeout(1000);
+        await draw.approverOption(approverFullName).first().click();
+        await this.page.keyboard.press('Escape');
+        await this.page.waitForTimeout(400);
+        Logger.success(`Sole approver "${approverFullName}" added`);
+
+        await draw.alwaysRequiredCheckboxInRow(0).check({ force: true });
+        await this.page.waitForTimeout(400);
+
+        await draw.submitTemplateButton().click();
+        await this.page.waitForTimeout(2500);
+
+        // The backend allows only one template per (type, property) pair. If a Draw
+        // template already exists for this property (e.g. from a prior test run),
+        // treat that as already-configured rather than failing.
+        const conflictToast = this.page.locator('[role="alert"]').filter({ hasText: /already linked|already exists|duplicate/i });
+        if (await conflictToast.isVisible({ timeout: 1500 }).catch(() => false)) {
+            const msg = (await conflictToast.textContent().catch(() => '')).trim();
+            Logger.info(`Draw approval template already configured for "${propertyName}" — server said: "${msg}". Reusing existing routing.`);
+            return { created: false, alreadyConfigured: true };
+        }
+        Logger.success('Create Template form submitted');
+
+        await draw.templatesListSearchInput.fill(templateName);
+        await this.page.waitForTimeout(1200);
+        const row = draw.templateRowByName(templateName);
+        await expect(row, `Template "${templateName}" must appear in the templates list`).toBeVisible({ timeout: 10000 });
+        const rowText = (await row.textContent()).trim();
+        expect(rowText, 'Template row must show "Draw" as the template type').toContain('Draw');
+        expect(rowText, 'Template row must show the target property').toContain(propertyName);
+        expect(rowText, 'Template row must show the sole approver').toContain(approverFullName);
+
+        Logger.success(`Verified Draw approval template "${templateName}": type=Draw, property="${propertyName}", approver="${approverFullName}"`);
+        return { created: true, alreadyConfigured: false };
+    }
+
+    async navigateToAllApprovalsTab() {
+        Logger.step('Navigating to All Approvals tab');
+        // This route's grid/search box has been observed to sometimes hydrate in a few
+        // seconds and other times take much longer (intermittent, not tied to navigation
+        // strategy). One contributing factor: this is normally called seconds after
+        // submitting a draw for approval, while backend revalidation from that submission
+        // may still be in flight — give that a moment to settle before even attempting the
+        // navigation, then retry the direct navigation itself with a generous per-attempt
+        // wait rather than failing fast on the first slow load.
+        await this.page.waitForTimeout(8000);
+        let ready = false;
+        for (let attempt = 0; attempt < 3 && !ready; attempt++) {
+            await this.page.goto('/approvals/all-approvals', { waitUntil: 'load' });
+            ready = await draw.templatesListSearchInput.isVisible({ timeout: 30000 }).catch(() => false);
+        }
+        await expect(draw.templatesListSearchInput, 'All Approvals search box must be visible').toBeVisible({ timeout: 15000 });
+        Logger.success('Navigated to All Approvals tab');
+    }
+
+    /**
+     * "All Approvals" is an admin-wide view — a regular approver (not an admin) sees ZERO rows
+     * there. Their own queue lives under "My Approvals" instead, reached by clicking the tab
+     * from the same /approvals/all-approvals page (client-side tab switch, no separate route).
+     */
+    async navigateToMyApprovalsTab() {
+        Logger.step('Navigating to My Approvals tab');
+        await this.page.waitForTimeout(8000);
+        let ready = false;
+        for (let attempt = 0; attempt < 3 && !ready; attempt++) {
+            await this.page.goto('/approvals/all-approvals', { waitUntil: 'load' });
+            ready = await draw.myApprovalsTab.waitFor({ state: 'visible', timeout: 15000 }).then(() => true).catch(() => false);
+        }
+        await expect(draw.myApprovalsTab, 'My Approvals tab must be visible').toBeVisible({ timeout: 15000 });
+        await draw.myApprovalsTab.click();
+        await this.page.waitForTimeout(2000);
+        Logger.success('Navigated to My Approvals tab');
+    }
+
+    /**
+     * Resolves a data row's "View Details" button. The grid renders its "Actions" column as a
+     * structurally separate column group — those rows are DOM siblings of the data rows, not
+     * descendants, so a row-scoped role query always matches zero elements. Both column groups
+     * render in the same top-to-bottom order, so the button is found via the row's positional
+     * index among all real data rows (rows containing a Submitted-On date; Actions-only rows
+     * never have one). Returns null if the row can't be matched to an index.
+     */
+    async resolveViewDetailsButtonForRow(row) {
+        const handle = await row.elementHandle().catch(() => null);
+        if (!handle) return null;
+        const index = await draw.dataRowsWithDate.evaluateAll((rows, el) => rows.indexOf(el), handle);
+        if (index === -1) return null;
+        return draw.allViewDetailsButtons.nth(index);
+    }
+
+    /**
+     * Finds the given draw's row in the All Approvals (admin-wide) or My Approvals (current
+     * user's own queue) grid and opens its "Approval Details" dialog. Returns the dialog
+     * locator for the caller to inspect/act on. Pass { tab: 'mine' } when calling as the real
+     * eligible approver — "All Approvals" renders zero rows for a non-admin account.
+     *
+     * The grid's rows do NOT render the draw's name anywhere (only Property Name, Job,
+     * Approval Type, ID, Amount, etc.), and the page's search box does not index draw name
+     * either — searching by draw name always yields zero rows. Since the domain only allows
+     * one Pending draw submission per property at a time, the row is instead found by
+     * property name + type "Draw" (+ status "Pending Approval" on the All Approvals grid only),
+     * and the exact draw name is verified from the opened dialog's own "Draw Name:" text.
+     */
+    async openApprovalDetailsForDraw(propertyName, drawName, { tab = 'all' } = {}) {
+        const row = tab === 'mine'
+            ? draw.myApprovalsPendingDrawRowForProperty(propertyName)
+            : draw.allApprovalsPendingDrawRowForProperty(propertyName);
+
+        // Root cause #1 (trace.zip inspection): Locator.isVisible({timeout}) is a ONE-SHOT
+        // check — it does not poll/wait despite taking a timeout option. Right after navigating
+        // for a just-submitted draw, the grid's row data is still being fetched client-side, so
+        // this check fired too early and got a false negative. waitFor({state:'visible'}) polls
+        // for the timeout duration, which is what this needed all along.
+        //
+        // Root cause #2 (direct count() inspection): the grid virtualizes its "Actions" column
+        // as a structurally separate column group — those rows are DOM siblings of the data
+        // rows, not descendants, so row.getByRole('button', {name:'View Details'}) always
+        // matched zero elements. Every observed failure was this click silently matching
+        // nothing, not the row being unfindable. Fixed via resolveViewDetailsButtonForRow's
+        // positional-index lookup instead of a row-scoped query.
+        let opened = false;
+        for (let attempt = 0; attempt < 4 && !opened; attempt++) {
+            if (attempt > 0) {
+                await (tab === 'mine' ? this.navigateToMyApprovalsTab() : this.navigateToAllApprovalsTab());
+            }
+            const found = await row.waitFor({ state: 'visible', timeout: 15000 }).then(() => true).catch(() => false);
+            if (!found) continue;
+
+            const viewDetailsButton = await this.resolveViewDetailsButtonForRow(row.first());
+            if (!viewDetailsButton) continue;
+
+            opened = await viewDetailsButton.click({ timeout: 10000 })
+                .then(() => draw.approvalDetailsDialog.waitFor({ state: 'visible', timeout: 10000 }))
+                .then(() => true)
+                .catch(() => false);
+        }
+        await expect(draw.approvalDetailsDialog, `Approval Details dialog must open for property "${propertyName}"`).toBeVisible({ timeout: 5000 });
+
+        const dialogText = (await draw.approvalDetailsDialog.textContent()).trim();
+        expect(dialogText, `Opened Approval Details must be for draw "${drawName}" (raw dialog text: "${dialogText}")`).toContain(drawName);
+
+        Logger.success(`Opened Approval Details for draw "${drawName}" on property "${propertyName}"`);
+        return draw.approvalDetailsDialog;
+    }
+
+    /**
+     * Attempts to approve the given draw as whichever user is behind this instance's page:
+     * clicks whichever approve-type button the Approval Details dialog offers — the real
+     * "Approve" button for the genuine eligible approver, or the admin "Approve on Behalf"
+     * override for anyone else with rights to it — then confirms via Historical Draws that
+     * the draw's status actually became "Approved". Returns false (rather than throwing) if
+     * the dialog never opened, no approve-type button appeared, or the confirmed status isn't
+     * "Approved", so callers can retry the same draw as a different logged-in user instead of
+     * failing outright.
+     */
+    async attemptApproveDraw(propertyName, drawName, { tab = 'all' } = {}) {
+        let dialog;
+        try {
+            dialog = await this.openApprovalDetailsForDraw(propertyName, drawName, { tab });
+        } catch {
+            return false;
+        }
+
+        const hasApprove = await draw.directApproveButton.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
+        const hasApproveOnBehalf = !hasApprove && await draw.approveOnBehalfButton.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
+        if (!hasApprove && !hasApproveOnBehalf) {
+            await this.page.keyboard.press('Escape');
+            return false;
+        }
+
+        await (hasApprove ? draw.directApproveButton : draw.approveOnBehalfButton).click();
+        await expect(dialog, 'Approval Details dialog must close after approving').not.toBeVisible({ timeout: 15000 }).catch(() => {});
+
+        await this.navigateToDrawReporting();
+        await this.selectPropertyByName(propertyName);
+        await this.openHistoricalDrawsTab();
+        const status = await this.getHistoricalDrawRowStatus(drawName).catch(() => null);
+
+        if (status === 'Approved') {
+            Logger.success(`Approved draw "${drawName}" via "${hasApprove ? 'Approve' : 'Approve on Behalf'}"`);
+            return true;
+        }
+        Logger.info(`Clicked "${hasApprove ? 'Approve' : 'Approve on Behalf'}" for draw "${drawName}" but status is "${status}", not "Approved"`);
+        return false;
+    }
+
+    // ===================== Merged from drawReportingInvoicePage.js =====================
+    // (Invoice creation used to prepare Draw Reporting E2E test data)
+
+    /**
+     * Creates and approves one small throwaway invoice against an existing job's
+     * existing contract line. Draw Reporting only surfaces invoices with
+     * draw_status = never_included, and the prepared invoice gets consumed the
+     * moment a draw including it is approved — so each E2E run needs a fresh one.
+     * Uses a conservative $10 amount to stay under the contract line's fixed
+     * historical retainage-withheld ceiling (observed at $28 for this line).
+     */
+    async createPendingInvoiceForJobOnProperty(jobId, invoiceTitle) {
+        Logger.step(`Creating a fresh invoice on job ${jobId}`);
+
+        await this.page.goto(`/jobs/${jobId}?tab=invoices`, { waitUntil: 'load' });
+        await this.page.waitForTimeout(3000);
+
+        const invoiceTab = this.page.getByRole('tab', { name: 'Invoice', exact: true });
+        await invoiceTab.click();
+        await this.page.waitForTimeout(2000);
+
+        const createInvoiceButton = this.page.getByRole('button', { name: 'Create Invoice', exact: true });
+        await expect(createInvoiceButton, 'Create Invoice button must be visible').toBeVisible({ timeout: 15000 });
+        await createInvoiceButton.click();
+
+        const dialog = this.page.getByRole('dialog').filter({ has: this.page.getByText('Invoice Details', { exact: true }) });
+        await expect(dialog, 'Invoice Details dialog must open').toBeVisible({ timeout: 15000 });
+
+        const invoiceNumberLabel = (await dialog.getByRole('textbox', { name: 'Enter invoice number' }).inputValue()).trim();
+        const invoiceNumber = (invoiceNumberLabel.match(/\d+/) || [])[0];
+        if (!invoiceNumber) throw new Error(`Could not parse invoice number from "${invoiceNumberLabel}"`);
+        Logger.success(`New invoice draft created: ${invoiceNumberLabel}`);
+
+        await dialog.getByRole('textbox', { name: 'Enter title' }).fill(invoiceTitle);
+
+        // Reuses the proven column-index-based cell lookup (copied from multiApproverLocator.js) —
+        // more robust than matching on the cell's placeholder text ("—" before any value is set).
+        await expect(draw.invoiceAmountColumnHeader, 'Invoice Amount column header must be visible').toBeVisible({ timeout: 15000 });
+        const colIndex = await draw.invoiceAmountColumnHeader.evaluate((el) => el.getAttribute('data-rgcol') || el.getAttribute('aria-colindex'));
+        if (!colIndex) throw new Error('Could not resolve Invoice Amount column index');
+        const amountCell = draw.invoiceGridDataCellByColIndex(colIndex);
+        await amountCell.scrollIntoViewIfNeeded().catch(() => { });
+        await amountCell.dblclick();
+        const amountEditor = draw.invoiceAmountEditorInput;
+        await expect(amountEditor, 'Invoice amount editor must open').toBeVisible({ timeout: 10000 });
+        await amountEditor.fill('10');
+        await amountEditor.press('Enter');
+        await this.page.waitForTimeout(500);
+
+        const confirmedAmount = (await amountCell.textContent()).trim();
+        expect(confirmedAmount, `Invoice amount cell must reflect the filled value, got "${confirmedAmount}"`).toContain('10');
+
+        await dialog.getByRole('button', { name: 'Confirm Invoice', exact: true }).click();
+        const confirmDialog = this.page.getByRole('dialog').filter({ has: this.page.getByText('Are you sure you want to approve this invoice?', { exact: true }) });
+        await expect(confirmDialog, 'Confirm Invoice dialog must open').toBeVisible({ timeout: 10000 });
+        await confirmDialog.getByRole('button', { name: 'Confirm', exact: true }).click();
+        await this.page.waitForTimeout(2500);
+
+        const failureToast = this.page.locator('[role="alert"]').filter({ hasText: 'Confirmation Failed' });
+        if (await failureToast.isVisible({ timeout: 1500 }).catch(() => false)) {
+            const msg = (await failureToast.textContent().catch(() => '')).trim();
+            throw new Error(`Invoice confirmation failed: ${msg}`);
+        }
+
+        Logger.success(`Created and approved invoice "${invoiceNumberLabel}" ($10) on job ${jobId}`);
+        return { invoiceNumberLabel, invoiceNumber, amount: 10 };
+    }
+
+    // ===================== NEW: calculation-correctness, negative-path, and cross-view helpers =====================
+    // Everything below is additive, supporting new test cases only — no method above this
+    // point is modified.
+
+    parseCurrencyText(text) {
+        const n = Number((text || '').replace(/[^0-9.-]/g, ''));
+        if (Number.isNaN(n)) throw new Error(`Could not parse currency from "${text}"`);
+        return n;
+    }
+
+    /**
+     * Reads one row of the "Draw disbursement schedule" table in the Step 1 draw editor by
+     * budget item name (or "Total" for the summary row), parsing every column as a number:
+     * Current Budget, Committed, Reallocation, Budget Remaining, Drawn, Current Draw, Draw
+     * Remaining. Used to verify the disbursement schedule's own math independent of the
+     * Invoices panel / KPIs.
+     */
+    async readDisbursementRowValuesInEditor(budgetItemName) {
+        const row = draw.drawEditorDialog.getByRole('row').filter({ hasText: budgetItemName });
+        await expect(row, `Disbursement schedule row for "${budgetItemName}" must be visible`).toBeVisible({ timeout: 10000 });
+        const cells = (await row.getByRole('cell').allTextContents()).map((c) => c.trim());
+        const [budgetItem, currentBudget, committed, reallocation, budgetRemaining, drawn, currentDraw, drawRemaining] = cells;
+        return {
+            budgetItem,
+            currentBudget: this.parseCurrencyText(currentBudget),
+            committed: this.parseCurrencyText(committed),
+            reallocation: this.parseCurrencyText(reallocation),
+            budgetRemaining: this.parseCurrencyText(budgetRemaining),
+            drawn: this.parseCurrencyText(drawn),
+            currentDraw: this.parseCurrencyText(currentDraw),
+            drawRemaining: this.parseCurrencyText(drawRemaining),
+        };
+    }
+
+    /** Reads the combined CM Fee $ amount from the "CM Fee Invoice (TBD)" line, as a number. */
+    async readCmFeeInvoiceAmount() {
+        await expect(draw.cmFeeAutoInvoiceLabel, 'CM Fee Invoice (TBD) line must be visible').toBeVisible({ timeout: 10000 });
+        const amountText = await draw.cmFeeAutoInvoiceLabel.evaluate((el) => {
+            let node = el.parentElement;
+            for (let i = 0; i < 8 && node; i++) {
+                const match = node.textContent.match(/\$[\d,]+(\.\d{1,2})?/);
+                if (match) return match[0];
+                node = node.parentElement;
+            }
+            return null;
+        });
+        expect(amountText, 'CM Fee Invoice (TBD) amount must be found nearby').not.toBeNull();
+        return this.parseCurrencyText(amountText);
+    }
+
+    /** Unchecks a previously-included invoice's row checkbox, excluding it from the draw. */
+    async excludeInvoiceInDraw(invoiceLabel) {
+        const checkbox = draw.invoiceRowCheckboxByLabel(invoiceLabel);
+        await expect(checkbox, `Checkbox for invoice "${invoiceLabel}" must be visible before excluding`).toBeVisible({ timeout: 10000 });
+        await checkbox.uncheck({ force: true });
+        await this.page.waitForTimeout(1000);
+        Logger.success(`Excluded invoice "${invoiceLabel}" from the draw`);
+    }
+
+    /**
+     * Unchecks every invoice checkbox currently included in the draft (the non-deselectable
+     * CM Fee row is skipped automatically since it's disabled), leaving Current Draw Request
+     * at $0.00. Older invoices left unconsumed by earlier discarded drafts on a shared
+     * property can appear pre-checked by default in a fresh draft, so calculation tests call
+     * this first to start from a known-clean baseline before including only the invoice(s)
+     * they actually care about.
+     */
+    async excludeAllInvoicesInDraft() {
+        // Re-queries fresh on every outer iteration (rather than caching indices) since
+        // unchecking a row can remove the auto-generated CM Fee row entirely once no real
+        // invoice remains included, which would shift indices out from under a stale list.
+        for (let attempt = 0; attempt < 20; attempt++) {
+            const checkboxes = draw.drawEditorDialog.getByRole('checkbox');
+            const count = await checkboxes.count();
+            let target = null;
+            for (let i = 0; i < count; i++) {
+                const candidate = checkboxes.nth(i);
+                if (!(await candidate.isDisabled()) && await candidate.isChecked()) {
+                    target = candidate;
+                    break;
+                }
+            }
+            if (!target) break;
+            await target.uncheck({ force: true });
+            await this.page.waitForTimeout(400);
+        }
+        Logger.success('Excluded all invoices from the draft (only the non-deselectable CM Fee row remains, if present)');
+    }
+
+    /** Confirms the auto-generated CM Fee Invoice (TBD) row is checked and non-deselectable. */
+    async assertCmFeeCheckboxLockedIn() {
+        const checkbox = draw.cmFeeInvoiceRow.getByRole('checkbox');
+        await expect(checkbox, 'CM Fee Invoice (TBD) checkbox must be visible').toBeVisible({ timeout: 10000 });
+        expect(await checkbox.isChecked(), 'CM Fee Invoice (TBD) must always be checked').toBe(true);
+        expect(await checkbox.isDisabled(), 'CM Fee Invoice (TBD) checkbox must be non-deselectable (disabled)').toBe(true);
+        Logger.success('Confirmed CM Fee Invoice (TBD) checkbox is checked and disabled (non-deselectable)');
+    }
+
+    async assertContinueDisabledWithNoInvoices() {
+        await expect(draw.drawEditorContinueButton, 'Continue button must stay disabled with zero invoices included').toBeDisabled();
+        Logger.success('Confirmed Continue button is disabled while zero invoices are included');
+    }
+
+    async assertSubmitForApprovalDisabled() {
+        await expect(draw.submitForApprovalButton, 'Submit for Approval must stay disabled while another draw is already Pending on this property').toBeDisabled({ timeout: 10000 });
+        Logger.success('Confirmed Submit for Approval is disabled while another draw is already Pending on this property');
+    }
+
+    /**
+     * Reads one Historical Draws row's numeric columns by matching every currency-shaped cell
+     * in document order: Draw Amount, Previously Drawn, Total Draw at Submission, Remaining at
+     * Submission. Fails loudly (with the full raw cell list) if the count isn't exactly 4,
+     * rather than silently misassigning columns if the grid's shape ever changes.
+     */
+    async readHistoricalDrawRowValues(drawName) {
+        const row = draw.historicalDrawRowByName(drawName);
+        await expect(row, `Historical Draws row for "${drawName}" must be visible`).toBeVisible({ timeout: 15000 });
+        const texts = (await row.locator('[role="gridcell"]').allTextContents()).map((t) => t.trim());
+        const statusMatch = texts.join(' | ').match(/Pending|Approved|Funded|Rejected/);
+        const status = statusMatch ? statusMatch[0] : null;
+        const currencyTexts = texts.filter((t) => /^\$[\d,]+(\.\d{1,2})?$/.test(t));
+        expect(currencyTexts.length, `Historical Draws row "${drawName}" must have 4 currency cells (Draw Amount, Previously Drawn, Total Draw at Submission, Remaining at Submission); got: ${JSON.stringify(texts)}`).toBe(4);
+        const [drawAmount, previouslyDrawn, totalDrawAtSubmission, remainingAtSubmission] = currencyTexts.map((t) => this.parseCurrencyText(t));
+        Logger.success(`Historical Draws row "${drawName}" parsed: status=${status}, drawAmount=${drawAmount}, previouslyDrawn=${previouslyDrawn}, totalDrawAtSubmission=${totalDrawAtSubmission}, remainingAtSubmission=${remainingAtSubmission}`);
+        return { status, drawAmount, previouslyDrawn, totalDrawAtSubmission, remainingAtSubmission };
+    }
+
+    /** Reads the numeric Draw ID (the Actions-column link text) for a property's Pending draw row in the All Approvals grid. */
+    async getAllApprovalsRowIdForPendingDraw(propertyName) {
+        const row = draw.allApprovalsPendingDrawRowForProperty(propertyName);
+        await expect(row, `All Approvals grid must show a Pending Draw row for property "${propertyName}"`).toBeVisible({ timeout: 15000 });
+        const idText = (await row.getByRole('link').first().textContent()).trim();
+        expect(idText, `Draw ID link text "${idText}" must be a number`).toMatch(/^\d+$/);
+        Logger.success(`All Approvals row ID for pending draw on "${propertyName}" = ${idText}`);
+        return idText;
+    }
+
+    /** Reads the Status cell for a specific draw (identified by its numeric ID) in the All Approvals grid, regardless of its current status. */
+    async readAllApprovalsRowStatus(propertyName, drawIdText) {
+        const row = this.page
+            .getByRole('row')
+            .filter({ hasText: propertyName })
+            .filter({ hasText: 'Draw' })
+            .filter({ has: this.page.getByRole('link', { name: drawIdText, exact: true }) });
+        await expect(row, `All Approvals grid must show a row with ID "${drawIdText}" for property "${propertyName}"`).toBeVisible({ timeout: 15000 });
+        const statusCell = row.locator('[role="gridcell"]').filter({ hasText: /Pending Approval|Approved|Rejected/ }).first();
+        const statusText = (await statusCell.textContent()).trim();
+        const match = statusText.match(/Pending Approval|Approved|Rejected/);
+        expect(match, `All Approvals row status text "${statusText}" must be recognizable`).not.toBeNull();
+        return match[0];
+    }
+
+    /**
+     * Attempts to reject the given draw as whichever user is behind this instance's page:
+     * fills the required rejection note, then clicks whichever reject-type button the
+     * Approval Details dialog offers — the real "Reject" button for the genuine eligible
+     * approver, or the admin "Reject on Behalf" override for anyone else with rights to it —
+     * then confirms via Historical Draws that the draw's status actually became "Rejected".
+     * Returns false (rather than throwing) on any failure so callers can retry as a different
+     * logged-in user instead of failing outright.
+     */
+    async attemptRejectDraw(propertyName, drawName, note, { tab = 'all' } = {}) {
+        let dialog;
+        try {
+            dialog = await this.openApprovalDetailsForDraw(propertyName, drawName, { tab });
+        } catch {
+            return false;
+        }
+
+        const hasReject = await draw.directRejectButton.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
+        const hasRejectOnBehalf = !hasReject && await draw.rejectOnBehalfButton.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
+        if (!hasReject && !hasRejectOnBehalf) {
+            await this.page.keyboard.press('Escape');
+            return false;
+        }
+
+        await draw.rejectionNotesInput.fill(note);
+        await (hasReject ? draw.directRejectButton : draw.rejectOnBehalfButton).click();
+        await expect(dialog, 'Approval Details dialog must close after rejecting').not.toBeVisible({ timeout: 15000 }).catch(() => {});
+
+        await this.navigateToDrawReporting();
+        await this.selectPropertyByName(propertyName);
+        await this.openHistoricalDrawsTab();
+        const status = await this.getHistoricalDrawRowStatus(drawName).catch(() => null);
+
+        if (status === 'Rejected') {
+            Logger.success(`Rejected draw "${drawName}" via "${hasReject ? 'Reject' : 'Reject on Behalf'}"`);
+            return true;
+        }
+        Logger.info(`Clicked "${hasReject ? 'Reject' : 'Reject on Behalf'}" for draw "${drawName}" but status is "${status}", not "Rejected"`);
+        return false;
+    }
+
+    /** Reads the "Eligible approvers: ..." text from a draw's Approval Details dialog, then closes it. */
+    async readEligibleApproversText(propertyName, drawName) {
+        const dialog = await this.openApprovalDetailsForDraw(propertyName, drawName);
+        const eligibleText = (await dialog.getByText(/Eligible approvers:/).textContent()).trim();
+        await this.page.keyboard.press('Escape');
+        await expect(dialog, 'Approval Details dialog must close after reading eligible approvers').not.toBeVisible({ timeout: 10000 }).catch(() => {});
+        return eligibleText;
+    }
+
+    /**
+     * Confirms every approver name parsed out of an "Eligible approvers: ..." string is
+     * actually listed on the configured Draw approval template row for this property —
+     * catches template misconfiguration rather than just "someone was able to approve".
+     */
+    async verifyEligibleApproverMatchesTemplate(propertyName, eligibleApproversText) {
+        await this.navigateToApprovalTemplatesTab();
+        await draw.templatesListSearchInput.fill(propertyName);
+        await this.page.waitForTimeout(1200);
+        const row = this.page.getByRole('row').filter({ hasText: propertyName }).filter({ hasText: 'Draw' });
+        await expect(row.first(), `Draw approval template row for property "${propertyName}" must be visible`).toBeVisible({ timeout: 10000 });
+        const rowText = (await row.first().textContent()).trim();
+
+        const approverNames = eligibleApproversText.replace('Eligible approvers:', '').split(',').map((n) => n.trim()).filter(Boolean);
+        expect(approverNames.length, `Could not parse any approver names out of "${eligibleApproversText}"`).toBeGreaterThan(0);
+        for (const name of approverNames) {
+            expect(rowText, `Approval template row must list approver "${name}" (dialog said: "${eligibleApproversText}")`).toContain(name);
+        }
+        Logger.success(`Verified template row for "${propertyName}" contains eligible approver(s): ${approverNames.join(', ')}`);
+    }
+
+    /** Navigates to a property's Details page and confirms a document matching the given filename pattern is listed. */
+    async openPropertyDocumentsAndAssertFileExists(propertyId, filenamePattern) {
+        await this.page.goto(`/properties/details?propertyId=${propertyId}`, { waitUntil: 'load' });
+        await this.page.waitForTimeout(4000);
+        const escaped = filenamePattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const fileText = this.page.getByText(new RegExp(escaped)).first();
+        await expect(fileText, `Property Documents must show a file matching "${filenamePattern}"`).toBeVisible({ timeout: 20000 });
+        const actualText = (await fileText.textContent()).trim();
+        Logger.success(`Confirmed Property Documents contains file "${actualText}" (matched pattern "${filenamePattern}")`);
+        return actualText;
+    }
 };

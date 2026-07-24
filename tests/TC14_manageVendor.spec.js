@@ -4,6 +4,7 @@ const fs = require('fs');
 const { test, expect } = require('@playwright/test');
 const { VendorDirectoryPage } = require('../pages/vendorDirectoryPage');
 const { Logger } = require('../utils/logger');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 const TC14_SNAPSHOT_DIR = path.join(process.cwd(), 'committed_ui_snapshots', 'TC14_manageVendor.spec.js');
 
@@ -25,6 +26,7 @@ test.describe('Vendors Directory - E2E', () => {
         vendorPage = new VendorDirectoryPage(page);
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'domcontentloaded' });
         await expect(page).toHaveURL(process.env.DASHBOARD_URL);
+        await ensureLeftPanelExpanded(page);
         await expect(page.getByRole('navigation')).toBeVisible({ timeout: 20000 });
     });
 

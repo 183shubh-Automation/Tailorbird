@@ -1,4 +1,6 @@
 function drawReportingLocators(page) {
+    const createTemplateDialog = () => page.getByRole('dialog').filter({ has: page.getByText('Create Approval Template', { exact: true }) });
+
     return {
         // --- Navigation ---
         drawReportingNavLink: page.locator('nav').getByText('Draw Reporting', { exact: true }).first(),
@@ -139,6 +141,109 @@ function drawReportingLocators(page) {
 
         // --- Historical Draws grid row lookup by draw name ---
         historicalDrawRowByName: (drawName) => page.getByRole('row').filter({ hasText: drawName }),
+
+        // ===================== Merged from drawApprovalLocator.js =====================
+        // (Draw approval template creation + All Approvals workflow)
+
+        createTemplateButton: page.getByRole('button', { name: 'Create Template', exact: true }),
+        createDialog: createTemplateDialog,
+
+        // --- Fields inside the Create Approval Template dialog ---
+        templateNameInput: () => createTemplateDialog().getByRole('textbox', { name: 'Template Name' }),
+        drawTypeRadio: () => createTemplateDialog().getByRole('radio', { name: 'Draw', exact: true }),
+        addPropertiesButton: () => createTemplateDialog().getByRole('button', { name: 'Search and add properties' }),
+
+        // --- Property picker popover (opened by addPropertiesButton) ---
+        // Named distinctly from propertySearchInput above (the Draw Reporting header's
+        // property picker) since both would otherwise collide under the same key.
+        templatePropertySearchInput: page.getByRole('textbox', { name: 'Search properties' }),
+        propertyOptionCheckbox: (propertyName) => page.getByText(propertyName, { exact: true }),
+        closePropertyPickerButton: page.getByRole('button', { name: 'Close', exact: true }),
+
+        // --- Approval rule rows (row 0 = header, rows 1..3 = default approver rows) ---
+        approvalRuleRow: (index) => createTemplateDialog().getByRole('row').nth(index + 1),
+        approverInputInRow: (index) => createTemplateDialog().getByRole('row').nth(index + 1).getByRole('textbox', { name: 'Select approvers' }),
+        approverOption: (name) => page.getByRole('option', { name, exact: true }),
+        alwaysRequiredCheckboxInRow: (index) => createTemplateDialog().getByRole('row').nth(index + 1).getByRole('checkbox'),
+        deleteRowButtonInRow: (index) => createTemplateDialog().getByRole('row').nth(index + 1).getByRole('button').last(),
+
+        submitTemplateButton: () => createTemplateDialog().getByRole('button', { name: 'Create Template', exact: true }),
+
+        // --- Approval Templates list (post-creation verification) ---
+        // CSS-based (not getByRole) deliberately: on the All Approvals page (a heavy
+        // virtualized RevoGrid data grid), the browser's accessibility-tree computation was
+        // observed to lag far behind the actual DOM/paint — the input is genuinely visible
+        // and interactable in the DOM (confirmed via direct evaluation) long before
+        // getByRole('textbox', {name:'Search...'}) resolves, sometimes never within 90s+ of
+        // waiting. A plain CSS attribute selector reads the DOM directly and sidesteps that.
+        templatesListSearchInput: page.locator('input[placeholder="Search..."]').first(),
+        templateRowByName: (name) => page.getByRole('row').filter({ hasText: name }),
+
+        // --- Top nav "Approvals" link + "All Approvals"/"My Approvals" tabs (for client-side SPA navigation) ---
+        // "All Approvals" is an admin-wide view — it renders ZERO rows for a regular approver
+        // (e.g. the real eligible approver logged in on their own account). That user's queue
+        // lives under "My Approvals" instead. Both grids share the same row-finding problem
+        // (see dataRowsWithDate below), just scoped to a different list.
+        approvalsNavLink: page.locator('nav').getByText('Approvals', { exact: true }).first(),
+        allApprovalsTab: page.getByRole('tab', { name: 'All Approvals', exact: true }),
+        myApprovalsTab: page.getByRole('tab', { name: 'My Approvals', exact: true }),
+
+        // --- All Approvals / My Approvals grids + Approval Details dialog ---
+        // The grid's rows do NOT render the draw's name anywhere (only Property Name, Job,
+        // Approval Type, ID, Amount, etc.) and the page's search box does not index draw name
+        // either — searching by draw name always yields zero rows. Since the domain only
+        // allows one Pending draw submission per property at a time, the unique way to find
+        // "the draw I just submitted" is by property name + type "Draw" (+ status "Pending
+        // Approval" on All Approvals only — My Approvals' rows don't render a status column at
+        // all, since everything listed there is implicitly pending); the exact draw name is
+        // then verified from the opened dialog's own text.
+        allApprovalsRowByName: (name) => page.getByRole('row').filter({ hasText: name }),
+        allApprovalsPendingDrawRowForProperty: (propertyName) => page
+            .getByRole('row')
+            .filter({ hasText: propertyName })
+            .filter({ hasText: 'Draw' })
+            .filter({ hasText: 'Pending Approval' }),
+        myApprovalsPendingDrawRowForProperty: (propertyName) => page
+            .getByRole('row')
+            .filter({ hasText: propertyName })
+            .filter({ hasText: 'Draw' }),
+        // The grid virtualizes the "Actions" column as a structurally separate column group —
+        // its rows are DOM siblings of the data rows, not descendants, and row.getByRole('button',
+        // {name:'View Details'}) therefore always matches zero elements (confirmed via direct
+        // count() inspection). The two column groups render in the same top-to-bottom order, so
+        // the button is instead resolved by the data row's positional index among all real data
+        // rows (identified by containing a Submitted-On date, which no Actions-only row has).
+        dataRowsWithDate: page.getByRole('row').filter({ hasText: /\d{2}\/\d{2}\/\d{4}/ }),
+        allViewDetailsButtons: page.getByRole('button', { name: 'View Details' }),
+        approvalDetailsDialog: page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: 'Approval Details' }) }),
+        eligibleApproversText: page.getByText(/Eligible approvers:/),
+        directApproveButton: page.getByRole('button', { name: 'Approve', exact: true }),
+        directRejectButton: page.getByRole('button', { name: 'Reject', exact: true }),
+        approveOnBehalfButton: page.getByRole('button', { name: 'Approve on Behalf', exact: true }),
+        rejectOnBehalfButton: page.getByRole('button', { name: 'Reject on Behalf', exact: true }),
+        rejectionNotesInput: page.getByRole('textbox', { name: 'Notes (required for rejection)' }),
+
+        // --- CM Fee Invoice (TBD) row (always-included, non-deselectable line in the Invoices
+        // panel) — same wrapper-matching pattern as invoicePanelRowByLabel, but keyed on this
+        // fixed auto-generated label instead of a per-invoice one.
+        cmFeeInvoiceRow: page
+            .getByRole('dialog')
+            .filter({ has: page.getByText('Draw disbursement schedule', { exact: true }) })
+            .locator('*')
+            .filter({ hasText: 'CM Fee Invoice (TBD)' })
+            .filter({ has: page.getByRole('checkbox') })
+            .last(),
+
+        // ===================== Copied from multiApproverLocator.js =====================
+        // Used only for filling the invoice amount when preparing a test invoice for Draw
+        // Reporting E2E flows. multiApproverLocator.js itself is NOT modified — it's shared
+        // by the multi-approver test suite — these are copies of its 3 relevant locators.
+        invoiceAmountColumnHeader: page.getByRole('columnheader', { name: 'Invoice Amount', exact: true }),
+        invoiceGridDataCellByColIndex: (colIndex) =>
+            page
+                .locator(`[role="gridcell"][data-rgcol="${colIndex}"], [role="gridcell"][aria-colindex="${colIndex}"]`)
+                .first(),
+        invoiceAmountEditorInput: page.getByTestId('bird-table-currency-input'),
     };
 }
 

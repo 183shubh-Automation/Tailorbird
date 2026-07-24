@@ -1,31 +1,3 @@
-/**
- * UnitInterior.spec.js
- *
- * E2E suite: Jobs listing → "Automation Job, please don't delete it" → Contracts → Units
- *
- * Navigation rule: No hardcoded resource IDs in navigation calls.
- *   beforeEach starts from the Jobs listing page, searches for the job by name,
- *   opens it via the search result, then clicks Contracts → Units through the UI.
- *
- * Text assertions rule: Every CTA, label, header, button, placeholder and dialog
- *   string is read from fixture/unitInterior.json and logged via InteractionLogger
- *   before being asserted.
- *
- * E2E coverage rule: Every interactive element is exercised end-to-end —
- *   all 6 Update Status options are each applied and verified in the grid;
- *   the Release dialog is tested for cancel-close AND apply-same-scope AND
- *   full release-with-scopes; search is tested for match, no-match and clear.
- *
- * Test cases:
- *   TC_UI_001  [Sanity/P]   Full nav from Jobs listing + assert ALL text from fixture
- *   TC_UI_002  [Regression] Plain (non-toggle) row → only Release Units enabled
- *   TC_UI_003  [Regression] Toggle row → both buttons enabled + all 6 dropdown options verified
- *   TC_UI_004  [Regression] Update Status: perform EVERY one of the 6 status changes and verify grid
- *   TC_UI_005  [Regression] Release Units dialog: full content assert + cancel path + apply-to-all + release
- *   TC_UI_006  [Negative]   No selection keeps all buttons disabled; search filter/no-match/clear
- *   TC_UI_007  [Visual]     Visual regression across 4 states
- */
-
 require('dotenv').config();
 const { test, expect } = require('@playwright/test');
 const { Logger } = require('../utils/logger');
@@ -33,6 +5,7 @@ const { InteractionLogger } = require('../utils/InteractionLogger');
 const { UnitInteriorPage, JOB_NAME, JOB_ID } = require('../pages/unitInteriorPage');
 const { unitInteriorLocators } = require('../locators/unitInteriorLocator');
 const fixture = require('../fixture/unitInterior.json');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 // ── Visual assert options ─────────────────────────────────────────────────────
 const VISUAL_OPTS = {
@@ -75,7 +48,7 @@ test.beforeEach(async ({ page: testPage }) => {
         });
     });
     await page.waitForTimeout(2000);
-
+    await ensureLeftPanelExpanded(page);
     // Search → open job → Contracts tab → Units sub-tab
     await po.navigateToUnitsTabFromJobsList();
 });
