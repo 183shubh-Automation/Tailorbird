@@ -19,8 +19,12 @@ const { Logger } = require('./logger');
 const NAVBAR_SELECTOR = '.mantine-AppShell-navbar';
 // Collapsed rail renders ~68px wide; expanded/pinned renders ~224px wide.
 const COLLAPSED_WIDTH_THRESHOLD = 120;
-const PIN_BUTTON_NAME = /pin sidebar/i;
-const UNPIN_BUTTON_NAME = /unpin sidebar/i;
+// Exact attribute selectors (MCP-verified on beta.tailorbird.com), not regex-based
+// name matching: the button has a stable aria-label ("Pin sidebar" / "Unpin sidebar")
+// and a regex like /pin sidebar/i would also match "Unpin sidebar" since it contains
+// "pin sidebar" as a substring. A plain attribute-equals selector has no such ambiguity.
+const PIN_BUTTON_SELECTOR = 'button[aria-label="Pin sidebar"]';
+const UNPIN_BUTTON_SELECTOR = 'button[aria-label="Unpin sidebar"]';
 
 async function getNavbarWidth(page) {
     const navbar = page.locator(NAVBAR_SELECTOR).first();
@@ -38,6 +42,7 @@ async function ensureLeftPanelExpanded(page) {
 
     const alreadyPinned = await navbar
         .getByRole('button', { name: UNPIN_BUTTON_NAME })
+        .first()
         .isVisible()
         .catch(() => false);
     if (alreadyPinned) {
@@ -54,11 +59,11 @@ async function ensureLeftPanelExpanded(page) {
     Logger.info(`[LeftPanelExpander] Panel collapsed (width=${width}px) — expanding and pinning.`);
     await navbar.hover();
 
-    const pinButton = navbar.getByRole('button', { name: PIN_BUTTON_NAME, timeout : 10000  });
-    await pinButton.waitFor({ state: 'visible', timeout : 15000 });
+    const pinButton = navbar.getByRole('button', { name: PIN_BUTTON_NAME }).first();
+    await pinButton.waitFor({ state: 'visible', timeout: 15000 });
     await pinButton.click();
 
-    await expect(navbar.getByRole('button', { name: UNPIN_BUTTON_NAME })).toBeVisible();
+    await expect(navbar.getByRole('button', { name: UNPIN_BUTTON_NAME }).first()).toBeVisible();
     await expect.poll(() => getNavbarWidth(page)).toBeGreaterThanOrEqual(COLLAPSED_WIDTH_THRESHOLD);
 
     Logger.success('[LeftPanelExpander] Panel expanded and pinned open.');
