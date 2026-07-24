@@ -31,42 +31,71 @@ async function getNavbarWidth(page) {
     return navbar.evaluate((el) => el.getBoundingClientRect().width);
 }
 
+// Max hover+pin attempts before giving up. CI runners (headless, slower/loaded
+// machines) have been observed to occasionally miss the hover-triggered reveal
+// or the pin click not registering in time, where a local headed run doesn't.
+const MAX_PIN_ATTEMPTS = 3;
+
+/**
+ * True only when the panel is CONCRETELY confirmed pinned open: the "Unpin
+ * sidebar" button is visible AND the navbar is actually wide. Either signal
+ * alone can be transiently true without the other (e.g. a live hover-expand
+ * that isn't pinned yet), so both are required before we trust the state.
+ */
+async function isPanelConfirmedPinned(page, navbar) {
+    const unpinVisible = await navbar.locator(UNPIN_BUTTON_SELECTOR).first().isVisible().catch(() => false);
+    if (!unpinVisible) return false;
+    const width = await getNavbarWidth(page).catch(() => 0);
+    return width >= COLLAPSED_WIDTH_THRESHOLD;
+}
+
 /**
  * Expands the left navigation panel and pins it open, but only if it is
  * currently collapsed. Does nothing if the panel is already expanded/pinned.
+ * Retries the hover+pin sequence up to MAX_PIN_ATTEMPTS times, re-verifying
+ * the concrete pinned state after each attempt, before giving up.
  * @param {import('@playwright/test').Page} page
  */
 async function ensureLeftPanelExpanded(page) {
     const navbar = page.locator(NAVBAR_SELECTOR).first();
     await navbar.waitFor({ state: 'visible', timeout: 35000 });
 
-    const alreadyPinned = await navbar
-        .locator(UNPIN_BUTTON_SELECTOR)
-        .first()
-        .isVisible()
-        .catch(() => false);
-    if (alreadyPinned) {
+    if (await isPanelConfirmedPinned(page, navbar)) {
         Logger.info('[LeftPanelExpander] Panel already pinned open — no action taken.');
         return;
     }
 
-    const width = await getNavbarWidth(page);
-    if (width >= COLLAPSED_WIDTH_THRESHOLD) {
-        Logger.info(`[LeftPanelExpander] Panel already expanded (width=${width}px) — no action taken.`);
-        return;
+    let lastError = null;
+    for (let attempt = 1; attempt <= MAX_PIN_ATTEMPTS; attempt++) {
+        try {
+            const width = await getNavbarWidth(page);
+            Logger.info(
+                `[LeftPanelExpander] Attempt ${attempt}/${MAX_PIN_ATTEMPTS}: panel not confirmed pinned (width=${width}px) — expanding and pinning.`
+            );
+            await navbar.hover();
+
+            const pinButton = navbar.locator(PIN_BUTTON_SELECTOR).first();
+            await pinButton.waitFor({ state: 'visible', timeout: 45000 });
+            await pinButton.click();
+
+            await expect(navbar.locator(UNPIN_BUTTON_SELECTOR).first()).toBeVisible({ timeout: 15000 });
+            await expect.poll(() => getNavbarWidth(page), { timeout: 15000 }).toBeGreaterThanOrEqual(COLLAPSED_WIDTH_THRESHOLD);
+
+            if (await isPanelConfirmedPinned(page, navbar)) {
+                Logger.success(`[LeftPanelExpander] Panel expanded and pinned open (attempt ${attempt}/${MAX_PIN_ATTEMPTS}).`);
+                return;
+            }
+            throw new Error('Pin click did not result in a confirmed pinned state.');
+        } catch (err) {
+            lastError = err;
+            const willRetry = attempt < MAX_PIN_ATTEMPTS;
+            Logger.info(
+                `[LeftPanelExpander] Attempt ${attempt}/${MAX_PIN_ATTEMPTS} failed to confirm pinned state (${err.message}).${willRetry ? ' Retrying...' : ' No attempts left.'}`
+            );
+        }
     }
 
-    Logger.info(`[LeftPanelExpander] Panel collapsed (width=${width}px) — expanding and pinning.`);
-    await navbar.hover();
-
-    const pinButton = navbar.locator(PIN_BUTTON_SELECTOR).first();
-    await pinButton.waitFor({ state: 'visible', timeout: 45000 });
-    await pinButton.click();
-
-    await expect(navbar.locator(UNPIN_BUTTON_SELECTOR).first()).toBeVisible();
-    await expect.poll(() => getNavbarWidth(page)).toBeGreaterThanOrEqual(COLLAPSED_WIDTH_THRESHOLD);
-
-    Logger.success('[LeftPanelExpander] Panel expanded and pinned open.');
+    throw new Error(`[LeftPanelExpander] Failed to confirm left panel pinned open after ${MAX_PIN_ATTEMPTS} attempts: ${lastError?.message}`);
 }
 
 module.exports = { ensureLeftPanelExpanded };
