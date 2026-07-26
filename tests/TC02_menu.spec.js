@@ -29,7 +29,15 @@ test.beforeEach(async ({ page: testPage }) => {
     Logger.info(`Navigating to dashboard: ${process.env.DASHBOARD_URL}`);
     await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'load', timeout: 60000 });
     Logger.info('Dashboard loaded successfully.');
-    await ensureLeftPanelExpanded(page);
+    // "Regression — no session" tests use an empty storageState, so this navigation
+    // redirects to the AuthKit sign-in page (no navbar ever renders there). Only expand
+    // the left panel when we actually landed on the app itself.
+    const isAuthenticatedOrigin = new URL(page.url()).origin === new URL(process.env.DASHBOARD_URL).origin;
+    if (isAuthenticatedOrigin) {
+        await ensureLeftPanelExpanded(page);
+    } else {
+        Logger.info('[TC02 beforeEach] Redirected away from app origin (no session) — skipping left panel expansion.');
+    }
     page.on('domcontentloaded', async () => {
         await page.evaluate(() => {
             const elements = document.querySelectorAll('main, .mantine-AppShell-navbar');
@@ -391,6 +399,9 @@ test.describe('Tailorbird Left Panel Flow - Modular', () => {
             await expect(toggle).toBeVisible({ timeout: 10_000 });
             expect(await helper.getMainNavbarWidth(page), 'Start expanded').toBeGreaterThan(150);
             await toggle.click();
+            // The rail only visually narrows once the pointer leaves it (hovering re-expands
+            // it even when unpinned — MCP-verified on beta.tailorbird.com, 2026-07-26).
+            await page.locator('main').first().hover();
             await expect.poll(() => helper.getMainNavbarWidth(page), { timeout: 10_000 }).toBeLessThan(120);
             Logger.info(`[TC18] Collapsed width: ${await helper.getMainNavbarWidth(page)}px`);
 
@@ -421,17 +432,18 @@ test.describe('Tailorbird Left Panel Flow - Modular', () => {
                     return;
                 }
                 Logger.info(
-                    '[TC18] Collapsed mode: 2nd .mantine-NavLink-root in shell = Properties (icons are SVG, not <img>)',
+                    '[TC18] Collapsed mode: 1st .mantine-NavLink-root in shell = Properties (there is no separate logo/toggle NavLink anymore; MCP-verified).',
                 );
-                const navLink = shell.locator('.mantine-NavLink-root').nth(1);
+                const navLink = shell.locator('.mantine-NavLink-root').first();
                 await expect(
                     navLink,
-                    'Collapsed shell: second Mantine NavLink should be Properties (first is logo expand control).',
+                    'Collapsed shell: first Mantine NavLink should be Properties.',
                 ).toBeVisible({ timeout: 10_000 });
                 await navLink.click({ force: true });
             };
 
             await Promise.all([page.waitForURL(/\/properties/i, { timeout: 25_000 }), navigatePropertiesSpa()]);
+            await page.locator('main').first().hover();
 
             await expect.poll(() => helper.getMainNavbarWidth(page), {
                 message:
@@ -439,7 +451,7 @@ test.describe('Tailorbird Left Panel Flow - Modular', () => {
                 timeout: 10_000,
             }).toBeLessThan(120);
 
-            await helper.mainNavbarToggleLocator(page).click();
+            await ensureLeftPanelExpanded(page);
             await expect.poll(() => helper.getMainNavbarWidth(page), { timeout: 10_000 }).toBeGreaterThan(150);
             Logger.success('[TC18] Collapsed SPA persistence + expand OK');
         });
@@ -553,12 +565,18 @@ test.describe('TC02 Menu — Text assertions', () => {
             const snapshot = await LoginPage.scanAllTextElements(page);
             const failures = LoginPage.logAndAssertSnapshot(snapshot, 'dashboard-nav');
 
-            // Nav-specific: all visible buttons must have text or aria-label
-            const visibleButtons = snapshot.buttons.filter((b) => b.visible);
-            visibleButtons.forEach((btn, i) => {
-                const hasText = (btn.text && btn.text.trim().length > 0) || (btn.ariaLabel && btn.ariaLabel.trim().length > 0);
-                expect(hasText, `FAIL [dashboard-nav]: Button[${i}] has no text or aria-label. Button: ${JSON.stringify(btn)}`).toBe(true);
-            });
+            // Nav-specific: all visible buttons WITHIN the left navigation must have text or aria-label.
+            // (snapshot.buttons is page-wide — e.g. it also picks up the CapEx grid's icon-only
+            // column "pin" controls, which are unrelated to the left nav and out of scope here.)
+            const navButtonHandles = await page.getByRole('navigation').locator('button,[role="button"]').all();
+            for (let i = 0; i < navButtonHandles.length; i++) {
+                const btn = navButtonHandles[i];
+                if (!(await btn.isVisible().catch(() => false))) continue;
+                const text = (await btn.innerText().catch(() => '')).trim();
+                const ariaLabel = await btn.getAttribute('aria-label').catch(() => null);
+                const hasText = text.length > 0 || (ariaLabel && ariaLabel.trim().length > 0);
+                expect(hasText, `FAIL [dashboard-nav]: Nav button[${i}] has no text or aria-label.`).toBe(true);
+            }
 
             const visibleLinks = snapshot.links.filter((l) => l.visible && l.text && l.text.trim().length > 0);
             expect(visibleLinks.length, `FAIL [dashboard-nav]: No visible non-empty links. All: ${JSON.stringify(snapshot.links)}`).toBeGreaterThan(0);

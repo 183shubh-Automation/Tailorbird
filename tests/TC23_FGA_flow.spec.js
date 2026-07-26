@@ -66,11 +66,12 @@ test.describe("FEAT-972 FGA User Management", () => {
 
         Logger.step(`[TC350] Inviting new member: ${email}`);
         const inviteResult = await fga.inviteMemberAndCaptureApi(email);
-        Logger.info("[TC350] Asserting: invite API responded 201 with success:true");
-        expect(inviteResult.status).toBe(201);
+        Logger.info("[TC350] Asserting: invite API responded 200 with success:true");
+        expect(inviteResult.status).toBe(200);
         expect(inviteResult.ok).toBeTruthy();
-        expect(inviteResult.responseBody).toEqual({ success: true });
-        expect(inviteResult.requestBody.email, "Invite request body must carry the exact invited email").toBe(email);
+        expect(inviteResult.responseBody?.success).toBe(true);
+        expect(inviteResult.responseBody?.results?.[0]?.ok, "Invite response must confirm the invited user was created").toBe(true);
+        expect(inviteResult.requestBody.emails, "Invite request body must carry the exact invited email").toContain(email);
 
         saveCreatedUser({ email, role: "Member", testCase: "TC350", purpose: "invite + property assignment", createdAt: new Date().toISOString() });
 
@@ -254,7 +255,7 @@ test.describe("FEAT-972 FGA User Management", () => {
         await ensureLeftPanelExpanded(page);
         Logger.step(`[TC355] Inviting new member for activation: ${email}`);
         const inviteResult = await fga.inviteMemberAndCaptureApi(email);
-        expect(inviteResult.status).toBe(201);
+        expect(inviteResult.status).toBe(200);
         expect(inviteResult.ok).toBeTruthy();
 
         saveCreatedUser({ email, role: "Member", testCase: "TC355", purpose: "full activation via yopmail", createdAt: new Date().toISOString() });
@@ -346,9 +347,9 @@ test.describe("FEAT-972 FGA scope validation — activated Member user (single-p
 
         Logger.step(`[FGA scope setup] Inviting new member for scope validation: ${email}`);
         await fga.gotoOrganization(dashboardLandingUrl);
-        await ensureLeftPanelExpanded(page);
+        await ensureLeftPanelExpanded(adminPage);
         const inviteResult = await fga.inviteMemberAndCaptureApi(email);
-        expect(inviteResult.status).toBe(201);
+        expect(inviteResult.status).toBe(200);
         expect(inviteResult.ok).toBeTruthy();
         saveCreatedUser({ email, role: "Member", testCase: "TC356-374", purpose: "FGA scope validation (shared session)", createdAt: new Date().toISOString() });
         await fga.validateInvitedBadge(email);

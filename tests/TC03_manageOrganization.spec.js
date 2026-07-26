@@ -270,7 +270,9 @@ test.describe('TC03 Manage Organization — Text Agent (live MCP browser scan)',
       await test.step('STATE 1 | Organization page — full scan of all text elements', async () => {
         await page.goto(orgUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
         await page.locator('[role="tablist"]').waitFor({ state: 'visible', timeout: 20_000 });
-        await page.locator('[aria-label="User search"]').waitFor({ state: 'visible', timeout: 20_000 });
+        // aria-label copy changed to "Search users by name or email" (MCP-verified);
+        // match on the unchanged placeholder instead of the old exact aria-label.
+        await page.locator('input[placeholder="Search by name or email"], input[placeholder="Search by name or e-mail"]').waitFor({ state: 'visible', timeout: 20_000 });
 
         const snapshot = await LoginPage.scanAllTextElements(page);
         const failures = LoginPage.logAndAssertSnapshot(snapshot, 'org-workspace');
@@ -304,7 +306,9 @@ test.describe('TC03 Manage Organization — Text Agent (live MCP browser scan)',
         await expect(page.getByRole('button', { name: /invite user/i })).toBeVisible({ timeout: 8_000 });
 
         InteractionLogger.logVisibility('Search by name or e-mail input', true);
-        await expect(page.getByPlaceholder('Search by name or e-mail')).toBeVisible({ timeout: 8_000 });
+        // MCP-verified current placeholder is "Search by name or email" (no hyphen);
+        // accept both spellings so the exact hyphenation doesn't break this again.
+        await expect(page.getByPlaceholder(/search by name or e-?mail/i)).toBeVisible({ timeout: 8_000 });
 
         for (const col of ['User', 'Roles', 'Last active']) {
           InteractionLogger.logVisibility(`Column: ${col}`, true);

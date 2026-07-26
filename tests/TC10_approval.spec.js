@@ -551,13 +551,7 @@ test.describe('Approval Templates - Comprehensive E2E Tests', () => {
         try {
             Logger.step('TC180: Starting table headers positive flow');
 
-            const expectedHeaders = ['Name', 'Template Type', 'Properties', 'Approval Rules', 'Created By'];
-            for (const expectedHeader of expectedHeaders) {
-                await expect(
-                    page.getByRole('columnheader', { name: expectedHeader }).first()
-                ).toBeVisible({ timeout: 15000 });
-                Logger.info('Header verified: ' + expectedHeader);
-            }
+            await approvalJob.expectApprovalTemplatesTableCoreColumnsVisible();
 
             Logger.success('TC180 passed: All table headers verified');
         } catch (error) {

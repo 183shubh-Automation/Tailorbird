@@ -22,6 +22,11 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         page = p;
         retainagePage = new RetainagePage(page);
         loc = retainageLocators(page);
+        // ensureLeftPanelExpanded() looks for the app shell navbar, which only exists
+        // once an app page has loaded — every test here navigates on to its own target
+        // URL afterward (gotoInvoiceList/gotoInvoiceDetail), so this initial load is
+        // just to get the shell (and its pinned-panel state) in place first.
+        await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'domcontentloaded' });
         await ensureLeftPanelExpanded(page);
     });
 
@@ -34,6 +39,15 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         await expect(loc.listRetainageWithheldHeader).toBeVisible({ timeout: 20000 });
         await expect(loc.listRetainageReleasedHeader).toBeVisible();
         await expect(loc.listOutstandingRetainageHeader).toBeVisible();
+        // "Net Payable" sits further right in this wide grid and can be scrolled out of
+        // the viewport even though it's rendered. The grid can also still be mid-render
+        // (staging environment is occasionally slow to paint the full column set) —
+        // reload once and retry if it isn't in the DOM at all yet.
+        if ((await loc.listNetPayableHeader.count()) === 0) {
+            await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
+            await expect(loc.listRetainageWithheldHeader).toBeVisible({ timeout: 20000 });
+        }
+        await loc.listNetPayableHeader.scrollIntoViewIfNeeded();
         await expect(loc.listNetPayableHeader).toBeVisible();
         Logger.success('Invoice list grid Retainage columns are all visible.');
     });
@@ -47,6 +61,10 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
 
         const row = retainagePage.getListRowByInvoiceNumber(`Invoice #${fixture.invoiceId}`);
         await expect(row).toBeVisible({ timeout: 20000 });
+
+        // This grid is wider than the viewport — Net Payable sits far enough right that
+        // its cell isn't captured by innerText() until the grid is scrolled to it.
+        await loc.listNetPayableHeader.scrollIntoViewIfNeeded();
 
         const rowText = await row.innerText();
         Logger.info(`Invoice row text: ${rowText.replace(/\n/g, ' | ')}`);
@@ -125,7 +143,11 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         await expect(loc.lineItemsRetainageAmountHeader).toBeVisible();
         await expect(loc.lineItemsRetainageReleasedHeader).toBeVisible();
         await expect(loc.lineItemsTotalWithheldHeader).toBeVisible();
+        // This grid is wider than the viewport — the last two columns sit far enough
+        // right that they need to be scrolled into view before they register as visible.
+        await loc.lineItemsOutstandingRetainageHeader.scrollIntoViewIfNeeded();
         await expect(loc.lineItemsOutstandingRetainageHeader).toBeVisible();
+        await loc.lineItemsNetPayableHeader.scrollIntoViewIfNeeded();
         await expect(loc.lineItemsNetPayableHeader).toBeVisible();
         Logger.success('Line-items grid Retainage %, Retainage ($), Retainage Released, Total Withheld to Date, Outstanding Retainage and Net Payable headers are all visible.');
     });
@@ -147,6 +169,7 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         page.on('pageerror', (err) => errors.push(err.message));
 
         await retainagePage.gotoInvoiceList(fixture.jobId);
+        await loc.listNetPayableHeader.scrollIntoViewIfNeeded();
         await expect(loc.listNetPayableHeader).toBeVisible({ timeout: 20000 });
 
         await retainagePage.gotoInvoiceDetail(fixture.jobId, fixture.invoiceId);
@@ -426,6 +449,12 @@ test.describe('Verify Contract > Retainage deep validation', () => {
         page = p;
         retainagePage = new RetainagePage(page);
         loc = retainageLocators(page);
+        // ensureLeftPanelExpanded() looks for the app shell navbar, which only exists
+        // once an app page has loaded — every test here navigates on to its own target
+        // URL afterward (gotoInvoiceList/gotoInvoiceDetail), so this initial load is
+        // just to get the shell (and its pinned-panel state) in place first.
+        await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'domcontentloaded' });
+        await ensureLeftPanelExpanded(page);
     });
 
     test('TC336 @regression @retainage : Contracts tab -> Retainage sub-tab loads with the correct headers', async () => {

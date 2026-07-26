@@ -17,7 +17,13 @@ const { expect } = require('@playwright/test');
 const { Logger } = require('./logger');
 
 const NAVBAR_SELECTOR = '.mantine-AppShell-navbar';
-// Collapsed rail renders ~68px wide; expanded/pinned renders ~224px wide.
+// Collapsed rail renders ~68px wide; expanded/pinned renders ~224px wide, AT THE
+// PAGE'S NATIVE (unzoomed) SCALE. Some test suites apply CSS `zoom` to the navbar
+// for screenshot-baseline matching — and a few also zoom an ANCESTOR (e.g. `body`)
+// at the same time, which compounds multiplicatively (MCP-confirmed: zooming both
+// `body` and `.mantine-AppShell-navbar` to 70% each produces an effective ~49%
+// zoom, not 70%). A fixed pixel threshold breaks under that compounding, so this
+// is scaled per-call by the page's actual effective zoom — see getEffectiveZoom().
 const COLLAPSED_WIDTH_THRESHOLD = 120;
 // Exact attribute selectors (MCP-verified on beta.tailorbird.com), not regex-based
 // name matching: the button has a stable aria-label ("Pin sidebar" / "Unpin sidebar")
@@ -25,10 +31,30 @@ const COLLAPSED_WIDTH_THRESHOLD = 120;
 // "pin sidebar" as a substring. A plain attribute-equals selector has no such ambiguity.
 const PIN_BUTTON_SELECTOR = 'button[aria-label="Pin sidebar"]';
 const UNPIN_BUTTON_SELECTOR = 'button[aria-label="Unpin sidebar"]';
+// The Tailorbird logo renders at a fixed intrinsic 35px wide (HTML width attribute)
+// regardless of collapsed/expanded state, making it a reliable, state-independent
+// reference for detecting whatever effective zoom the calling page has applied.
+const LOGO_SELECTOR = 'img[alt="Tailorbird Logo"]';
+const LOGO_INTRINSIC_WIDTH = 35;
 
 async function getNavbarWidth(page) {
     const navbar = page.locator(NAVBAR_SELECTOR).first();
     return navbar.evaluate((el) => el.getBoundingClientRect().width);
+}
+
+/**
+ * Effective zoom currently applied to the navbar (1 = native scale), derived
+ * from the logo's rendered width vs its known intrinsic width. Falls back to 1
+ * (native scale) if the logo can't be measured, matching pre-zoom-aware behavior.
+ */
+async function getEffectiveZoom(navbar) {
+    const width = await navbar
+        .locator(LOGO_SELECTOR)
+        .first()
+        .evaluate((el) => el.getBoundingClientRect().width)
+        .catch(() => null);
+    if (!width) return 1;
+    return width / LOGO_INTRINSIC_WIDTH;
 }
 
 // Max hover+pin attempts before giving up. CI runners (headless, slower/loaded
@@ -38,15 +64,17 @@ const MAX_PIN_ATTEMPTS = 3;
 
 /**
  * True only when the panel is CONCRETELY confirmed pinned open: the "Unpin
- * sidebar" button is visible AND the navbar is actually wide. Either signal
- * alone can be transiently true without the other (e.g. a live hover-expand
- * that isn't pinned yet), so both are required before we trust the state.
+ * sidebar" button is visible AND the navbar is actually wide (relative to
+ * this page's own effective zoom). Either signal alone can be transiently
+ * true without the other (e.g. a live hover-expand that isn't pinned yet),
+ * so both are required before we trust the state.
  */
 async function isPanelConfirmedPinned(page, navbar) {
     const unpinVisible = await navbar.locator(UNPIN_BUTTON_SELECTOR).first().isVisible().catch(() => false);
     if (!unpinVisible) return false;
     const width = await getNavbarWidth(page).catch(() => 0);
-    return width >= COLLAPSED_WIDTH_THRESHOLD;
+    const zoom = await getEffectiveZoom(navbar);
+    return width >= COLLAPSED_WIDTH_THRESHOLD * zoom;
 }
 
 /**
@@ -102,7 +130,8 @@ async function ensureLeftPanelExpanded(page) {
             await pinButton.click();
 
             await expect(navbar.locator(UNPIN_BUTTON_SELECTOR).first()).toBeVisible({ timeout: 15000 });
-            await expect.poll(() => getNavbarWidth(page), { timeout: 15000 }).toBeGreaterThanOrEqual(COLLAPSED_WIDTH_THRESHOLD);
+            const zoom = await getEffectiveZoom(navbar);
+            await expect.poll(() => getNavbarWidth(page), { timeout: 15000 }).toBeGreaterThanOrEqual(COLLAPSED_WIDTH_THRESHOLD * zoom);
 
             if (await isPanelConfirmedPinned(page, navbar)) {
                 Logger.success(`[LeftPanelExpander] Panel expanded and pinned open (attempt ${attempt}/${MAX_PIN_ATTEMPTS}).`);

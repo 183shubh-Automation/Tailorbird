@@ -229,13 +229,14 @@ class FgaUserManagementPage {
 
     /**
      * Wraps OrganizationHelper.inviteUser() (reused, unmodified) with capture of the
-     * underlying WorkOS "invite-user" widget API call. Note: that third-party API's
-     * response body is just `{ success: true }` — no invitation id or email is echoed
-     * back (MCP-verified live). For an id-bearing record use getOrganizationUserByEmail().
+     * underlying first-party invite call. Response body is
+     * `{ success: true, results: [{ ok, email, userId, pendingAcceptance, syncedToDb }] }`
+     * (MCP-verified live 2026-07-26 — this app-owned endpoint replaced the old WorkOS
+     * "invite-user" widget call this used to wait on).
      */
     async inviteMemberAndCaptureApi(email) {
         const inviteResponsePromise = this.page.waitForResponse(
-            (res) => res.url().includes('/_widgets/UserManagement/invite-user') && res.request().method() === 'POST',
+            (res) => res.url().endsWith('/api/organization/users') && res.request().method() === 'POST',
             { timeout: 20000 },
         );
 
@@ -280,20 +281,40 @@ class FgaUserManagementPage {
     /**
      * Negative flow: reuses OrganizationHelper.openInvite() (unmodified) to open the
      * dialog, then submits an email expected to already be invited and captures the
-     * resulting 400 response + inline validation error. The dialog is left open on
-     * failure (matches live app behavior, MCP-verified) — caller is responsible for
-     * closing it via inviteUserPanel.dialogRoot's Cancel button.
+     * resulting invite API response. NOTE (MCP-verified live 2026-07-26): the app no
+     * longer rejects a duplicate invite — it responds 200 with
+     * `results: [{ ok: true, alreadyMember: true, ... }]` and the dialog closes as if
+     * it succeeded, rather than staying open with a 400 + inline validation error. This
+     * is a product-behavior change, not an automation bug — callers asserting a 400
+     * rejection will need that expectation revisited with product/QA.
      */
     async attemptDuplicateInvite(email) {
         const inviteUserPanel = await this.organizationHelper.openInvite();
+        await inviteUserPanel.dialogRoot.getByText('Loading roles', { timeout: 10000 }).waitFor({ state: 'hidden', timeout: 60_000 }).catch(() => {});
         await inviteUserPanel.emailAddressInput.fill(email);
+        await this.organizationHelper.selectRole(inviteUserPanel.roleSelectTrigger, 'Member', inviteUserPanel.dialogRoot);
 
         const inviteResponsePromise = this.page.waitForResponse(
-            (res) => res.url().includes('/_widgets/UserManagement/invite-user') && res.request().method() === 'POST',
+            (res) => res.url().endsWith('/api/organization/users') && res.request().method() === 'POST',
             { timeout: 20000 },
         );
 
         await inviteUserPanel.nextOrInvitePrimaryButton.click();
+
+        // Member invites land on a mandatory "Property access" step before Invite submits
+        // (see OrganizationHelper.inviteUser) — pick one here too so the duplicate-invite
+        // API call actually fires.
+        const propertyAccessTrigger = inviteUserPanel.dialogRoot.getByRole('button', { name: /search and add properties/i });
+        if (await propertyAccessTrigger.isVisible({ timeout: 8000 }).catch(() => false)) {
+            await propertyAccessTrigger.click();
+            const propertyPopover = this.page
+                .locator('.mantine-Popover-dropdown')
+                .filter({ has: this.page.getByPlaceholder('Search properties') });
+            await expect(propertyPopover, 'Property picker popover must open').toBeVisible({ timeout: 10_000 });
+            await propertyPopover.getByRole('checkbox').first().click();
+            await propertyPopover.getByRole('button', { name: 'Close' }).click();
+            await inviteUserPanel.dialogRoot.getByRole('button', { name: 'Invite', exact: true }).click();
+        }
 
         const response = await inviteResponsePromise;
         const responseBody = await response.json().catch(() => null);

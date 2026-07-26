@@ -164,28 +164,22 @@ class OrganizationHelper {
     try {
       const dialogScoped =
         inviteDialogRoot || this.page.getByRole("dialog").filter({ hasText: /invite user/i }).first();
-      if ((await roleSelectTrigger.count()) > 0 && (await roleSelectTrigger.first().isVisible().catch(() => false))) {
-        await roleSelectTrigger.click();
-        await this.page.waitForTimeout(500);
-        await this.page.getByRole("option", { name: roleName }).click();
+      const orgAdmin = dialogScoped.getByRole("checkbox", { name: /organization admin/i });
+      if (roleName === "Admin") {
+        // Checking "Organization admin" alone flips the wizard's primary button straight to
+        // "Invite" (enabled) — no Organization role selection is needed or possible for admins.
+        if (await orgAdmin.isVisible().catch(() => false)) await orgAdmin.check();
         return;
       }
-      const orgAdmin = dialogScoped.getByRole("checkbox", { name: /organization admin/i });
-      if (await orgAdmin.isVisible().catch(() => false)) {
-        if (roleName === "Admin") await orgAdmin.check();
-        else await orgAdmin.uncheck();
-      }
-      const mapped =
-        roleName === "Member"
-          ? data.inviteMappedLegacyMemberRole
-          : roleName === "Admin"
-            ? data.inviteMappedLegacyAdminRole
-            : roleName;
-      await dialogScoped.getByRole("button", { name: data.inviteOrgRoleTriggerText }).click();
-      await this.page.waitForTimeout(500);
-      const choicePop = this.page.locator(`[role="option"]`).filter({ has: this.page.getByText(mapped, { exact: true }) }).first();
-      await expect(choicePop, `Expected organization role option "${mapped}"`).toBeAttached({ timeout: 15_000 });
-      await choicePop.evaluate((el) => el.click());
+      if (await orgAdmin.isVisible().catch(() => false)) await orgAdmin.uncheck();
+      // For non-admin invites, an Organization role is required for "Next" to enable
+      // (the field's "Optional" placeholder only means it's optional when Organization admin is checked).
+      const mapped = roleName === "Member" ? data.inviteMappedLegacyMemberRole : roleName;
+      const orgRoleTrigger = dialogScoped.getByRole("textbox", { name: /organization role/i });
+      await orgRoleTrigger.click();
+      const choice = this.page.getByRole("option", { name: mapped, exact: true });
+      await expect(choice, `Expected organization role option "${mapped}"`).toBeVisible({ timeout: 15_000 });
+      await choice.click();
       await expect
         .poll(async () => dialogScoped.getByRole("button", { name: data.inviteWizardNextText }).isEnabled(), {
           timeout: 20_000,
@@ -209,7 +203,24 @@ class OrganizationHelper {
       await this.selectRole(invitePanel.roleSelectTrigger, role, invitePanel.dialogRoot);
       this.log("Advancing invite wizard (Next)...");
       await invitePanel.nextOrInvitePrimaryButton.evaluate((el) => el.click());
-      await this.page.waitForTimeout(5000);
+      // Non-admin invites land on a mandatory "Property access" step before the wizard's
+      // own Invite button will do anything (MCP-verified live) — Admin invites skip this
+      // step entirely since the Next click above was already the final submit (see selectRole()).
+      // Which property is picked here doesn't matter to callers: it's unrelated to the
+      // separate per-property "Property access" tab / user-property-access API that tests
+      // assign against afterwards (MCP-verified — this selection never appears checked there).
+      const propertyAccessTrigger = invitePanel.dialogRoot.getByRole("button", { name: /search and add properties/i });
+      if (await propertyAccessTrigger.isVisible({ timeout: 8000 }).catch(() => false)) {
+        this.log("Property access step shown — selecting a property to satisfy the required field");
+        await propertyAccessTrigger.click();
+        const propertyPopover = this.page
+          .locator(".mantine-Popover-dropdown")
+          .filter({ has: this.page.getByPlaceholder("Search properties") });
+        await expect(propertyPopover, "Property picker popover must open").toBeVisible({ timeout: 10_000 });
+        await propertyPopover.getByRole("checkbox").first().click();
+        await propertyPopover.getByRole("button", { name: "Close" }).click();
+      }
+      await this.page.waitForTimeout(2000);
       const confirmInvite = invitePanel.dialogRoot.getByRole("button", { name: data.inviteButtonText, exact: true });
       if (await confirmInvite.isVisible({ timeout: 10_000 }).catch(() => false)) {
         await confirmInvite.evaluate((el) => el.click());
@@ -233,7 +244,7 @@ class OrganizationHelper {
       }
       this.log("Waiting for invited user to appear in grid...");
       // Filter the member table by email so the newly invited (pending) user is visible even if the grid is paginated
-      const _memberSearch = this.page.locator("input[placeholder*=’Search’], input[type=’search’]").first();
+      const _memberSearch = this.page.locator("input[placeholder*='Search'], input[type='search']").first();
       if (await _memberSearch.isVisible({ timeout: 3000 }).catch(() => false)) {
         await _memberSearch.fill(email);
         await this.page.waitForTimeout(1500);

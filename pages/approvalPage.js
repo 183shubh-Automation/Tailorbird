@@ -1186,15 +1186,18 @@ exports.ApprovalJob = class ApprovalJob {
     async expectApprovalTemplatesTableCoreColumnsVisible() {
         const patterns = [/Name/i, /Template Type/i, /Properties/i, /Approval Rules/i, /Created By/i];
 
-        // Quick pre-check: if every column is already visible, skip the heal step.
-        const allVisible = await Promise.all(
-            patterns.map(p =>
-                this.page.getByRole('columnheader', { name: p }).first()
-                    .isVisible({ timeout: 3000 }).catch(() => false)
-            )
-        );
+        const allColumnsVisible = async () => {
+            const results = await Promise.all(
+                patterns.map(p =>
+                    this.page.getByRole('columnheader', { name: p }).first()
+                        .isVisible({ timeout: 3000 }).catch(() => false)
+                )
+            );
+            return results.every(Boolean);
+        };
 
-        if (!allVisible.every(Boolean)) {
+        // Quick pre-check: if every column is already visible, skip the heal step.
+        if (!(await allColumnsVisible())) {
             Logger.info('[expectApprovalTemplatesTableCoreColumnsVisible] One or more columns hidden — resetting via Manage Columns');
             const opened = await this.clickManageColumnsButton().then(() => true).catch(() => false);
             if (opened) {
@@ -1212,6 +1215,17 @@ exports.ApprovalJob = class ApprovalJob {
                 await this.page.waitForTimeout(800);
                 Logger.info('[expectApprovalTemplatesTableCoreColumnsVisible] Columns reset — all checkboxes re-enabled');
             }
+        }
+
+        // Last resort: the grid can fail to hydrate entirely if a lazy-loaded chunk
+        // failed to fetch (MCP-verified on beta.tailorbird.com, 2026-07-26 — a 502 on a
+        // Next.js static chunk left the grid stuck on skeleton loaders indefinitely).
+        // Waiting longer doesn't help a rejected dynamic import; only a fresh page load
+        // does, so reload once before giving the core assertion a final chance.
+        if (!(await allColumnsVisible())) {
+            Logger.info('[expectApprovalTemplatesTableCoreColumnsVisible] Columns still missing after Manage Columns reset — reloading page as a last resort');
+            await this.page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
+            await this.waitForPageLoad().catch(() => {});
         }
 
         for (const pattern of patterns) {
@@ -1843,15 +1857,29 @@ exports.ApprovalJob = class ApprovalJob {
 
             const treegrid = this.page.locator('[role="treegrid"]').first();
             const dataRows = treegrid.locator('[role="row"]').filter({ has: this.page.locator('[role="gridcell"]') });
-            const count = await dataRows.count();
 
-            let targetIndex = -1;
-            for (let i = 0; i < count; i++) {
-                const rowText = (await dataRows.nth(i).textContent().catch(() => '')).toLowerCase();
-                if (rowText.includes(searchName.toLowerCase()) && rowText.includes('pending')) {
-                    targetIndex = i;
-                    break;
+            const findTargetIndex = async () => {
+                const count = await dataRows.count();
+                for (let i = 0; i < count; i++) {
+                    const rowText = (await dataRows.nth(i).textContent().catch(() => '')).toLowerCase();
+                    if (rowText.includes(searchName.toLowerCase()) && rowText.includes('pending')) {
+                        return i;
+                    }
                 }
+                return -1;
+            };
+
+            // The grid (RevoGrid) can still be mid-render right after the tab loads —
+            // its rows populate asynchronously after the container itself appears, so a
+            // flat wait after reload isn't reliable. Poll for rows to actually exist,
+            // then retry the search; only reload if the grid is still genuinely empty.
+            await expect.poll(() => dataRows.count(), { timeout: 15000 }).toBeGreaterThan(0).catch(() => {});
+            let targetIndex = await findTargetIndex();
+            for (let attempt = 0; targetIndex < 0 && attempt < 3; attempt++) {
+                Logger.info(`Pending revision for "${propertyName}" not found yet — reloading and retrying (attempt ${attempt + 1}/3)`);
+                await this.page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
+                await expect.poll(() => dataRows.count(), { timeout: 15000 }).toBeGreaterThan(0).catch(() => {});
+                targetIndex = await findTargetIndex();
             }
 
             if (targetIndex < 0) {

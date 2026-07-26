@@ -58,7 +58,7 @@ test.describe('Verify Bids', () => {
         const propertyName = `bid_prop_${Date.now()}`;
         await setupPage.goto(process.env.BASE_URL, { waitUntil: 'load' });
         await setupPage.waitForTimeout(1500);
-        await ensureLeftPanelExpanded(page);
+        await ensureLeftPanelExpanded(setupPage);
         await prop.goToProperties();
         await prop.createProperty(
             propertyName,
@@ -218,8 +218,13 @@ test.describe('Verify Bids', () => {
         await bidPage.waitForPiperResponse();
 
         const panel = page.getByRole('tabpanel', { name: 'Manage Bids' });
+        // Turn 1's Thought button had an explicit visibility wait; turn 2's needs the
+        // same allowance — it can render a beat after waitForPiperResponse() resolves.
+        await expect.poll(
+            () => panel.getByRole('button', { name: 'Thought' }).count(),
+            { timeout: 15000 },
+        ).toBeGreaterThanOrEqual(2);
         const thoughtCountAfterTurn2 = await panel.getByRole('button', { name: 'Thought' }).count();
-        expect(thoughtCountAfterTurn2).toBeGreaterThanOrEqual(2);
         Logger.info(`Thought buttons after turn 2: ${thoughtCountAfterTurn2} ✓`);
 
         const turn2Response = await bidPage.getPiperLastResponseText();
@@ -366,6 +371,12 @@ test.describe('Verify Bids', () => {
         // ── Edge 6: Reset Cancel — history must survive ────────────────────────────
         Logger.step('TC_BID_11 — E6: Reset Cancel preserves chat history');
         const panel = page.getByRole('tabpanel', { name: 'Manage Bids' });
+        // Each Thought button can render a beat after waitForPiperResponse() resolves —
+        // poll instead of asserting on a single read right after the last turn.
+        await expect.poll(
+            () => panel.getByRole('button', { name: 'Thought' }).count(),
+            { timeout: 15000 },
+        ).toBeGreaterThanOrEqual(3);
         const countBefore = await panel.getByRole('button', { name: 'Thought' }).count();
         expect(countBefore).toBeGreaterThanOrEqual(3); // at least E3, E4, E5 responses
         await bidPage.assertPiperResetDialogCancel();

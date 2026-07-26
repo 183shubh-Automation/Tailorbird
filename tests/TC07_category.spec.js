@@ -429,6 +429,9 @@ test.describe('Verify category tab', () => {
         await capex.toggleColumn('Budget Revision');
         await capex.toggleColumn('Invoiced Amount');
         await capex.closeManageColumnsDrawer();
+        // Re-adding 2 columns re-renders more grid content than hiding them did, so
+        // give the grid a moment to catch up instead of asserting on a single read.
+        await expect.poll(() => capex.getColumnOrder(), { timeout: 8000 }).toContain('Invoiced Amount');
         order = await capex.getColumnOrder();
         // Verify restored columns are present (RevoGrid may append restored cols at the end)
         expect(order).toContain('Budget Revision');

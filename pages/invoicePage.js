@@ -2031,6 +2031,10 @@ class InvoicePage {
         Logger.step('Confirming invoice (handling confirmation modal if present)...');
         const confirmInvoiceBtn = this.page.getByRole('button', { name: /confirm invoice/i });
         await confirmInvoiceBtn.waitFor({ state: 'visible', timeout: 10000 });
+        // A freshly created invoice's Confirm button can stay disabled for a while
+        // (server-side amount/budget-category settling) — wait for it to actually
+        // become enabled instead of racing a fixed click timeout against it.
+        await expect(confirmInvoiceBtn).toBeEnabled({ timeout: 45000 });
 
         const dismissToasts = async () => {
             // Mantine notifications often appear bottom-right and may intercept clicks.

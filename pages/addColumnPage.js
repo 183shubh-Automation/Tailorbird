@@ -202,10 +202,18 @@ class AddColumnPage {
 
     async _commitCellEdit() {
         await this.page.keyboard.press('Enter');
-        await this.page.waitForTimeout(400);
-        if (await this.page.locator('revogr-edit').first().isVisible({ timeout: 500 }).catch(() => false)) {
+        const editor = this.page.locator('revogr-edit').first();
+        // Enter usually closes the editor immediately, but under load the grid can take
+        // longer to commit — wait for it to actually close instead of a flat timeout,
+        // so a slow commit doesn't race with the next step's Escape (which would cancel
+        // the edit instead of just dismissing an already-closed editor).
+        const closed = await editor
+            .waitFor({ state: 'hidden', timeout: 3000 })
+            .then(() => true)
+            .catch(() => false);
+        if (!closed) {
             await this.page.keyboard.press('Tab');
-            await this.page.waitForTimeout(400);
+            await editor.waitFor({ state: 'hidden', timeout: 2000 }).catch(() => {});
         }
     }
 
@@ -248,7 +256,13 @@ class AddColumnPage {
     }
 
     async _dismissEditor() {
-        await this.page.keyboard.press('Escape').catch(() => {});
+        // Only escape when a cell editor is actually open — Escape cancels an in-progress
+        // edit, so pressing it against an already-committed cell risks wiping out a value
+        // that just hasn't finished closing yet (race with _commitCellEdit's Enter/Tab).
+        const editorOpen = await this.page.locator('revogr-edit').first().isVisible({ timeout: 500 }).catch(() => false);
+        if (editorOpen) {
+            await this.page.keyboard.press('Escape').catch(() => {});
+        }
         await this.page.waitForTimeout(300);
     }
 
@@ -339,10 +353,14 @@ class AddColumnPage {
             return;
         }
 
+        // Clicking a day in the calendar already commits the value and closes both the
+        // calendar and the cell editor (MCP-verified on beta.tailorbird.com, 2026-07-26).
+        // Pressing Enter afterwards (as _commitCellEdit does) re-opens the cell into edit
+        // mode — RevoGrid treats Enter on a focused, already-committed cell as "start
+        // editing" — which re-opens the calendar and blocks _assertCellShows from ever
+        // reading the committed value. No further commit step is needed here.
         await this._pickDateInCalendar(targetDate);
-        await this.page.keyboard.press('Escape').catch(() => {});
         await this.page.waitForTimeout(300);
-        await this._commitCellEdit();
         await this._assertCellShows(cell, cellPattern, columnName, typeName, us);
     }
 
@@ -508,17 +526,26 @@ class AddColumnPage {
                 await this._fillDateCell(cell, columnName, typeName);
                 break;
             case 'Checkbox': {
-                let checkbox = cell.locator('input[type="checkbox"]').first();
-                if (!(await checkbox.isVisible({ timeout: 1500 }).catch(() => false))) {
-                    await this._openCellEditor(cell);
-                    checkbox = cell.locator('input[type="checkbox"]').first();
-                }
+                // The rendered checkbox is a read-only display element (readonly,
+                // pointer-events: none) from the moment the cell renders — it is always
+                // "visible", so clicking the <input> itself (even with force) does
+                // nothing. Toggling only works by double-clicking the cell, same as
+                // opening any other cell type's editor (MCP-verified on
+                // beta.tailorbird.com, 2026-07-26).
+                const checkbox = cell.locator('input[type="checkbox"]').first();
                 await expect(checkbox).toBeVisible({ timeout: 5000 });
-                if (!(await checkbox.isChecked().catch(() => false))) {
-                    await checkbox.click({ force: true });
+                // A virtualized grid column can still be settling into place right after
+                // scrollIntoViewIfNeeded(); force-dblclick skips Playwright's own
+                // scroll/stability wait, so retry a couple of times instead of assuming
+                // the first click lands correctly.
+                for (let attempt = 0; attempt < 3; attempt++) {
+                    if (await checkbox.isChecked().catch(() => false)) break;
+                    await cell.scrollIntoViewIfNeeded();
+                    await cell.dblclick({ force: true });
+                    await this.page.waitForTimeout(500);
                 }
-                await this._commitCellEdit();
                 await expect(checkbox).toBeChecked({ timeout: 8000 });
+                await this._dismissEditor();
                 this._logCellResult(columnName, typeName, 'checked', 'checked');
                 break;
             }

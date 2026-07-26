@@ -8,9 +8,9 @@ const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 test.use({
     storageState: 'sessionState.json',
-    video: 'on',
-    trace: 'on',
-    screenshot: 'on',
+    video: 'retain-on-failure',
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
     animations: 'disabled',
     maxDiffPixels: 50_000,
     maxDiffPixelRatio: 0.3,

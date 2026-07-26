@@ -204,11 +204,25 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
       InteractionLogger.logNavigation(dashboardLandingUrl, "Dashboard → Organization workspace tab content check");
       await userRoleManagement.landOrganizationWorkspaceViaMenu(dashboardLandingUrl);
       InteractionLogger.logButtonClick(roleManagementUiLabels.tabUsers, "Users tab — content check");
-      await page.getByRole("tab", { name: roleManagementUiLabels.tabUsers }).click();
+      // Dispatch the click directly on the tab's own DOM node instead of a
+      // coordinate-based click. The pinned-open left nav overlays the leftmost
+      // part of the main content (MCP/screenshot-confirmed: nav doesn't reserve
+      // layout space when pinned), so a real/force click at the tab's screen
+      // position lands on whatever the browser's hit-test finds on top there —
+      // observed to actually activate a nav link and navigate away to /properties
+      // — instead of the tab underneath. Calling .click() on the element
+      // reference itself fires the tab's own handler regardless of what's
+      // visually on top of it.
+      await page.getByRole("tab", { name: roleManagementUiLabels.tabUsers }).evaluate((el) => el.click());
       Logger.info("[MT-roles-edge-04] Asserting: User search textbox is visible on Users tab");
-      await expect(page.getByRole("textbox", { name: /user search|search by name/i })).toBeVisible({ timeout: 15_000 });
+      // aria-label copy changed to "Search users by name or email" (MCP-verified),
+      // which the old accessible-name regex no longer matches; match on the
+      // unchanged placeholder instead.
+      await expect(
+        page.locator('input[placeholder="Search by name or email"], input[placeholder="Search by name or e-mail"]'),
+      ).toBeVisible({ timeout: 15_000 });
       InteractionLogger.logButtonClick(roleManagementUiLabels.tabPropertyAccess, "Property access tab — content differs");
-      await page.getByRole("tab", { name: roleManagementUiLabels.tabPropertyAccess }).click();
+      await page.getByRole("tab", { name: roleManagementUiLabels.tabPropertyAccess }).evaluate((el) => el.click());
       Logger.info("[MT-roles-edge-04] Asserting: Property access tab is selected (different content from Users)");
       await expect(page.getByRole("tab", { name: roleManagementUiLabels.tabPropertyAccess })).toHaveAttribute(
         "aria-selected",

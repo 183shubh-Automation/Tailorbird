@@ -5,6 +5,7 @@ const { test, expect } = require('@playwright/test');
 const { VendorDirectoryPage } = require('../pages/vendorDirectoryPage');
 const { Logger } = require('../utils/logger');
 const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
+const leftPanel = require('../pages/leftPanel');
 
 const TC14_SNAPSHOT_DIR = path.join(process.cwd(), 'committed_ui_snapshots', 'TC14_manageVendor.spec.js');
 
@@ -195,8 +196,10 @@ test.describe('Vendors Directory - E2E', () => {
             expect(afterCount).toBeLessThanOrEqual(beforeCount);
             Logger.info(`TC240 step2: Carpentry filter — before:${beforeCount} after:${afterCount} ✓`);
             if (afterCount > 0) {
+                // Row count updates before the "Trades" column's cell content finishes
+                // rendering — poll instead of asserting on a single read.
                 const tradeCells = page.locator('[role="gridcell"]').filter({ hasText: 'Carpentry' });
-                expect(await tradeCells.count()).toBeGreaterThan(0);
+                await expect.poll(() => tradeCells.count(), { timeout: 8000 }).toBeGreaterThan(0);
                 Logger.info('TC240 step2: Filtered rows contain Carpentry trade ✓');
             }
 
@@ -418,6 +421,9 @@ test.describe('Vendors Directory - E2E', () => {
         Logger.step('TC243: Edit vendor Website with a random URL and verify persistence via modal');
 
         // ── 1. Go to site -> click "Directory" from left nav ──
+        // "Directory" is nested under the "Vendors" section, which the redesigned
+        // nav renders collapsed by default — expand it first so the label is visible.
+        await leftPanel.ensureSectionExpanded(page, 'Vendors');
         const directoryNavLink = page.locator('nav').getByText('Directory', { exact: true }).first();
         await directoryNavLink.click();
         await page.waitForURL(/vendors\/directory/, { timeout: 15000 });

@@ -33,15 +33,24 @@ class CapexPage {
         await this.page.waitForLoadState('domcontentloaded');
         await expect(this.page.locator('main')).toBeVisible({ timeout: 15000 });
         await expect(this.l.columnHeaders.first()).toBeVisible({ timeout: 40000 });
-        // Wait for financial rows to render (middle pane has 8–9 cells per row)
-        await this.page.waitForFunction(
+        // Wait for financial rows to render (middle pane has 8–9 cells per row).
+        // The grid shell/headers appear well before the row data does — 25s wasn't
+        // always enough (MCP-verified: the same rows are present seconds later),
+        // so give this more room and retry once with a reload before moving on.
+        const rowsRendered = async (timeout) => this.page.waitForFunction(
             () => {
                 const rows = Array.from(document.querySelectorAll('[role="row"]'))
                     .filter(r => r.querySelectorAll('[role="gridcell"]').length >= 7);
                 return rows.length > 1;
             },
-            { timeout: 25000 }
-        ).catch(() => { });
+            { timeout },
+        ).then(() => true).catch(() => false);
+
+        if (!(await rowsRendered(45000))) {
+            await this.page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
+            await expect(this.l.columnHeaders.first()).toBeVisible({ timeout: 40000 });
+            await rowsRendered(45000);
+        }
         await this.page.waitForTimeout(600);
     }
 
@@ -367,7 +376,12 @@ class CapexPage {
 
     async closeManageColumnsDrawer() {
         await this.page.keyboard.press('Escape');
-        await this.page.waitForTimeout(500);
+        // Wait for the dialog to actually be gone rather than assuming a flat timeout
+        // is enough, then a short settle buffer for the grid to re-render the columns
+        // (column add/remove lags slightly behind the Manage Columns checkbox state).
+        await this.page.locator('[role="dialog"]').filter({ hasText: 'Manage Columns' }).first()
+            .waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+        await this.page.waitForTimeout(800);
     }
 
     async toggleColumnInDrawer(columnName) {
@@ -784,9 +798,19 @@ class CapexPage {
      */
     async toggleColumn(columnName) {
         const dialog = this.page.locator('[role="dialog"]').filter({ hasText: 'Manage Columns' }).first();
-        // Click the <p> whose trimmed text exactly matches the column name
-        await dialog.locator('p').filter({ hasText: columnName }).first().click();
-        await this.page.waitForTimeout(700);
+        // <p> label sits inside its own Stack wrapper div; the checkbox is a sibling of
+        // that wrapper, one level further up (MCP-verified on beta.tailorbird.com, 2026-07-26).
+        const label = dialog.locator('p').filter({ hasText: columnName }).first();
+        const checkbox = label.locator('xpath=../..').locator('input[type="checkbox"]').first();
+        const wasChecked = await checkbox.isChecked().catch(() => null);
+        await checkbox.scrollIntoViewIfNeeded();
+        await checkbox.click();
+        if (wasChecked !== null) {
+            await expect
+                .poll(() => checkbox.isChecked().catch(() => wasChecked), { timeout: 3000 })
+                .not.toBe(wasChecked);
+        }
+        await this.page.waitForTimeout(1000);
     }
 
     /**
@@ -1130,9 +1154,19 @@ class CapexPage {
      */
     async toggleColumn(columnName) {
         const dialog = this.page.locator('[role="dialog"]').filter({ hasText: 'Manage Columns' }).first();
-        // Click the <p> whose trimmed text exactly matches the column name
-        await dialog.locator('p').filter({ hasText: columnName }).first().click();
-        await this.page.waitForTimeout(700);
+        // <p> label sits inside its own Stack wrapper div; the checkbox is a sibling of
+        // that wrapper, one level further up (MCP-verified on beta.tailorbird.com, 2026-07-26).
+        const label = dialog.locator('p').filter({ hasText: columnName }).first();
+        const checkbox = label.locator('xpath=../..').locator('input[type="checkbox"]').first();
+        const wasChecked = await checkbox.isChecked().catch(() => null);
+        await checkbox.scrollIntoViewIfNeeded();
+        await checkbox.click();
+        if (wasChecked !== null) {
+            await expect
+                .poll(() => checkbox.isChecked().catch(() => wasChecked), { timeout: 3000 })
+                .not.toBe(wasChecked);
+        }
+        await this.page.waitForTimeout(1000);
     }
 
     _manageColumnsDialog() {

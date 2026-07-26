@@ -1083,12 +1083,35 @@ exports.ProjectJob = class ProjectJob {
             const targetRow = (await matchingRows.count()) > 1 ? matchingRows.last() : matchingRows.first();
             await expect(targetRow).toBeVisible({ timeout: 10000 });
 
-            // View Details button removed; the ID column now has a clickable link to job details.
+            // ID column link and the "View Details" action button (a separate pinned
+            // Actions column/row-section in this grid, MCP-verified) both navigate to
+            // job details. Try the ID link first (existing behavior); the click on it
+            // has been observed to intermittently hang despite the anchor being present
+            // and valid, so fall back to the View Details icon button if navigation
+            // doesn't complete.
+            const jobRowGrow = await targetRow.getAttribute('data-rgrow');
             const jobIdLink = targetRow.locator('a[href*="/jobs/"]').first();
+            const viewDetailsBtn = page
+                .locator(`div[role="gridcell"][data-rgrow="${jobRowGrow}"] button:has(svg.lucide-eye)`)
+                .first();
+
             await expect(jobIdLink).toBeVisible({ timeout: 15000 });
             await jobIdLink.scrollIntoViewIfNeeded();
-            await jobIdLink.click();
-            await page.waitForURL(/\/jobs\/\d+/, { timeout: 30000 });
+
+            let navigated = false;
+            try {
+                await jobIdLink.click({ force: true, timeout: 15000 });
+                await page.waitForURL(/\/jobs\/\d+/, { timeout: 10000 });
+                navigated = true;
+            } catch (e) {
+                Logger.info(`Job ID link click/navigation did not complete (${e.message}). Falling back to View Details.`);
+            }
+
+            if (!navigated) {
+                await viewDetailsBtn.scrollIntoViewIfNeeded();
+                await viewDetailsBtn.click({ force: true, timeout: 30000 });
+                await page.waitForURL(/\/jobs\/\d+/, { timeout: 30000 });
+            }
             await page.waitForLoadState('domcontentloaded');
     
             Logger.step('Pre-flight: delete existing bids (required before contract UI work / finalize)...');

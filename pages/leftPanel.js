@@ -2,6 +2,7 @@
 const locators = require('../locators/leftPanelLocator');
 const { Logger } = require('../utils/logger');
 const { expect } = require('@playwright/test');
+const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
 module.exports = {
 
@@ -175,7 +176,18 @@ module.exports = {
             const collapse = directParent.locator(locators.collapseContainer);
             await directParent.waitFor({ state: 'attached' });
             await directParent.scrollIntoViewIfNeeded();
-            await directParent.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+            // Sections can take a while to render visible right after the panel is
+            // pinned/hydrated — wait generously, and if it genuinely never shows up,
+            // skip the click instead of blindly waiting out the full action timeout
+            // on a target that was never going to become clickable.
+            const becameVisible = await directParent
+                .waitFor({ state: 'visible', timeout: 30000 })
+                .then(() => true)
+                .catch(() => false);
+            if (!becameVisible) {
+                Logger.info(`ensureSectionExpanded: "${sectionLabel}" parent link never became visible — skipping expand click`);
+                return;
+            }
             const visible = await this.listVisibleSuboptions(collapse);
             if (visible.length === 0) {
                 await directParent.click();
@@ -356,16 +368,15 @@ module.exports = {
     },
 
     /**
-     * Main sidebar narrow/wide toggle. Mantine header NavLink often has no aria-expanded; we assert layout width.
+     * Main sidebar narrow/wide toggle. Collapse/expand is via the hover-revealed Pin/Unpin
+     * button (MCP-verified on beta.tailorbird.com, 2026-07-26) — there is no separate chevron
+     * NavLink anymore. Collapsing only takes visual effect once the pointer leaves the navbar
+     * (the rail re-expands on hover even when unpinned), so we move the pointer away before
+     * asserting the narrowed width.
      */
     async assertMainSidebarToggle(page) {
         const toggleBtn = this.mainNavbarToggleLocator(page);
-        await expect(toggleBtn, 'Main sidebar header toggle must be visible').toBeVisible({ timeout: 10000 });
-
-        const beforeAttr = await toggleBtn.getAttribute('aria-expanded');
-        Logger.info(
-            '[Main sidebar toggle] aria-expanded is often absent on Mantine NavLink; value = ' + beforeAttr,
-        );
+        await expect(toggleBtn, 'Main sidebar Pin/Unpin control must be visible while expanded').toBeVisible({ timeout: 10000 });
 
         const expandedW = await this.getMainNavbarWidth(page);
         Logger.info(`[Main sidebar toggle] Navbar width before collapse (expect >150): ${expandedW}`);
@@ -375,6 +386,7 @@ module.exports = {
         ).toBeGreaterThan(150);
 
         await toggleBtn.click();
+        await page.locator('main').first().hover();
 
         await expect.poll(async () => this.getMainNavbarWidth(page), {
             message:
@@ -385,10 +397,10 @@ module.exports = {
         const collapsedW = await this.getMainNavbarWidth(page);
         Logger.info(`[Main sidebar toggle] Navbar width when collapsed (expect <120): ${collapsedW}`);
 
-        await this.mainNavbarToggleLocator(page).click();
+        await ensureLeftPanelExpanded(page);
 
         await expect.poll(async () => this.getMainNavbarWidth(page), {
-            message: 'After second click, navbar must widen again (expand). Toggle or layout may be broken.',
+            message: 'After re-expanding, navbar must widen again. Toggle or layout may be broken.',
             timeout: 10000,
         }).toBeGreaterThan(150);
 
