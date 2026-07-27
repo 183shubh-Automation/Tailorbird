@@ -11,12 +11,25 @@ function reassignInvoiceLocators(page) {
         // Property Overview "Jobs" stat — a paragraph "Jobs" followed by a sibling button showing the count.
         jobsStatButton: page.locator('p', { hasText: /^Jobs$/ }).locator('..').getByRole('button').first(),
 
-        // Jobs grid (opened via the Jobs stat button — scoped to the property that was clicked from)
+        // Jobs grid (opened via the Jobs stat button — NOT property-scoped by URL; it's the
+        // global Jobs listing, so callers must search by property name to narrow it — see
+        // jobsSearchInput below and ReassignInvoicePage.openJobOfProperty).
         jobsGrid: page.locator('[role="treegrid"]').first(),
-        jobRowsForProperty: (propertyName) =>
+        jobsSearchInput: page.getByRole('textbox', { name: 'Search...' }),
+        // NOTE: this used to also `.filter({ hasText: propertyName })`, matching against the
+        // row's "Property" column — but that column sits far enough right that revo-grid
+        // virtualizes it clean out of the DOM at normal viewport widths (MCP-verified live:
+        // the rendered columns stop at "Start Date", 8 columns in, well before "Property" at
+        // position 9) — so that filter always failed to match anything, even correct rows.
+        // Now that callers search the Jobs page by propertyName first (which does the actual
+        // scoping via the grid's own dataset), every currently-rendered *data* row already
+        // belongs to that property, so no further text filter is needed here. Filtering on the
+        // job-ID link (rather than just "has a gridcell") is still required though: the grid
+        // splits into separate checkbox/data/actions panes that each render their own
+        // role="row" elements with gridcells, and only the data pane's rows have this link.
+        jobRowsForProperty: () =>
             page.locator('[role="treegrid"] [role="row"]')
-                .filter({ has: page.locator('[role="gridcell"]') })
-                .filter({ hasText: propertyName }),
+                .filter({ has: page.locator('a[href*="/jobs/"]') }),
         jobIdLinkInRow: (row) => row.locator('a[href*="/jobs/"]').first(),
 
         // ── Invoice list grid — Actions column ───────────────────────────────────

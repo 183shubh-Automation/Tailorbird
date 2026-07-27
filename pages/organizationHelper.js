@@ -192,7 +192,11 @@ class OrganizationHelper {
     }
   }
 
-  async inviteUser(email, role) {
+  /**
+   * @param {{propertyName?: string}} [options] - Which property to pick in the mandatory
+   *   "Property access" step (see below). Defaults to whichever property sorts first.
+   */
+  async inviteUser(email, role, options = {}) {
     try {
       this.log(`Inviting user: ${email} with role: ${role}`);
       const invitePanel = await this.openInvite();
@@ -206,9 +210,13 @@ class OrganizationHelper {
       // Non-admin invites land on a mandatory "Property access" step before the wizard's
       // own Invite button will do anything (MCP-verified live) — Admin invites skip this
       // step entirely since the Next click above was already the final submit (see selectRole()).
-      // Which property is picked here doesn't matter to callers: it's unrelated to the
-      // separate per-property "Property access" tab / user-property-access API that tests
-      // assign against afterwards (MCP-verified — this selection never appears checked there).
+      // This DOES grant the invited user real access to whichever property is picked here
+      // (MCP-verified live: it shows up in that user's own GET /api/properties once
+      // activated) — it is a separate mechanism from the per-property "Property access" tab
+      // / user-property-access API tests assign against afterwards (that one's Access-count
+      // checkbox does NOT reflect this pick), but callers asserting an activated user's total
+      // property list must pass options.propertyName to keep both mechanisms pointed at the
+      // same property.
       const propertyAccessTrigger = invitePanel.dialogRoot.getByRole("button", { name: /search and add properties/i });
       if (await propertyAccessTrigger.isVisible({ timeout: 8000 }).catch(() => false)) {
         this.log("Property access step shown — selecting a property to satisfy the required field");
@@ -217,6 +225,9 @@ class OrganizationHelper {
           .locator(".mantine-Popover-dropdown")
           .filter({ has: this.page.getByPlaceholder("Search properties") });
         await expect(propertyPopover, "Property picker popover must open").toBeVisible({ timeout: 10_000 });
+        if (options.propertyName) {
+          await propertyPopover.getByPlaceholder("Search properties").fill(options.propertyName);
+        }
         await propertyPopover.getByRole("checkbox").first().click();
         await propertyPopover.getByRole("button", { name: "Close" }).click();
       }
@@ -243,13 +254,15 @@ class OrganizationHelper {
         );
       }
       this.log("Waiting for invited user to appear in grid...");
-      // Filter the member table by email so the newly invited (pending) user is visible even if the grid is paginated
-      const _memberSearch = this.page.locator("input[placeholder*='Search'], input[type='search']").first();
+      // Filter the member grid by email so the newly invited (pending) user is visible even
+      // though it's a virtualized RevoGrid (not a plain <table> — new rows off the currently
+      // rendered window won't exist in the DOM at all without filtering, MCP-verified live).
+      const _memberSearch = this.organizationUsersTabSearchInput();
       if (await _memberSearch.isVisible({ timeout: 3000 }).catch(() => false)) {
         await _memberSearch.fill(email);
         await this.page.waitForTimeout(1500);
       }
-      await expect(this.page.locator("table tbody tr.rt-TableRow").filter({ hasText: email }).first()).toBeVisible({
+      await expect(this.page.getByRole("row").filter({ hasText: email }).first()).toBeVisible({
         timeout: 120_000,
       });
       if (await invitePanel.dialogRoot.isVisible().catch(() => false)) {
@@ -290,22 +303,29 @@ class OrganizationHelper {
     await this.page.waitForTimeout(800);
   }
 
+  /**
+   * The Users grid no longer renders a styled "Invited" badge for pending members — the
+   * Status column is now a plain "Pending" text cell (MCP-verified live 2026-07-26; the old
+   * `span.rt-Badge.woswidgets-badge` markup this used to look for doesn't exist anymore).
+   */
   async validateInvitedBadge(row, email) {
     try {
-      this.log(`Validating 'Invited' badge for: ${email}`);
-      const invitedBadge = row.locator(`span.rt-Badge.woswidgets-badge:has-text("${data.invitedBadgeText}")`);
-      await expect(invitedBadge).toBeVisible({ timeout: 4000 });
-      this.log(`'Invited' badge is visible for: ${email}`);
+      this.log(`Validating pending invite status for: ${email}`);
+      const pendingStatus = row.getByText("Pending", { exact: true });
+      await expect(pendingStatus).toBeVisible({ timeout: 4000 });
+      this.log(`Pending status is visible for: ${email}`);
       return true;
     } catch (err) {
-      this.log(`❌ ERROR validating Invited badge for ${email}: ${err}`);
+      this.log(`❌ ERROR validating pending invite status for ${email}: ${err}`);
       throw err;
     }
   }
 
   async visibleRowCount() {
     try {
-      const count = await this.page.locator("table tbody tr.rt-TableRow").count();
+      // The Users grid is a RevoGrid treegrid (role="row"), not a plain <table> — the old
+      // `table tbody tr.rt-TableRow` markup doesn't exist anymore (MCP-verified live 2026-07-26).
+      const count = await this.page.getByRole("row").count();
       this.log(`Visible row count: ${count}`);
       return count;
     } catch (err) {
@@ -317,7 +337,7 @@ class OrganizationHelper {
   async getRow(text) {
     try {
       this.log(`Locating row with text: ${text}`);
-      const row = this.page.locator("table tbody tr.rt-TableRow").filter({ hasText: text }).first();
+      const row = this.page.getByRole("row").filter({ hasText: text }).first();
       await row.waitFor({ state: "visible", timeout: 15000 });
       this.log(`Row found for: ${text}`);
       return row;
@@ -360,8 +380,11 @@ class OrganizationHelper {
   async verifyNoResults() {
     try {
       this.log("Verifying organization user search empty state...");
-      // Live copy (MCP beta 2026-05-05): `No users found for query '<search term>'` — never assert exact full string.
-      await expect(this.page.getByText(data.noResultsText)).toBeVisible({ timeout: 15_000 });
+      // Live copy (MCP-verified 2026-07-26): "No users match your search." — replaced the
+      // older "No users found for query '<term>'" copy. Hardcoded here rather than reusing
+      // data.noResultsText: that fixture key is shared with properties.js for a different
+      // (Properties table) empty-state message, so it can't just be updated in place.
+      await expect(this.page.getByText('No users match your search.')).toBeVisible({ timeout: 15_000 });
       this.log("Empty search state verified.");
     } catch (err) {
       this.log("ERROR verifying no results: " + err);
@@ -429,29 +452,35 @@ class OrganizationHelper {
     }
   }
 
+  /**
+   * Toggles a user between the org-level Admin / Member roles.
+   * MCP-verified live 2026-07-26: the old per-row "Edit roles" menu item (Member/Admin
+   * checkbox modal) no longer exists — the row's "User actions" menu now only offers
+   * "Revoke access". Role editing instead happens via the row's "Edit user" button, which
+   * opens the same dialog shape as inviting a user (Email, "Organization admin" checkbox,
+   * Organization role dropdown, Save). Toggling that single checkbox is now what flips
+   * Admin <-> Member — there's no separate Member checkbox to also uncheck/check.
+   */
   async toggleRole(row) {
     try {
-      this.log("Opening Edit Role...");
-      const menu = row.locator(organizationLocators.userActionsBtn);
-      await menu.click();
-      await this.page.getByRole("menuitem", { name: data.editRoleDialogTitle }).click();
-      const modal = this.page.getByRole("dialog").filter({ hasText: data.editRoleDialogTitle });
+      this.log("Opening Edit user...");
+      // The Users grid splits its Actions column into a separate pinned pane — the "Edit
+      // user" button is NOT a descendant of the data row `row` itself; the two rows share
+      // the same aria-rowindex, so match on that instead.
+      const rowIndex = await row.getAttribute("aria-rowindex");
+      const editButton = this.page
+        .locator(`[role="row"][aria-rowindex="${rowIndex}"]`)
+        .getByRole("button", { name: "Edit user" });
+      await editButton.click();
+      const modal = this.page.getByRole("dialog").filter({ hasText: "Edit user" });
       await modal.waitFor({ state: "visible", timeout: 10000 });
-      const memberCheckbox = modal.getByRole("checkbox", { name: /Member/ });
-      const adminCheckbox = modal.getByRole("checkbox", { name: /Admin/ });
+      const adminCheckbox = modal.getByRole("checkbox", { name: /organization admin/i });
       const isAdminChecked = await adminCheckbox.isChecked();
-      const isMemberChecked = await memberCheckbox.isChecked();
-      const next = (isAdminChecked && !isMemberChecked) ? data.roles[1] : data.roles[0];
-      const current = next === data.roles[0] ? data.roles[1] : data.roles[0];
+      const next = isAdminChecked ? data.roles[1] : data.roles[0];
+      const current = isAdminChecked ? data.roles[0] : data.roles[1];
       this.log(`Current: ${current}, Changing to: ${next}`);
-      if (next === data.roles[0]) {
-        if (isMemberChecked) await memberCheckbox.click();
-        if (!(await adminCheckbox.isChecked())) await adminCheckbox.click();
-      } else {
-        if (isAdminChecked) await adminCheckbox.click();
-        if (!(await memberCheckbox.isChecked())) await memberCheckbox.click();
-      }
-      await modal.getByRole("button", { name: data.saveButtonText }).click();
+      await adminCheckbox.click();
+      await modal.getByRole("button", { name: "Save" }).click();
       await modal.waitFor({ state: "hidden" });
       this.log(`Role changed: ${current} → ${next}`);
       return next;
@@ -461,28 +490,29 @@ class OrganizationHelper {
     }
   }
 
-  async getRole(email) {
-    try {
-      this.log(`Fetching role for: ${email}`);
-      const row = await this.getRow(email);
-      const cell = row.locator("td.rt-TableCell").first();
-      const role = (await cell.innerText()).trim();
-      this.log(`Current role for ${email}: ${role}`);
-      return role;
-    } catch (err) {
-      this.log("ERROR getting role: " + err);
-      throw err;
-    }
-  }
-
+  /**
+   * Reads a user's current Admin/Member state via the "Edit user" dialog's "Organization
+   * admin" checkbox — the grid's own "Role" column shows the *custom* Organization role
+   * (e.g. "View Only") or "—", never the literal "Admin"/"Member" text, so it can't be used
+   * to verify this (MCP-verified live 2026-07-26).
+   */
   async verifyUpdatedRole(email, expectedRole) {
     try {
       this.log(`Verifying updated role for ${email}`);
-      await this.page.waitForTimeout(30000);
+      await this.page.waitForTimeout(5000);
       const row = await this.getRow(email);
-      const roleCell = row.locator("td.rt-TableCell").first();
-      const updatedRole = (await roleCell.innerText()).trim();
+      const rowIndex = await row.getAttribute("aria-rowindex");
+      const editButton = this.page
+        .locator(`[role="row"][aria-rowindex="${rowIndex}"]`)
+        .getByRole("button", { name: "Edit user" });
+      await editButton.click();
+      const modal = this.page.getByRole("dialog").filter({ hasText: "Edit user" });
+      await modal.waitFor({ state: "visible", timeout: 10000 });
+      const adminCheckbox = modal.getByRole("checkbox", { name: /organization admin/i });
+      const updatedRole = (await adminCheckbox.isChecked()) ? data.roles[0] : data.roles[1];
       this.log(`Fetched updated role: ${updatedRole}`);
+      await modal.getByRole("button", { name: "Cancel" }).click();
+      await modal.waitFor({ state: "hidden" });
       expect(updatedRole).toBe(expectedRole);
       this.log(`Role verification PASSED → ${email}: ${updatedRole} == ${expectedRole}`);
       return updatedRole;

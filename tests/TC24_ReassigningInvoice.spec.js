@@ -67,7 +67,14 @@ async function discoverPropertyJobs(rip, propertyName) {
     await rip.page.waitForURL(/\/jobs/, { timeout: 20000 });
     await rip.loc.jobsGrid.waitFor({ state: 'visible', timeout: 20000 });
 
-    const rows = rip.loc.jobRowsForProperty(propertyName);
+    // The Jobs stat button lands on the GLOBAL /jobs listing (not property-scoped by URL) —
+    // revo-grid virtualizes rows, so this property's jobs can be off-screen once the org's
+    // total job count grows past one viewport (MCP-verified live). Search narrows the grid's
+    // own dataset first, same as ReassignInvoicePage.openJobOfProperty.
+    await rip.loc.jobsSearchInput.fill(propertyName);
+    await rip.page.waitForTimeout(1000);
+
+    const rows = rip.loc.jobRowsForProperty();
     await expect(rows.first(), `No jobs found for property "${propertyName}"`).toBeVisible({ timeout: 15000 });
 
     const count = await rows.count();

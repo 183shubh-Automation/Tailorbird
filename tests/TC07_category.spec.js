@@ -429,9 +429,14 @@ test.describe('Verify category tab', () => {
         await capex.toggleColumn('Budget Revision');
         await capex.toggleColumn('Invoiced Amount');
         await capex.closeManageColumnsDrawer();
-        // Re-adding 2 columns re-renders more grid content than hiding them did, so
-        // give the grid a moment to catch up instead of asserting on a single read.
-        await expect.poll(() => capex.getColumnOrder(), { timeout: 8000 }).toContain('Invoiced Amount');
+        // Re-adding 2 columns makes the grid wider than before — confirmed live via MCP browser:
+        // RevoGrid drops whichever columns don't fit its actual rendered width entirely (no
+        // scrollbar ever reveals them), rather than making them scrollable, and that width
+        // threshold depends on OS font metrics, so a re-render that fits locally can still drop
+        // "Invoiced Amount" in CI. A poll alone can't recover from that — the column is
+        // structurally absent, not just slow to paint — so force the grid wide first (see
+        // CapexPage.forceGridFullWidth's doc comment) before reading column order.
+        await capex.forceGridFullWidth();
         order = await capex.getColumnOrder();
         // Verify restored columns are present (RevoGrid may append restored cols at the end)
         expect(order).toContain('Budget Revision');

@@ -39,16 +39,14 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         await expect(loc.listRetainageWithheldHeader).toBeVisible({ timeout: 20000 });
         await expect(loc.listRetainageReleasedHeader).toBeVisible();
         await expect(loc.listOutstandingRetainageHeader).toBeVisible();
-        // "Net Payable" sits further right in this wide grid and can be scrolled out of
-        // the viewport even though it's rendered. The grid can also still be mid-render
-        // (staging environment is occasionally slow to paint the full column set) —
-        // reload once and retry if it isn't in the DOM at all yet.
+        // "Net Payable" is a low-priority column this grid drops entirely (not just scrolls
+        // off-screen) when it doesn't fit the actual rendered width — confirmed live via MCP
+        // browser, gotoInvoiceList() already forces this grid wide enough to mount every column;
+        // this is a defensive re-force in case that grid wasn't attached yet when it ran.
         if ((await loc.listNetPayableHeader.count()) === 0) {
-            await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
-            await expect(loc.listRetainageWithheldHeader).toBeVisible({ timeout: 20000 });
+            await retainagePage.forceGridFullWidth(loc.invoiceListGrid);
         }
-        await loc.listNetPayableHeader.scrollIntoViewIfNeeded();
-        await expect(loc.listNetPayableHeader).toBeVisible();
+        await expect(loc.listNetPayableHeader).toBeVisible({ timeout: 10000 });
         Logger.success('Invoice list grid Retainage columns are all visible.');
     });
 
@@ -62,9 +60,13 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         const row = retainagePage.getListRowByInvoiceNumber(`Invoice #${fixture.invoiceId}`);
         await expect(row).toBeVisible({ timeout: 20000 });
 
-        // This grid is wider than the viewport — Net Payable sits far enough right that
-        // its cell isn't captured by innerText() until the grid is scrolled to it.
-        await loc.listNetPayableHeader.scrollIntoViewIfNeeded();
+        // Net Payable is a low-priority column this grid drops entirely (not just scrolls
+        // off-screen) when it doesn't fit the actual rendered width — confirmed live via MCP
+        // browser. gotoInvoiceList() already forces this grid wide enough to mount every column
+        // (with real cell data, verified live), so its cell is captured by innerText() directly.
+        if ((await loc.listNetPayableHeader.count()) === 0) {
+            await retainagePage.forceGridFullWidth(loc.invoiceListGrid);
+        }
 
         const rowText = await row.innerText();
         Logger.info(`Invoice row text: ${rowText.replace(/\n/g, ' | ')}`);
@@ -143,12 +145,15 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         await expect(loc.lineItemsRetainageAmountHeader).toBeVisible();
         await expect(loc.lineItemsRetainageReleasedHeader).toBeVisible();
         await expect(loc.lineItemsTotalWithheldHeader).toBeVisible();
-        // This grid is wider than the viewport — the last two columns sit far enough
-        // right that they need to be scrolled into view before they register as visible.
-        await loc.lineItemsOutstandingRetainageHeader.scrollIntoViewIfNeeded();
-        await expect(loc.lineItemsOutstandingRetainageHeader).toBeVisible();
-        await loc.lineItemsNetPayableHeader.scrollIntoViewIfNeeded();
-        await expect(loc.lineItemsNetPayableHeader).toBeVisible();
+        // Outstanding Retainage / Net Payable are low-priority columns this grid drops entirely
+        // (not just scrolls off-screen) when they don't fit the actual rendered width — confirmed
+        // live via MCP browser. gotoInvoiceDetail() already forces this grid wide enough to mount
+        // every column; this is a defensive re-force in case it wasn't attached yet when it ran.
+        if ((await loc.lineItemsOutstandingRetainageHeader.count()) === 0) {
+            await retainagePage.forceGridFullWidth(loc.lineItemsGrid);
+        }
+        await expect(loc.lineItemsOutstandingRetainageHeader).toBeVisible({ timeout: 10000 });
+        await expect(loc.lineItemsNetPayableHeader).toBeVisible({ timeout: 10000 });
         Logger.success('Line-items grid Retainage %, Retainage ($), Retainage Released, Total Withheld to Date, Outstanding Retainage and Net Payable headers are all visible.');
     });
 
@@ -169,7 +174,11 @@ test.describe('Verify Retainage flow (Invoice list + Invoice Details)', () => {
         page.on('pageerror', (err) => errors.push(err.message));
 
         await retainagePage.gotoInvoiceList(fixture.jobId);
-        await loc.listNetPayableHeader.scrollIntoViewIfNeeded();
+        // See TC321 for why this checks/re-forces rather than scrolling — this grid drops
+        // low-priority columns entirely rather than making them scrollable.
+        if ((await loc.listNetPayableHeader.count()) === 0) {
+            await retainagePage.forceGridFullWidth(loc.invoiceListGrid);
+        }
         await expect(loc.listNetPayableHeader).toBeVisible({ timeout: 20000 });
 
         await retainagePage.gotoInvoiceDetail(fixture.jobId, fixture.invoiceId);

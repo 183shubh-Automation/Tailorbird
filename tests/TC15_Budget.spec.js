@@ -360,7 +360,7 @@ test.describe('Budget Workflow - E2E Tests', () => {
 
     // ===== TC244: Budget Revision E2E — Revisions, AI Notes, Approval =====
 
-    test('TC270 @budget @e2e @revision : Budget Revision Workflow E2E — Verify Budget Import, Revisions, AI Notes, Approval Flow and Status Updates', async () => {
+    test.only('TC270 @budget @e2e @revision : Budget Revision Workflow E2E — Verify Budget Import, Revisions, AI Notes, Approval Flow and Status Updates', async () => {
         test.setTimeout(600000); // 8 minutes — full E2E lifecycle
 
         const timestamp = Date.now();

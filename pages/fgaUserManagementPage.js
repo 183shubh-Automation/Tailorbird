@@ -178,6 +178,18 @@ class FgaUserManagementPage {
     /**
      * Full assign flow: open Settings for propertyName, check the target user's
      * checkbox, and capture the POST /api/user-property-access request/response.
+     *
+     * KNOWN ISSUE (2026-07-26): when `email` was invited with this exact `propertyName`
+     * already selected in the invite wizard's Property access step (i.e. inviteUser was
+     * called with `options.propertyName` matching this call), the automated checkbox click
+     * here reliably fails to trigger the POST within the timeout — confirmed reproducible
+     * across repeated automated runs, with and without an added scroll+settle wait. The
+     * identical manual click (same user, same property, via MCP browser) fires the POST
+     * successfully both times tried. This is the same class of MCP-vs-test-runner
+     * discrepancy already flagged elsewhere this session (TC106/TC14) rather than a fixable
+     * locator/timing bug — do not keep hardening this without new evidence pointing at a
+     * different root cause. Only known workaround is passing a *different* propertyName to
+     * inviteUser than the one assigned here (see TC350/TC352, which don't hit this).
      * @returns {Promise<{dialog: import('@playwright/test').Locator, propertyId: number|null, status: number, ok: boolean, requestBody: any, responseBody: any}>}
      */
     async assignUserToProperty(propertyName, email) {
@@ -186,7 +198,13 @@ class FgaUserManagementPage {
 
         const row = this.dialogUserRow(dialog, email);
         await expect(row).toBeVisible({ timeout: 15000 });
+        // The filtered list can still re-render (debounced search settling) right after the
+        // row first appears, which can drop a click aimed at the pre-settle position — scroll
+        // + a settle wait before reading the checkbox avoids clicking a soon-to-be-replaced node.
+        await row.scrollIntoViewIfNeeded();
+        await this.page.waitForTimeout(500);
         const checkbox = row.getByRole('checkbox');
+        await expect(checkbox).toBeVisible({ timeout: 5000 });
 
         const assignResponsePromise = this.page.waitForResponse(
             (res) => res.url().endsWith('/api/user-property-access') && res.request().method() === 'POST',
@@ -234,13 +252,13 @@ class FgaUserManagementPage {
      * (MCP-verified live 2026-07-26 — this app-owned endpoint replaced the old WorkOS
      * "invite-user" widget call this used to wait on).
      */
-    async inviteMemberAndCaptureApi(email) {
+    async inviteMemberAndCaptureApi(email, options = {}) {
         const inviteResponsePromise = this.page.waitForResponse(
             (res) => res.url().endsWith('/api/organization/users') && res.request().method() === 'POST',
             { timeout: 20000 },
         );
 
-        await this.organizationHelper.inviteUser(email, 'Member');
+        await this.organizationHelper.inviteUser(email, 'Member', options);
 
         const response = await inviteResponsePromise;
         const requestBody = response.request().postDataJSON();

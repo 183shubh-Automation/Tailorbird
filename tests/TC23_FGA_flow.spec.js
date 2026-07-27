@@ -59,8 +59,8 @@ test.describe("FEAT-972 FGA User Management", () => {
         const { email } = generateFgaTestUser("testmember");
 
         InteractionLogger.logNavigation(dashboardLandingUrl, "Dashboard — profile menu → Manage Organization");
-        await ensureLeftPanelExpanded(page);
         await fga.gotoOrganization(dashboardLandingUrl);
+        await ensureLeftPanelExpanded(page);
         Logger.info("[TC350] Asserting: URL is /organization");
         await expect(page).toHaveURL(/\/organization/);
 
@@ -254,7 +254,7 @@ test.describe("FEAT-972 FGA User Management", () => {
         await fga.gotoOrganization(dashboardLandingUrl);
         await ensureLeftPanelExpanded(page);
         Logger.step(`[TC355] Inviting new member for activation: ${email}`);
-        const inviteResult = await fga.inviteMemberAndCaptureApi(email);
+        const inviteResult = await fga.inviteMemberAndCaptureApi(email, { propertyName: TARGET_PROPERTY });
         expect(inviteResult.status).toBe(200);
         expect(inviteResult.ok).toBeTruthy();
 
@@ -348,7 +348,7 @@ test.describe("FEAT-972 FGA scope validation — activated Member user (single-p
         Logger.step(`[FGA scope setup] Inviting new member for scope validation: ${email}`);
         await fga.gotoOrganization(dashboardLandingUrl);
         await ensureLeftPanelExpanded(adminPage);
-        const inviteResult = await fga.inviteMemberAndCaptureApi(email);
+        const inviteResult = await fga.inviteMemberAndCaptureApi(email, { propertyName: TARGET_PROPERTY });
         expect(inviteResult.status).toBe(200);
         expect(inviteResult.ok).toBeTruthy();
         saveCreatedUser({ email, role: "Member", testCase: "TC356-374", purpose: "FGA scope validation (shared session)", createdAt: new Date().toISOString() });
@@ -395,6 +395,7 @@ test.describe("FEAT-972 FGA scope validation — activated Member user (single-p
         const context = await browser.newContext({ storageState: sharedStorageState });
         const page = await context.newPage();
         await page.goto(process.env.DASHBOARD_URL || dashboardLandingUrl, { waitUntil: "load" });
+        await ensureLeftPanelExpanded(page);
         return { context, activation: UserActivationPage.fromAuthenticatedSession(context, page) };
     }
 

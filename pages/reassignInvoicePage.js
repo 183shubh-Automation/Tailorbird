@@ -56,7 +56,16 @@ class ReassignInvoicePage {
         await this.loc.jobsGrid.waitFor({ state: 'visible', timeout: 20000 });
         await this.page.waitForTimeout(1000);
 
-        const propertyJobRows = this.loc.jobRowsForProperty(propertyName);
+        // The Jobs stat button lands on the GLOBAL /jobs listing, not a property-scoped URL —
+        // revo-grid virtualizes rows, so as the org's total job count grows this property's
+        // rows can simply not be among what's currently rendered (MCP-verified live: with 18
+        // total jobs, only the first virtualized page renders). Searching narrows the grid's
+        // own dataset (aria-rowcount) to just this property first, same pattern used for the
+        // Properties/Invoice search elsewhere in this file.
+        await this.loc.jobsSearchInput.fill(propertyName);
+        await this.page.waitForTimeout(1000);
+
+        const propertyJobRows = this.loc.jobRowsForProperty();
         await expect(
             propertyJobRows.first(),
             `No jobs found for property "${propertyName}"`

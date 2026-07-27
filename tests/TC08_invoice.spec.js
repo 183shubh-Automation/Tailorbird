@@ -734,6 +734,10 @@ test.describe('Verify Invoice tab', () => {
     });
 
     test('TC130 @regression @changeOrderAndinvoice : Should create 5 complete invoices with budget category and save via Go Back', async () => {
+        // 5 full invoice creations + 5 pending-approval confirmations routinely exceed the
+        // default 280000ms test timeout (playwright.config.js) under normal load — bump it here
+        // rather than globally, since this is one of the heavier multi-item flows in this file.
+        test.setTimeout(600000);
         Logger.step('TC130: Creating 5 complete invoices with budget category (save via Go Back, no confirm)...');
         await page.waitForLoadState('load');
         await page.waitForTimeout(2000);

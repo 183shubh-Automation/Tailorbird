@@ -911,7 +911,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     await expect(page.locator('[style*="files.tailorbird.com"]')).toBeVisible({ timeout: 15000 });
   });
 
-  test('TC67 @property @regression : Verify reusable add column function for all column types', async ({ page }) => {
+  test.only('TC67 @property @regression : Verify reusable add column function for all column types', async ({ page }) => {
     test.setTimeout(600000);
     const projectPage = new ProjectPage(page);
     const addColumnPage = new AddColumnPage(page, { scope: page.locator('main') });

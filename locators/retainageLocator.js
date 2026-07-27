@@ -43,6 +43,10 @@ function retainageLocators(page) {
         .filter({ hasText: scheduleOfValue }),
 
     // Invoice list grid (revo-grid) column headers
+    // Grid-level locator (not a header/row) — used to force every column to mount via
+    // forceGridFullWidth() instead of scrolling. Matches exactly 1 element (confirmed live via
+    // MCP browser: the internal hidden/measurement revo-grid instance never carries this header).
+    invoiceListGrid: page.locator('revo-grid:has([role="columnheader"] span:text("Invoice Number"))'),
     listRetainageWithheldHeader: page.locator('[role="columnheader"]').filter({ hasText: 'Retainage Withheld ($)' }),
     listRetainageReleasedHeader: page.locator('[role="columnheader"]').filter({ hasText: 'Retainage Released ($)' }),
     listOutstandingRetainageHeader: page.locator('[role="columnheader"]').filter({ hasText: 'Outstanding Retainage ($)' }),

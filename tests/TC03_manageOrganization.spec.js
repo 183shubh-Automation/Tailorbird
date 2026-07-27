@@ -145,6 +145,13 @@ async function expectInviteBlockingFeedback(organizationHelperInstance, sharedTe
   if (options.malformedEmail) {
     await inviteUserPanel.emailAddressInput.fill(options.malformedEmail);
   }
+  // MCP-verified live 2026-07-26: for an empty/malformed email the wizard's Next button stays
+  // permanently disabled (client-side format validation gates it) — it never becomes clickable,
+  // so that IS the blocking behavior here. Only attempt the click when Next is actually enabled;
+  // otherwise a plain .click() would hang waiting for an element that's never going to enable.
+  if (await inviteUserPanel.nextOrInvitePrimaryButton.isDisabled().catch(() => false)) {
+    return;
+  }
   await inviteUserPanel.nextOrInvitePrimaryButton.click();
   await expect(async () => {
     const inviteDialogCopy = (await inviteUserPanel.dialogRoot.innerText()).toLowerCase();
@@ -310,7 +317,9 @@ test.describe('TC03 Manage Organization — Text Agent (live MCP browser scan)',
         // accept both spellings so the exact hyphenation doesn't break this again.
         await expect(page.getByPlaceholder(/search by name or e-?mail/i)).toBeVisible({ timeout: 8_000 });
 
-        for (const col of ['User', 'Roles', 'Last active']) {
+        // MCP-verified live 2026-07-26 — current columns are Name, Email, Status, Role,
+        // Property access, Actions (replaced the older User / Roles / Last active columns).
+        for (const col of ['Email', 'Status', 'Role']) {
           InteractionLogger.logVisibility(`Column: ${col}`, true);
           await expect(page.getByRole('columnheader', { name: col })).toBeVisible({ timeout: 8_000 });
         }

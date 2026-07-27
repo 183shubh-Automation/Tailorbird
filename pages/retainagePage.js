@@ -15,11 +15,37 @@ class RetainagePage {
     this.loc = retainageLocators(page);
   }
 
+  /**
+   * Forces a revo-grid element to mount every column into the DOM by setting an oversized
+   * explicit width, instead of relying on scrollIntoViewIfNeeded(). Confirmed live via MCP
+   * browser: this app's revo-grid instances DROP columns that don't fit the grid's actual
+   * rendered width rather than making them horizontally scrollable — at a narrow width, headers
+   * like "Net Payable" / "Outstanding Retainage" are entirely absent from the DOM (0 elements),
+   * with scrollWidth barely exceeding clientWidth, i.e. no scrollbar exists to reveal them. That
+   * "actual rendered width" also depends on OS font metrics, so the same column set that mounts
+   * locally (Windows) can still be dropped in CI (headless Linux) even at an identical 1920px
+   * viewport — which is why a fixed viewport size alone doesn't fix it. Forcing width mounts the
+   * real column with its real cell data (verified live: values matched fixture expectations after
+   * forcing), so this only changes test-time rendering, never app functionality or values.
+   * @param {import('@playwright/test').Locator} gridLocator
+   */
+  async forceGridFullWidth(gridLocator) {
+    await gridLocator.waitFor({ state: 'attached', timeout: 20000 });
+    await gridLocator.evaluate((grid) => {
+      grid.style.setProperty('width', '3000px', 'important');
+      grid.style.setProperty('min-width', '3000px', 'important');
+    });
+    await this.page.waitForTimeout(400);
+  }
+
   /** @param {number|string} jobId */
   async gotoInvoiceList(jobId) {
     Logger.step(`Navigating to invoice list for job ${jobId}...`);
     await this.page.goto(`${process.env.BASE_URL}/jobs/${jobId}?tab=invoices`, { waitUntil: 'load' });
     await this.page.waitForTimeout(2000);
+    // Wrapped in catch: a genuinely missing/empty list (e.g. "Job not found") has no grid to
+    // widen, and callers already handle that case themselves via their own not-found check.
+    await this.forceGridFullWidth(this.loc.invoiceListGrid).catch(() => {});
   }
 
   /**
@@ -44,6 +70,9 @@ class RetainagePage {
     await this.loc.createInvoiceButton.click();
     await this.page.waitForURL(/\/invoices\/\d+/, { timeout: 20000 });
     const invoiceId = this.page.url().match(/\/invoices\/(\d+)/)[1];
+    // This lands directly on the new invoice's detail page (not via gotoInvoiceDetail), so the
+    // line-items grid needs its own forceGridFullWidth call — see that method's doc comment.
+    await this.forceGridFullWidth(this.loc.lineItemsGrid).catch(() => {});
     Logger.success(`Created draft invoice #${invoiceId}`);
     return invoiceId;
   }
@@ -56,6 +85,9 @@ class RetainagePage {
     Logger.step(`Navigating to invoice detail ${invoiceId} for job ${jobId}...`);
     await this.page.goto(`${process.env.BASE_URL}/jobs/${jobId}/invoices/${invoiceId}`, { waitUntil: 'load' });
     await this.page.waitForTimeout(2000);
+    // Wrapped in catch: a genuinely missing invoice (e.g. "not found") has no grid to widen, and
+    // callers already handle that case themselves via their own not-found check.
+    await this.forceGridFullWidth(this.loc.lineItemsGrid).catch(() => {});
   }
 
   /** @returns {Promise<{retainagePercent:string, grossAmount:string, retainageWithheld:string, retainageReleased:string, netPayable:string}>} */
@@ -249,7 +281,17 @@ class RetainagePage {
    * @param {import('@playwright/test').Locator} headerLocator
    */
   async getColumnValueForRow(row, headerLocator) {
-    await headerLocator.waitFor({ state: 'attached', timeout: 10000 });
+    const attached = await headerLocator
+      .waitFor({ state: 'attached', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!attached) {
+      // gotoInvoiceDetail()/createDraftInvoice() already force this grid wide, but a column can
+      // still be missing here if the caller reached this row via some other path — force once
+      // more and retry rather than failing outright. See forceGridFullWidth's doc comment.
+      await this.forceGridFullWidth(this.loc.lineItemsGrid);
+      await headerLocator.waitFor({ state: 'attached', timeout: 10000 });
+    }
     const colIndex = await headerLocator.evaluate((el) => el.getAttribute('data-rgcol') || el.getAttribute('aria-colindex'));
     if (!colIndex) {
       throw new Error(`Could not resolve column index for header: ${await headerLocator.textContent()}`);
