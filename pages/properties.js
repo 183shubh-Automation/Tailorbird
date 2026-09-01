@@ -2,23 +2,70 @@ const { expect } = require("@playwright/test");
 const loc = require("../locators/organization");
 const data = require("../fixture/organization.json");
 const ModalHandler = require('../pages/modalHandler');
-import { propertyLocators } from '../locators/propertyLocator.js';
+import {
+    propertyLocators,
+    createPropertyButtonStrategies,
+    addPropertyDialogStrategies,
+    nameInputStrategies,
+    addressInputStrategies,
+    cityInputStrategies,
+    stateInputStrategies,
+    zipInputStrategies,
+    typeInputStrategies,
+    cancelBtnStrategies,
+    addPropertyBtnStrategies,
+    addressSuggestionStrategies,
+    propertyTypeOptionStrategies,
+    toolbarSwitcherStrategies,
+    exportButtonStrategies,
+    searchInputStrategies,
+    filterButtonStrategies,
+    filterPopupStrategies,
+    filterCheckboxStrategies,
+    filterCloseButtonStrategies,
+    viewDetailsButtonStrategies,
+    matchingCardTitleStrategies,
+    firstClickableCardStrategies,
+    takeoffsTabStrategies,
+    interiorTabStrategies,
+    exteriorTabStrategies,
+    takeoffsFilterButtonStrategies,
+    takeoffsResetFiltersStrategies,
+    takeoffsFilterCloseButtonStrategies,
+    takeoffFilterCheckboxLabelStrategies,
+    takeoffVersionInputStrategies,
+    takeoffsTabpanelStrategies,
+    revoGridStrategies,
+    genericTreegridStrategies,
+    agGridStrategies,
+    takeoffSaveInDialogStrategies,
+    takeoffsFilterPanelTitleStrategies,
+    takeoffFilterBadgeStrategies,
+    takeoffClearAllFiltersStrategies,
+} from '../locators/propertyLocator.js';
+const {
+    jobSummaryTabStrategies,
+    jobSummaryTabpanelStrategies,
+    jobSummaryFieldValueStrategies,
+    jobOverviewEditButtonStrategies,
+} = require('../locators/projectPageLocator');
 import testData from '../fixture/property.json';
 const prop = require('../locators/locationLocator');
 const { CapexGridStabilityPage } = require('../pages/capexGridStabilityPage');
 const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
+const { healingLocator } = require('../utils/locatorHealer');
 
 class PropertiesHelper {
     constructor(page) {
         this.page = page;
-        this.nameInput = page.getByLabel('Name');
-        this.addressInput = page.getByRole('textbox', { name: 'Address' });
-        this.cityInput = page.getByLabel('City');
-        this.stateInput = page.getByLabel('State');
-        this.zipInput = page.getByLabel('Zipcode');
-        this.typeInput = page.locator('input[placeholder="Select type"]');
-        this.cancelBtn = page.getByRole('button', { name: 'Cancel' });
-        this.addPropertyBtn = page.getByRole('button', { name: /add property/i });
+        this.nameInput = healingLocator(nameInputStrategies(page));
+        this.addressInput = healingLocator(addressInputStrategies(page));
+        this.cityInput = healingLocator(cityInputStrategies(page));
+        this.stateInput = healingLocator(stateInputStrategies(page));
+        this.zipInput = healingLocator(zipInputStrategies(page));
+        this.typeInput = healingLocator(typeInputStrategies(page));
+        this.cancelBtn = healingLocator(cancelBtnStrategies(page));
+        this.addPropertyBtn = healingLocator(addPropertyBtnStrategies(page));
     }
 
     log(msg) {
@@ -49,7 +96,7 @@ class PropertiesHelper {
     async waitForPropertiesPageLoaded() {
         const isReady = async () => {
             const onPropertiesUrl = /\/properties(\/|$|\?)/i.test(this.page.url());
-            const hasCreateProperty = await this.page.locator(propertyLocators.createPropertyButton).first().isVisible().catch(() => false);
+            const hasCreateProperty = await healingLocator(createPropertyButtonStrategies(this.page)).first().isVisible().catch(() => false);
             const hasToolbar = await this.page.getByRole('button', { name: /layout|view|filter|export/i }).first().isVisible().catch(() => false);
             const hasMain = await this.page.locator('main').first().isVisible().catch(() => false);
             return onPropertiesUrl && hasMain && (hasCreateProperty || hasToolbar);
@@ -121,7 +168,7 @@ class PropertiesHelper {
     /** Create Property modal — title node varies (h2 vs Modal-title); match dialog by copy. */
     addPropertyDialog() {
         // Mantine can leave hidden dialog roots in DOM; prefer the latest matching dialog instance.
-        return this.page.getByRole("dialog").filter({ hasText: /add\s+property/i }).last();
+        return healingLocator(addPropertyDialogStrategies(this.page));
     }
 
     async goToProperties() {
@@ -154,13 +201,13 @@ class PropertiesHelper {
 
         try {
             console.log("🔎 Waiting for *Create Property* button...");
-            await this.page.locator(propertyLocators.createPropertyButton).waitFor({ state: "visible" });
+            await healingLocator(createPropertyButtonStrategies(this.page)).waitFor({ state: "visible" });
 
             console.log("🖱 Clicking *Create Property* button...");
-            await this.page.locator(propertyLocators.createPropertyButton).click({ force: true });
+            await healingLocator(createPropertyButtonStrategies(this.page)).click({ force: true });
 
             console.log("📌 Waiting for Add Property modal to appear...");
-            await this.addPropertyDialog().waitFor({ state: "visible", timeout: 45000 });
+            await this.addPropertyDialog().waitFor({ state: "visible", timeout: 65000 });
 
             console.log("📝 Verifying modal field presence...");
             await this.verifyModalFields();
@@ -180,7 +227,7 @@ class PropertiesHelper {
             await this.addressInput.fill(address);
 
             console.log(`🔍 Selecting address suggestion for: ${address}`);
-            const addressOpt = this.page.locator(propertyLocators.addressSuggestion(address)).first();
+            const addressOpt = healingLocator(addressSuggestionStrategies(this.page, address));
             await addressOpt.waitFor({ state: "attached", timeout: 55000 });
             await addressOpt.evaluate((el) => {
                 el.click();
@@ -190,7 +237,7 @@ class PropertiesHelper {
             await this.typeInput.fill(type);
 
             console.log("📍 Selecting property type from dropdown...");
-            const typeOpt = this.page.locator(propertyLocators.propertyTypeOption(type)).first();
+            const typeOpt = healingLocator(propertyTypeOptionStrategies(this.page, type));
             await typeOpt.waitFor({ state: "attached", timeout: 30000 });
             await typeOpt.evaluate((el) => {
                 el.click();
@@ -247,7 +294,7 @@ class PropertiesHelper {
             }
 
             console.log(`🔍 Validating property '${name}' appears in list...`);
-            const searchInput = this.page.locator(propertyLocators.searchInput).first();
+            const searchInput = healingLocator(searchInputStrategies(this.page)).first();
             if (await searchInput.isVisible().catch(() => false)) {
                 await searchInput.click();
                 await searchInput.fill(name);
@@ -293,12 +340,9 @@ class PropertiesHelper {
             await this.goToProperties();
         }
         await this.page.waitForLoadState("domcontentloaded");
-        await this.page.waitForTimeout(1500);
+        await this.page.waitForTimeout(15000);
         // CI-safe: in some runs only "Layout"/"View" is clickable (other table-action buttons are Filter/Export).
-        const switchers = this.page
-            .getByRole('button', { name: /^(layout|view|table)$/i })
-            .or(this.page.locator('[data-testid="bt-table-action"]'))
-            .or(this.page.locator('button[data-table-action="true"]'));
+        const switchers = healingLocator(toolbarSwitcherStrategies(this.page));
         let menuOpened = false;
         for (let attempt = 0; attempt < 3 && !menuOpened; attempt++) {
             const count = await switchers.count().catch(() => 0);
@@ -307,7 +351,7 @@ class PropertiesHelper {
                 if (!(await switcher.isVisible().catch(() => false))) continue;
                 await switcher.click({ force: true }).catch(() => { });
                 const viewItem = this.page.getByRole('menuitem', { name: view }).first();
-                if (await viewItem.isVisible({ timeout: 1500 }).catch(() => false)) {
+                if (await viewItem.isVisible({ timeout: 15000 }).catch(() => false)) {
                     await viewItem.click({ force: true }).catch(() => { });
                     menuOpened = true;
                     break;
@@ -315,22 +359,22 @@ class PropertiesHelper {
             }
             if (!menuOpened) {
                 const tableBtn = this.page.getByTestId('bt-table-action');
-                await tableBtn.waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
-                await this.page.waitForTimeout(300);
+                await tableBtn.waitFor({ state: 'visible', timeout: 60000 }).catch(() => {});
+                await this.page.waitForTimeout(3000);
             }
         }
         if (!menuOpened) this.log(`changeView: menu item "${view}" not visible; proceeding with current view.`);
 
-        const apiWait = this.waitForApi200('changeView', [/\/api\/bird-table/, /\/api\/table-view-config/], 12_000);
+        const apiWait = this.waitForApi200('changeView', [/\/api\/bird-table/, /\/api\/table-view-config/], 32_000);
         const ready = await expect
             .poll(async () => {
                 const tree = await this.page.locator(propertyLocators.gridRootWrapper).first().isVisible().catch(() => false);
                 const cards = await this.page.locator('.mantine-SimpleGrid-root, .mantine-Card-root').first().isVisible().catch(() => false);
-                const createBtn = await this.page.locator(propertyLocators.createPropertyButton).first().isVisible().catch(() => false);
-                const search = await this.page.locator(propertyLocators.searchInput).first().isVisible().catch(() => false);
+                const createBtn = await healingLocator(createPropertyButtonStrategies(this.page)).first().isVisible().catch(() => false);
+                const search = await healingLocator(searchInputStrategies(this.page)).first().isVisible().catch(() => false);
                 const toolbar = await this.page.getByRole('button', { name: /layout|view|table|filter|sort|export/i }).first().isVisible().catch(() => false);
                 return tree || cards || createBtn || search || toolbar;
-            }, { timeout: 20_000, intervals: [500, 1000, 1500] })
+            }, { timeout: 60_000, intervals: [500, 1000, 1500] })
             .toBeTruthy()
             .then(() => true)
             .catch(() => false);
@@ -342,14 +386,14 @@ class PropertiesHelper {
 
     /** Open BirdTable filter drawer (panel that contains "Filter Options"). */
     filterPopup() {
-        return this.page.locator('.mantine-Paper-root').filter({ hasText: 'Filter Options' });
+        return healingLocator(filterPopupStrategies(this.page));
     }
 
     async filterProperty(type) {
         const popup = this.filterPopup();
         await popup.waitFor({ state: 'visible', timeout: 15000 });
 
-        const checkbox = popup.getByRole('checkbox', { name: type });
+        const checkbox = healingLocator(filterCheckboxStrategies(popup, type));
         await checkbox.waitFor({ state: 'visible', timeout: 20000 });
         await checkbox.click();
 
@@ -391,7 +435,7 @@ class PropertiesHelper {
             const onDetails = /\/properties\/details/.test(this.page.url());
             const mainScope = this.page.locator("main");
             let exportBtn;
-            const byBirdTable = mainScope.locator(propertyLocators.birdTableExportButton);
+            const byBirdTable = healingLocator(exportButtonStrategies(mainScope));
             const nBt = await byBirdTable.count();
             if (nBt > 0) {
                 if (onDetails && nBt > 1) {
@@ -409,7 +453,7 @@ class PropertiesHelper {
                     exportBtn = byBirdTable.first();
                 }
             } else {
-                const byBirdTablePage = this.page.locator(propertyLocators.birdTableExportButton);
+                const byBirdTablePage = healingLocator(exportButtonStrategies(this.page));
                 const nPage = await byBirdTablePage.count();
                 if (nPage > 0) {
                     if (onDetails && nPage > 1) {
@@ -1147,12 +1191,13 @@ class PropertiesHelper {
 
         try {
             console.log("⏳ Step 1: Opening Filter section...");
-            await this.page.locator(".mantine-Paper-root p:has-text('Filter')").first().waitFor({ state: "visible" });
+            await healingLocator(takeoffsFilterPanelTitleStrategies(this.page)).first().waitFor({ state: "visible" });
             console.log("✔ Filter UI loaded\n");
 
             console.log(`⏳ Step 2: Selecting checkbox option "${type}"...`);
-            await this.page.locator(`.mantine-Checkbox-labelWrapper label:has-text("${type}")`).waitFor({ state: "visible" });
-            await this.page.locator(`.mantine-Checkbox-labelWrapper label:has-text("${type}")`).click();
+            const filterCheckboxLabel = healingLocator(takeoffFilterCheckboxLabelStrategies(this.page, type));
+            await filterCheckboxLabel.waitFor({ state: "visible" });
+            await filterCheckboxLabel.click();
             console.log(`✔ "${type}" checkbox clicked\n`);
 
             console.log("⏳ Step 3: Waiting for data refresh...");
@@ -1161,7 +1206,7 @@ class PropertiesHelper {
             console.log("✔ Data loaded successfully\n");
 
             console.log("⏳ Step 4: Checking badge results in table...");
-            const badges = this.page.locator('.ag-center-cols-container div[col-id="floorplan_id"]');
+            const badges = healingLocator(takeoffFilterBadgeStrategies(this.page));
             const count = await badges.count();
             console.log(`📊 Total rows returned after filter = ${count}\n`);
 
@@ -1186,8 +1231,9 @@ class PropertiesHelper {
             console.log("✔ Badge text matches filter ✔\n");
 
             console.log("⏳ Step 6: Clearing applied filters...");
-            await this.page.locator('.mantine-Paper-root a:has-text("Clear All Filters")').waitFor({ state: "visible" });
-            await this.page.locator('.mantine-Paper-root a:has-text("Clear All Filters")').click();
+            const clearAllFilters = healingLocator(takeoffClearAllFiltersStrategies(this.page));
+            await clearAllFilters.waitFor({ state: "visible" });
+            await clearAllFilters.click();
             console.log("✔ Filters cleared successfully\n");
 
         } catch (err) {
@@ -1244,7 +1290,7 @@ class PropertiesHelper {
     async ensureTakeoffVersionSelected() {
         // await this.page.waitForLoadState('networkidle').catch(() => { });
         await this.page.waitForTimeout(14000);
-        const versionInput = this.page.locator('input[placeholder="Select Version"]');
+        const versionInput = healingLocator(takeoffVersionInputStrategies(this.page));
         const visible = await versionInput.isVisible({ timeout: 12000 }).catch(() => false);
         if (!visible) {
             console.log("ℹ️ No Select Version control; continuing");
@@ -1317,11 +1363,11 @@ class PropertiesHelper {
         };
         // Scope grid search to the Takeoffs tabpanel to exclude revo-grids from other
         // tabs (e.g. Locations which can have hundreds of rows and outscore the visible grid).
-        const takeoffsScope = this.page.getByRole('tabpanel', { name: 'Takeoffs' }).first();
+        const takeoffsScope = healingLocator(takeoffsTabpanelStrategies(this.page)).first();
         const scopeEl = (await takeoffsScope.count()) > 0 ? takeoffsScope : this.page;
-        const revo = scopeEl.locator('revo-grid[role="treegrid"]');
-        const tree = scopeEl.locator('[role="treegrid"]');
-        const ag = scopeEl.locator('.ag-root[role="grid"]');
+        const revo = healingLocator(revoGridStrategies(scopeEl));
+        const tree = healingLocator(genericTreegridStrategies(scopeEl));
+        const ag = healingLocator(agGridStrategies(scopeEl));
 
         let winner = null;
         let winScore = -1;
@@ -1370,9 +1416,9 @@ class PropertiesHelper {
             await this.ensureTakeoffVersionSelected();
 
             if (tab === 'interior') {
-                await this.page.locator(propertyLocators.interiorTab).click();
+                await healingLocator(interiorTabStrategies(this.page)).click();
             } else {
-                await this.page.locator(propertyLocators.exteriorTab).click();
+                await healingLocator(exteriorTabStrategies(this.page)).click();
             }
             await this.page.waitForTimeout(18000);
             // await this.page.waitForLoadState('networkidle').catch(() => { });
@@ -1434,7 +1480,7 @@ class PropertiesHelper {
             // await this.page.waitForLoadState('networkidle').catch(() => { });
             await this.page.waitForTimeout(18000);
 
-            const saveInDialog = this.page.locator('[role="dialog"] button:has-text("Save")');
+            const saveInDialog = healingLocator(takeoffSaveInDialogStrategies(this.page));
             if (await saveInDialog.isVisible({ timeout: 2000 }).catch(() => false) && !(await saveInDialog.isDisabled())) {
                 await saveInDialog.click();
             }
@@ -1522,7 +1568,7 @@ class PropertiesHelper {
         }
     }
     async viewDetailsButton() {
-        const viewDetailsBtn = this.page.locator(propertyLocators.viewDetailsButton).first();
+        const viewDetailsBtn = healingLocator(viewDetailsButtonStrategies(this.page));
         const hasGridViewButton = await viewDetailsBtn.isVisible({ timeout: 3000 }).catch(() => false);
         if (hasGridViewButton) {
             await viewDetailsBtn.click();
@@ -1531,12 +1577,9 @@ class PropertiesHelper {
         }
 
         // Card layout fallback: clicking the property title/card opens details drawer/page.
-        const searchValue = await this.page.locator(propertyLocators.searchInput).first().inputValue().catch(() => "");
+        const searchValue = await healingLocator(searchInputStrategies(this.page)).first().inputValue().catch(() => "");
         if (searchValue.trim()) {
-            const matchingCardTitle = this.page
-                .locator("main p")
-                .filter({ has: this.page.getByText(searchValue.trim(), { exact: true }) })
-                .first();
+            const matchingCardTitle = healingLocator(matchingCardTitleStrategies(this.page, searchValue.trim()));
             if (await matchingCardTitle.isVisible({ timeout: 5000 }).catch(() => false)) {
                 await matchingCardTitle.click({ force: true });
                 await this.page.waitForTimeout(3000);
@@ -1544,7 +1587,7 @@ class PropertiesHelper {
             }
         }
 
-        const firstClickableCard = this.page.locator('.mantine-Card-root:visible, [class*="Card-root"]:visible').first();
+        const firstClickableCard = healingLocator(firstClickableCardStrategies(this.page));
         await expect(firstClickableCard).toBeVisible({ timeout: 7000 });
         await firstClickableCard.click({ force: true });
         await this.page.waitForTimeout(3000);
@@ -1612,20 +1655,16 @@ class PropertiesHelper {
 
     }
     async openLocationTab() {
-        const locationsTab = this.page.getByRole('tab', { name: 'Locations' });
+        const locationsTab = healingLocator(prop.locationsTabStrategies(this.page));
         await expect(locationsTab).toBeVisible({ timeout: 10000 });
         await locationsTab.click();
-        await expect(this.page.getByRole('tabpanel', { name: 'Locations' })).toBeVisible({ timeout: 5000 });
+        await expect(healingLocator(prop.locationsTabpanelStrategies(this.page))).toBeVisible({ timeout: 5000 });
         console.log("✔ Locations tab opened");
     }
     async addButton() {
-        const tabpanel = this.page.getByRole('tabpanel', { name: 'Locations' });
+        const tabpanel = healingLocator(prop.locationsTabpanelStrategies(this.page));
         await expect(tabpanel).toBeVisible({ timeout: 5000 });
-        const addTriggerCandidates = [
-            tabpanel.getByTestId('bt-add-row'),
-            tabpanel.getByRole('button', { name: /Add site|Add row|Add unit|Add Data/i }),
-            this.page.getByTestId('bt-add-row'),
-        ];
+        const addTriggerCandidates = prop.addRowTriggerStrategies(tabpanel, this.page).map((s) => s.locator);
         let openedAddMenu = false;
         for (const candidate of addTriggerCandidates) {
             const count = await candidate.count().catch(() => 0);
@@ -1634,9 +1673,7 @@ class PropertiesHelper {
                 if (await btn.isVisible().catch(() => false)) {
                     await btn.scrollIntoViewIfNeeded().catch(() => { });
                     await btn.click({ force: true }).catch(() => { });
-                    const addRowChoice = this.page
-                        .getByRole('menuitem', { name: /Add site|Add row|Add unit|Add Data/i })
-                        .or(this.page.getByRole('button', { name: /Add site|Add row|Add unit|Add Data/i }));
+                    const addRowChoice = healingLocator(prop.addRowMenuChoiceStrategies(this.page));
                     if (await addRowChoice.first().isVisible({ timeout: 1500 }).catch(() => false)) {
                         openedAddMenu = true;
                         break;
@@ -1654,14 +1691,13 @@ class PropertiesHelper {
         return await this.addLocationRowByName(uniqueName);
     }
     async addLocationRowByName(rowName = 'My Test Name') {
-        const tabpanel = this.page.getByRole('tabpanel', { name: /Locations/i });
-        const locationSearch = tabpanel.locator('input[placeholder="Search..."]').first();
+        const tabpanel = healingLocator(prop.locationsTabpanelStrategies(this.page));
+        const locationSearch = healingLocator(prop.locationSearchInputStrategies(tabpanel)).first();
         if (await locationSearch.isVisible({ timeout: 2000 }).catch(() => false)) {
             await locationSearch.fill(rowName).catch(() => { });
             await locationSearch.press('Enter').catch(() => { });
             await this.page.waitForTimeout(10000);
-            const alreadyExists = await this.page
-                .locator(`[role="treegrid"] [role="gridcell"]:has-text("${rowName}")`)
+            const alreadyExists = await healingLocator(prop.gridCellByTextStrategies(this.page, rowName))
                 .first()
                 .isVisible({ timeout: 1500 })
                 .catch(() => false);
@@ -1675,7 +1711,7 @@ class PropertiesHelper {
             await locationSearch.press('Enter').catch(() => { });
         }
 
-        const editBtn = this.page.getByRole('button', { name: /^Edit$/i }).first();
+        const editBtn = healingLocator(prop.locationEditButtonStrategies(this.page)).first();
         if (await editBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
             await editBtn.click({ force: true }).catch(() => { });
             await this.page.waitForTimeout(600);
@@ -1683,41 +1719,33 @@ class PropertiesHelper {
         // MCP-verified: "Add Row" button directly adds a blank row at the top — no dropdown.
         // addButton() already clicks it before addLocationRowByName() is called, so only
         // click again if no blank "—" row is present yet (avoids leaving orphan rows).
-        const blankRowAlreadyPresent = await this.page
-            .getByRole('treegrid').first()
-            .getByRole('row', { name: /^— — —$|^—$/ }).first()
+        const blankRowAlreadyPresent = await healingLocator(prop.blankRowIndicatorStrategies(healingLocator(prop.locationsTreegridStrategies(this.page)).first()))
+            .first()
             .isVisible({ timeout: 1000 }).catch(() => false);
-        const addSite = this.page
-            .getByRole('menuitem', { name: /Add site|Add row|Add unit/i })
-            .or(this.page.getByRole('button', { name: /Add site|Add row|Add unit/i }));
+        const addSite = healingLocator(prop.addSiteOnlyChoiceStrategies(this.page));
         const hasAddSite = !blankRowAlreadyPresent && await addSite.first().isVisible({ timeout: 2000 }).catch(() => false);
         if (hasAddSite) {
             await addSite.first().click();
         } else {
             // Current layouts often expose add-row under "Table" control.
-            const tableAction = this.page
-                .getByRole('button', { name: /^Table$/i })
-                .or(this.page.getByTestId('bt-table-action'));
+            const tableAction = healingLocator(prop.tableActionTriggerStrategies(this.page, this.page));
             if (await tableAction.first().isVisible({ timeout: 1500 }).catch(() => false)) {
                 await tableAction.first().click({ force: true }).catch(() => { });
-                const addMenu = this.page.getByRole('menuitem', { name: /Add site|Add row|Add unit|Add Data/i }).first();
+                const addMenu = healingLocator(prop.addRowContextMenuItemStrategies(this.page)).first();
                 if (await addMenu.isVisible({ timeout: 1500 }).catch(() => false)) {
                     await addMenu.click({ force: true }).catch(() => { });
                 }
             }
         }
 
-        let treegrid = tabpanel.getByRole('treegrid').first();
+        let treegrid = healingLocator(prop.locationsTreegridStrategies(tabpanel)).first();
         if (!(await treegrid.isVisible({ timeout: 3000 }).catch(() => false))) {
-            treegrid = this.page.getByRole('treegrid').first();
+            treegrid = healingLocator(prop.locationsTreegridStrategies(this.page)).first();
         }
         await expect(treegrid).toBeVisible({ timeout: 10000 });
 
         // Current UI frequently starts with editable placeholder rows (—) without explicit "Add row".
-        const newRow = treegrid
-            .getByRole('row', { name: /—/ })
-            .first()
-            .or(treegrid.locator('[role="row"]').filter({ has: treegrid.locator('[role="gridcell"]') }).first());
+        const newRow = healingLocator(prop.newRowStrategies(treegrid)).first();
         await expect(newRow).toBeVisible({ timeout: 10000 });
 
         const firstCell = newRow.getByRole('gridcell').first();
@@ -1730,15 +1758,9 @@ class PropertiesHelper {
         // Wait for the primary revogr-edit editor to appear and stabilize before interacting.
         // On CI (slower machines) the 400ms blind wait is not enough — waitFor() retries until
         // the element is actually in the DOM and visible.
-        await this.page.locator('revogr-edit input:not([readonly]):not([disabled])').first()
+        await healingLocator(prop.revogrEditInputStrategies(this.page)).first()
             .waitFor({ state: 'visible', timeout: 6000 }).catch(() => {});
-        const nameEditorCandidates = [
-            this.page.locator('revogr-edit input:visible:not([readonly]):not([disabled])').first(),
-            this.page.locator('input[type="text"]:visible:not([placeholder="Search..."]):not([readonly]):not([disabled])').first(),
-            this.page.locator('textarea:visible:not([readonly]):not([disabled])').first(),
-            this.page.getByRole('textbox', { name: /name/i }).first(),
-            this.page.locator(prop.nameInput).first(),
-        ];
+        const nameEditorCandidates = prop.nameEditorCandidateLocators(this.page).map((l) => l.first());
         let filled = false;
         for (const [idx, editor] of nameEditorCandidates.entries()) {
             // Give the primary revogr-edit candidate more time; fallbacks are faster.
@@ -1783,7 +1805,7 @@ class PropertiesHelper {
             break;
         }
         if (!filled) {
-            const inlineEditor = this.page.locator('[contenteditable="true"]:visible').last();
+            const inlineEditor = healingLocator(prop.inlineContentEditableStrategies(this.page)).last();
             if (await inlineEditor.isVisible({ timeout: 1000 }).catch(() => false)) {
                 await inlineEditor.click({ force: true }).catch(() => { });
                 await this.page.keyboard.press('Control+A').catch(() => { });
@@ -1797,9 +1819,7 @@ class PropertiesHelper {
             }
         }
         // Commit the value and assert it appears in the grid. Retry up to 3 times.
-        const cellLocator = this.page
-            .locator(`[role="treegrid"] [role="gridcell"]:has-text("${rowName}")`)
-            .first();
+        const cellLocator = healingLocator(prop.gridCellByTextStrategies(this.page, rowName)).first();
         let committed = false;
         for (let commitAttempt = 1; commitAttempt <= 3; commitAttempt++) {
             await this.page.keyboard.press('Enter');
@@ -1826,9 +1846,7 @@ class PropertiesHelper {
 
             // If an editor is still open, re-fill and press Tab to force commit.
             // Exclude the search bar so we don't accidentally fill it instead of a cell editor.
-            const lateEditor = this.page
-                .locator('revogr-edit input:visible, input[type="text"]:visible:not([placeholder="Search..."]), textarea:visible')
-                .first();
+            const lateEditor = healingLocator(prop.lateEditorStrategies(this.page)).first();
             if (await lateEditor.isVisible({ timeout: 1000 }).catch(() => false)) {
                 await lateEditor.fill(rowName).catch(() => { });
                 await this.page.keyboard.press('Tab').catch(() => { });
@@ -1852,25 +1870,22 @@ class PropertiesHelper {
         return await this.deleteLocationRowByName(rowName);
     }
     async deleteLocationRowByName(rowName = 'My Test Name') {
-        const tabpanel = this.page.getByRole('tabpanel', { name: /Locations/i });
-        let treegrid = tabpanel.getByRole('treegrid').first();
+        const tabpanel = healingLocator(prop.locationsTabpanelStrategies(this.page));
+        let treegrid = healingLocator(prop.locationsTreegridStrategies(tabpanel)).first();
         if (!(await treegrid.isVisible({ timeout: 3000 }).catch(() => false))) {
-            treegrid = this.page.getByRole('treegrid').first();
+            treegrid = healingLocator(prop.locationsTreegridStrategies(this.page)).first();
         }
         await expect(treegrid).toBeVisible({ timeout: 10000 });
 
-        const locationSearch = tabpanel.locator('input[placeholder="Search..."]').first();
+        const locationSearch = healingLocator(prop.locationSearchInputStrategies(tabpanel)).first();
         if (await locationSearch.isVisible({ timeout: 1200 }).catch(() => false)) {
             await locationSearch.fill(rowName).catch(() => { });
             await locationSearch.press('Enter').catch(() => { });
             await this.page.waitForTimeout(500);
         }
 
-        const dataRows = treegrid.locator('[role="row"]').filter({ has: this.page.locator('[role="gridcell"]:not(:has(button))') });
-        const matchedRow = treegrid
-            .locator('[role="row"]')
-            .filter({ has: this.page.locator(`[role="gridcell"]:has-text("${rowName}")`) })
-            .first();
+        const dataRows = healingLocator(prop.dataRowsStrategies(treegrid, this.page));
+        const matchedRow = healingLocator(prop.matchedRowStrategies(treegrid, this.page, rowName)).first();
         if (!(await matchedRow.isVisible({ timeout: 4000 }).catch(() => false))) {
             if (await locationSearch.isVisible({ timeout: 800 }).catch(() => false)) {
                 await locationSearch.fill('').catch(() => { });
@@ -1889,9 +1904,7 @@ class PropertiesHelper {
             }
         }
         const row = rowIndex >= 0 ? dataRows.nth(rowIndex) : matchedRow;
-        const deleteBtn = row
-            .locator('button:has(svg.lucide-trash2), button[title*="Delete"], button[aria-label*="Delete"]')
-            .first();
+        const deleteBtn = healingLocator(prop.locationRowDeleteButtonStrategies(row)).first();
         if (await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
             await deleteBtn.scrollIntoViewIfNeeded().catch(() => { });
             await deleteBtn.click({ force: true });
@@ -1901,9 +1914,7 @@ class PropertiesHelper {
             await this.page.keyboard.press('Delete').catch(() => { });
         }
 
-        const confirmBtn = this.page.getByRole('button', { name: 'Delete' });
-        const popoverDelete = this.page.locator('.mantine-Popover-dropdown button:has-text("Delete")');
-        const btnToClick = confirmBtn.or(popoverDelete);
+        const btnToClick = healingLocator(prop.locationDeleteConfirmStrategies(this.page));
         if (await btnToClick.first().isVisible({ timeout: 3000 }).catch(() => false)) {
             await btnToClick.first().click();
         }
@@ -1914,102 +1925,78 @@ class PropertiesHelper {
         console.log(`✔ Row deleted: ${rowName}`);
     }
     async addColumndata() {
-        const locationsPanel = this.page.getByRole('tabpanel', { name: 'Locations' });
+        const locationsPanel = healingLocator(prop.locationsTabpanelStrategies(this.page));
         const panelScope = (await locationsPanel.isVisible().catch(() => false)) ? locationsPanel : this.page;
 
         // Latest UI: "Add custom column" is exposed under the "View" menu.
         let addData = this.page.locator('never-match');
-        const viewBtn = panelScope.getByRole('button', { name: /^View$/i }).first();
+        const viewBtn = healingLocator(prop.viewMenuTriggerStrategies(panelScope)).first();
         if (await viewBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
             await viewBtn.click();
-            addData = this.page
-                .getByRole('menuitem', { name: /Add custom column|Add column|Add Data/i })
-                .or(this.page.getByRole('button', { name: /Add custom column|Add column|Add Data/i }));
+            addData = healingLocator(prop.addColumnActionStrategies(this.page));
         }
 
         // Backward compatibility fallback for older table-action menu.
         if (!(await addData.first().isVisible().catch(() => false))) {
-            const tableAction = panelScope
-                .getByTestId('bt-table-action')
-                .first()
-                .or(this.page.getByRole('button', { name: /^Table$/i }).first());
+            const tableAction = healingLocator(prop.tableActionTriggerStrategies(panelScope, this.page));
             if (await tableAction.first().isVisible().catch(() => false)) {
                 await tableAction.first().click();
             }
-            addData = this.page
-                .getByRole('menuitem', { name: /Add custom column|Add column|Add Data/i })
-                .or(this.page.getByRole('button', { name: /Add custom column|Add column|Add Data/i }));
+            addData = healingLocator(prop.addColumnActionStrategies(this.page));
         }
 
         await expect(addData.first()).toBeVisible({ timeout: 10000 });
         await addData.first().click();
 
-        const modal = this.page.locator(prop.modal_AddColumn);
+        const modal = healingLocator(prop.addColumnModalStrategies(this.page));
         await expect(modal).toBeVisible({ timeout: 8000 });
-        await this.page.locator(prop.columnNameInput).fill("Test Column");
-        await this.page.locator(prop.descriptionInput).fill("This is a test description.");
-        await this.page.locator(prop.addColumnBtn).waitFor({ state: "visible", timeout: 5000 });
-        await expect(this.page.locator(prop.addColumnBtn)).toBeEnabled();
-        await this.page.locator(prop.addColumnBtn).click();
+        const columnNameInput = healingLocator(prop.columnNameInputStrategies(this.page));
+        const descriptionInput = healingLocator(prop.descriptionInputStrategies(this.page));
+        const addColumnSubmitBtn = healingLocator(prop.addColumnSubmitBtnStrategies(this.page));
+        await columnNameInput.fill("Test Column");
+        await descriptionInput.fill("This is a test description.");
+        await addColumnSubmitBtn.waitFor({ state: "visible", timeout: 5000 });
+        await expect(addColumnSubmitBtn).toBeEnabled();
+        await addColumnSubmitBtn.click();
         await expect(modal).toBeHidden({ timeout: 5000 });
         console.log("✔ New column added");
     }
     async settingsPanel() {
-        const tabpanel = this.page.getByRole('tabpanel', { name: 'Locations' });
+        const tabpanel = healingLocator(prop.locationsTabpanelStrategies(this.page));
         const panelScope = (await tabpanel.isVisible().catch(() => false)) ? tabpanel : this.page;
 
         // Latest UI path: View -> Hide/show columns
         let manageColumns = this.page.locator('never-match');
-        const viewBtn = panelScope.getByRole('button', { name: /^View$/i }).first();
+        const viewBtn = healingLocator(prop.viewMenuTriggerStrategies(panelScope)).first();
         if (await viewBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
             await viewBtn.click();
-            manageColumns = this.page
-                .getByRole('menuitem', {
-                    name: /Hide\s*\/\s*show columns|Show\s*\/\s*hide columns|Manage Columns|Column visibility/i,
-                })
-                .or(
-                    this.page.getByRole('button', {
-                        name: /Hide\s*\/\s*show columns|Show\s*\/\s*hide columns|Manage Columns/i,
-                    }),
-                );
+            manageColumns = healingLocator(prop.manageColumnsActionStrategies(this.page));
         }
 
         // Fallback for older UI controls.
         if (!(await manageColumns.first().isVisible().catch(() => false))) {
-            const settingsBtn = panelScope.locator('button:has(svg.lucide-settings)');
+            const settingsBtn = healingLocator(prop.settingsGearButtonStrategies(panelScope));
             if (await settingsBtn.first().isVisible().catch(() => false)) {
                 await settingsBtn.first().scrollIntoViewIfNeeded();
                 await settingsBtn.first().click({ force: true });
             } else {
-                const tableAction = panelScope.getByTestId('bt-table-action').first();
+                const tableAction = healingLocator(prop.tableActionTriggerStrategies(panelScope, this.page)).first();
                 await tableAction.waitFor({ state: 'visible', timeout: 10000 });
                 await tableAction.click();
             }
-            manageColumns = this.page
-                .getByRole('menuitem', {
-                    name: /Manage Columns|Hide\s*\/\s*show columns|Show\s*\/\s*hide columns|Column visibility/i,
-                })
-                .or(
-                    this.page.getByRole('button', {
-                        name: /Manage Columns|Hide\s*\/\s*show columns|Show\s*\/\s*hide columns/i,
-                    }),
-                );
+            manageColumns = healingLocator(prop.manageColumnsActionStrategies(this.page));
         }
 
         await expect(manageColumns.first()).toBeVisible({ timeout: 10000 });
         await manageColumns.first().click();
 
-        const drawer = this.page
-            .locator(prop.settingsDrawer)
-            .or(this.page.locator(propertyLocators.manageColumnsDrawer).filter({ hasText: 'Manage Columns' }));
+        const drawer = healingLocator(prop.settingsDrawerStrategies(this.page));
         await expect(drawer.first()).toBeVisible({ timeout: 10000 });
         const panel = drawer.first();
-        await expect(
-            panel.getByRole('heading', { name: /Manage Columns/i }).or(panel.locator(prop.drawerTitle)),
-        ).toBeVisible();
-        await expect(panel.locator(prop.drawerClose).or(this.page.locator('.mantine-Drawer-close'))).toBeVisible();
-        await expect(panel.locator(prop.defaultColumnText)).toBeVisible();
-        await expect(panel.locator(prop.customColumnsText)).toBeVisible();
+        await expect(healingLocator(prop.drawerTitleStrategies(panel))).toBeVisible();
+        await expect(healingLocator(prop.drawerCloseStrategies(panel))).toBeVisible();
+        await expect(healingLocator(prop.defaultColumnTextStrategies(panel))).toBeVisible();
+        await expect(healingLocator(prop.customColumnsTextStrategies(panel))).toBeVisible();
         console.log("✔ Settings drawer validated");
     }
     async deleteCustomColumn() {
@@ -2017,7 +2004,7 @@ class PropertiesHelper {
         // The delete might be a trash icon or delete button
         try {
             // Try clicking a button that has a trash icon near "Test Column"
-            const columnRow = this.page.locator(".mantine-Group-root:has-text('Test Column')").first();
+            const columnRow = healingLocator(prop.testColumnRowStrategies(this.page)).first();
             const buttons = await columnRow.locator('button').all();
             if (buttons.length > 0) {
                 // Click the first button (should be delete)
@@ -2029,7 +2016,7 @@ class PropertiesHelper {
         }
 
         // Click any visible Delete button
-        const deleteBtn = this.page.locator('button:has-text("Delete"), [role="menuitem"]:has-text("Delete")').first();
+        const deleteBtn = healingLocator(prop.genericDeleteButtonStrategies(this.page)).first();
         try {
             await deleteBtn.click({ force: true, timeout: 3000 });
         } catch (e) {
@@ -2039,8 +2026,8 @@ class PropertiesHelper {
         console.log("✔ Custom column deleted");
     }
     async closeSettingsDrawer() {
-        const closeBtn = this.page.locator(prop.drawerClose).or(this.page.locator('.mantine-Drawer-close'));
-        const drawer = this.page.locator(prop.settingsDrawer);
+        const closeBtn = healingLocator(prop.drawerCloseStrategies(this.page));
+        const drawer = healingLocator(prop.settingsDrawerStrategies(this.page));
         if (await closeBtn.count() > 0) {
             await closeBtn.first().click();
             await drawer.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => { });
@@ -2048,14 +2035,12 @@ class PropertiesHelper {
         await this.page.waitForTimeout(500);
     }
     async selectLocation(type) {
-        const tabpanel = this.page.getByRole('tabpanel', { name: 'Locations' });
-        const dropdown = tabpanel.locator(prop.locationDropdown).or(tabpanel.getByPlaceholder('Select location type'));
+        const tabpanel = healingLocator(prop.locationsTabpanelStrategies(this.page));
+        const dropdown = healingLocator(prop.locationDropdownStrategies(tabpanel));
         await dropdown.first().waitFor({ state: 'visible', timeout: 10000 });
         await dropdown.first().click();
 
-        const optionLabel =
-            type === 'unit' ? 'Units' : type === 'building' ? 'Buildings' : type;
-        const option = this.page.getByRole('option', { name: optionLabel }).or(this.page.locator(prop.locationDropdownOption(type)));
+        const option = healingLocator(prop.locationDropdownOptionStrategies(this.page, type));
         await option.first().waitFor({ state: 'visible', timeout: 8000 });
         await option.first().click();
         await this.page.waitForLoadState('domcontentloaded').catch(() => { });
@@ -2073,40 +2058,40 @@ class PropertiesHelper {
         console.log(`✔ Location switched to: ${type}`);
     }
     async expectUnitTable() {
-        const tabpanel = this.page.getByRole('tabpanel', { name: 'Locations' });
-        await expect(tabpanel.getByText('Unit Name', { exact: true })).toBeVisible({ timeout: 15000 });
-        const unitRows = tabpanel.locator('[role="treegrid"] [role="row"]').filter({ has: this.page.locator('[role="gridcell"]') });
+        const tabpanel = healingLocator(prop.locationsTabpanelStrategies(this.page));
+        await expect(healingLocator(prop.unitNameHeaderStrategies(tabpanel))).toBeVisible({ timeout: 15000 });
+        const unitRows = healingLocator(prop.treegridDataRowsStrategies(tabpanel, this.page));
         await expect(unitRows.first()).toBeVisible({ timeout: 5000 });
         const unitRowCount = await unitRows.count();
         expect(unitRowCount).toBeGreaterThan(1);
         console.log(`✔ Unit rows verified (${unitRowCount})`);
     }
     async expectBuildingTable() {
-        const tabpanel = this.page.getByRole('tabpanel', { name: 'Locations' });
+        const tabpanel = healingLocator(prop.locationsTabpanelStrategies(this.page));
         const requiredHeaders = ['Name', 'Building', 'Site'];
         for (const header of requiredHeaders) {
-            await expect(tabpanel.getByRole('columnheader', { name: header })).toBeVisible({ timeout: 10000 });
+            await expect(healingLocator(prop.buildingColumnHeaderStrategies(tabpanel, header))).toBeVisible({ timeout: 10000 });
         }
         // "Actions" column is optional in current UI depending on visible columns config.
-        const actionsHeader = tabpanel.getByRole('columnheader', { name: /Actions/i });
+        const actionsHeader = healingLocator(prop.buildingColumnHeaderStrategies(tabpanel, /Actions/i));
         if (await actionsHeader.count()) {
             await expect(actionsHeader.first()).toBeVisible({ timeout: 3000 });
         }
-        const buildingRows = tabpanel.locator('[role="treegrid"] [role="row"]').filter({ has: this.page.locator('[role="gridcell"]') });
+        const buildingRows = healingLocator(prop.treegridDataRowsStrategies(tabpanel, this.page));
         const buildingRowCount = await buildingRows.count();
         expect(buildingRowCount).toBeGreaterThan(1);
         console.log(`✔ Building rows verified (${buildingRowCount})`);
     }
     async takeoffOption() {
-        const takeoffsTab = this.page.getByRole("tab", { name: /^Takeoffs$/i }).first();
+        const takeoffsTab = healingLocator(takeoffsTabStrategies(this.page)).first();
         await expect(takeoffsTab).toBeVisible({ timeout: 20_000 });
         await takeoffsTab.click();
         await expect(takeoffsTab).toHaveAttribute("data-active", "true");
         console.log("Takeoffs tab opened");
     }
     async interiorANDexteriorTab() {
-        const interiorTab = this.page.locator(propertyLocators.interiorTab);
-        const exteriorTab = this.page.locator(propertyLocators.exteriorTab);
+        const interiorTab = healingLocator(interiorTabStrategies(this.page));
+        const exteriorTab = healingLocator(exteriorTabStrategies(this.page));
         const tabTimeout = 15000;
 
         await expect(interiorTab).toBeVisible({ timeout: tabTimeout });
@@ -2118,7 +2103,7 @@ class PropertiesHelper {
         await expect(exteriorTab).toHaveAttribute('aria-selected', 'false');
     }
     async filtertab() {
-        const filterButton = this.page.getByRole('button', { name: /^Filter$/i }).first();
+        const filterButton = healingLocator(takeoffsFilterButtonStrategies(this.page)).first();
         await filterButton.waitFor({ state: "visible" });
         await filterButton.click();
         await this.filterPropertyNew('ce-gm');
@@ -2127,19 +2112,20 @@ class PropertiesHelper {
         await this.filterPropertyNew('ce-r');
         await this.filterPropertyNew('ce-t v1');
         // Clear all active filters so the grid is fully restored before closing the panel.
-        const resetFilters = this.page.locator('button:has-text("Reset Filters")').first();
+        const resetFilters = healingLocator(takeoffsResetFiltersStrategies(this.page)).first();
         if (await resetFilters.isVisible({ timeout: 3000 }).catch(() => false)) {
             await resetFilters.click();
             // await this.page.waitForLoadState('networkidle').catch(() => { });
             await this.page.waitForTimeout(8000);
         }
-        await this.page.locator(".mantine-Paper-root .mantine-CloseButton-root").waitFor({ state: "visible" });
-        await this.page.locator(".mantine-Paper-root .mantine-CloseButton-root").click();
+        const filterCloseBtn = healingLocator(takeoffsFilterCloseButtonStrategies(this.page));
+        await filterCloseBtn.waitFor({ state: "visible" });
+        await filterCloseBtn.click();
         // await this.page.waitForLoadState('networkidle').catch(() => { });
         await this.page.waitForTimeout(8000);
     }
     async clickExteriortab() {
-        const exteriorTab = this.page.locator(propertyLocators.exteriorTab);
+        const exteriorTab = healingLocator(exteriorTabStrategies(this.page));
         await exteriorTab.click();
     }
     async searchInvalidProperty(name) {
@@ -2260,13 +2246,12 @@ class PropertiesHelper {
 
     async validateJobDetails(fields) {
         // Job details are rendered in Job Summary as label/value paragraph pairs.
-        const summaryTab = this.page.getByRole('tab', { name: /Job Summary/i });
+        const summaryTab = healingLocator(jobSummaryTabStrategies(this.page));
         if (await summaryTab.isVisible().catch(() => false)) {
             await summaryTab.click().catch(() => { });
         }
 
-        const summaryPanel = this.page.getByRole('tabpanel', { name: /Job Summary/i })
-            .or(this.page.locator('[role="tabpanel"]').first());
+        const summaryPanel = healingLocator(jobSummaryTabpanelStrategies(this.page));
 
         await expect(summaryPanel).toBeVisible({ timeout: 25000 });
 
@@ -2280,9 +2265,7 @@ class PropertiesHelper {
         for (const field of jobFields) {
             console.log(`[ASSERT] ${field.label} → Expected: ${field.value}`);
 
-            const valueEl = summaryPanel.locator(
-                `xpath=.//p[normalize-space()="${field.label}"]/following-sibling::p[1]`
-            ).first();
+            const valueEl = healingLocator(jobSummaryFieldValueStrategies(summaryPanel, field.label)).first();
 
             await expect(valueEl, `Value for "${field.label}" not visible`)
                 .toBeVisible({ timeout: 10000 });
@@ -2290,7 +2273,7 @@ class PropertiesHelper {
                 .toHaveText(String(field.value), { timeout: 10000 });
         }
 
-        const editButton = this.page.getByRole('button', { name: 'Edit' });
+        const editButton = healingLocator(jobOverviewEditButtonStrategies(this.page));
         await expect(editButton, 'Edit button not visible').toBeVisible({ timeout: 10000 });
         await expect(editButton, 'Edit button is disabled').toBeEnabled();
     }

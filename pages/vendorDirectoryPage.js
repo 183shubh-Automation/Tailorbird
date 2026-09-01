@@ -446,6 +446,25 @@ class VendorDirectoryPage {
         }
     }
 
+    /**
+     * Forces the Vendor Directory grid to a large width so revo-grid mounts every column
+     * instead of virtualizing rightmost ones out of the DOM to fit the default (narrow)
+     * viewport. MCP-verified live (2026-07-28): at default width only "Organization Name"
+     * and "Actions" render — "Trades" (and everything else, e.g. "Service Area", "Location")
+     * is dropped entirely, so a trade-filtered grid's cells never contain the filtered trade
+     * name (e.g. "Carpentry") even though the filter itself worked correctly server-side.
+     */
+    async forceGridFullWidth() {
+        const grid = this.page.locator('revo-grid').first();
+        if (await grid.count().catch(() => 0)) {
+            await grid.evaluate((g) => {
+                g.style.setProperty('width', '3000px', 'important');
+                g.style.setProperty('min-width', '3000px', 'important');
+            }).catch(() => {});
+            await this.page.waitForTimeout(400);
+        }
+    }
+
     async waitForDirectoryReady() {
         try {
             await this.locators.inviteNewVendorBtn.waitFor({ state: 'visible', timeout: 15000 });
@@ -456,6 +475,7 @@ class VendorDirectoryPage {
                     { timeout: 30000, intervals: [500, 1000, 1500, 2000] }
                 )
                 .toBeGreaterThan(0);
+            await this.forceGridFullWidth();
         } catch (e) {
             Logger.error(`waitForDirectoryReady: ${e.message}`);
             throw e;

@@ -1,3 +1,5 @@
+const { healingLocator } = require('../utils/locatorHealer');
+
 /**
  * Vendors Directory & Vendor Detail page locators
  * URL: vendors/directory, vendors/{id}
@@ -12,7 +14,14 @@ function vendorLocators(page) {
         // --- Directory page ---
         inviteNewVendorBtn: page.getByRole('button', { name: 'Invite New Vendor' }),
         searchInput: page.getByRole('textbox', { name: 'Search...' }),
-        filterBtn: page.locator('button:has(svg.lucide-funnel)').first(),
+        // MCP-verified live (2026-08-10): the icon-CSS selector and the button's own visible
+        // "Filter" text resolve to the exact same <button> node — a genuinely independent
+        // fallback mechanism (accessible-name lookup vs icon-class CSS), not just another
+        // way of finding an ancestor/descendant of it.
+        filterBtn: healingLocator([
+            { name: 'css:button:has(svg.lucide-funnel)[first](original)', locator: page.locator('button:has(svg.lucide-funnel)').first() },
+            { name: 'role:button[name=Filter]', locator: page.getByRole('button', { name: 'Filter', exact: true }) },
+        ]),
         exportBtn: page.locator('button:has(svg.lucide-download)').first(),
         viewDropdownBtn: page.locator('main').getByRole('button').first().or(page.getByRole('tabpanel', { name: 'Overview' }).getByRole('button').first()),
         addColumnBtn: page.getByTestId('bt-add-column').first().or(page.locator('main').locator('[data-testid="bt-add-column"]').first()),
@@ -79,4 +88,67 @@ function vendorLocators(page) {
     };
 }
 
-module.exports = { vendorLocators };
+/**
+ * Self-healing strategies for TC229/TC238 (tests/TC14_manageVendor.spec.js — Vendor
+ * Directory navigation and Invite Vendor workflow). All MCP-verified live 2026-08-06
+ * (beta.tailorbird.com/vendors/directory). Strategy #1 in every list is the exact
+ * original pre-existing expression.
+ * @param {import('@playwright/test').Page} page
+ */
+function vendorElementStrategies(page) {
+    return {
+        /** Directory breadcrumb — original CSS class kept as #1; MCP-verified live text is "Home/Manage Vendors". */
+        breadcrumb: [
+            { name: 'css:.mantine-Breadcrumbs-root(original)', locator: page.locator('.mantine-Breadcrumbs-root') },
+        ],
+        /** revo-grid element used by forceGridFullWidth(). */
+        revoGrid: [
+            { name: 'css:revo-grid[first](original)', locator: page.locator('revo-grid').first() },
+        ],
+        /** Invite/Create-Vendor dialog. MCP-verified live title is exactly "Create New Vendor"; original unscoped `getByRole('dialog')` kept as #1 since only one dialog is open at a time in this flow. */
+        inviteVendorDialog: [
+            { name: 'role:dialog(original)', locator: page.getByRole('dialog') },
+            { name: 'role:dialog[has=heading(Create New Vendor)]', locator: page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: 'Create New Vendor' }) }) },
+        ],
+        /**
+         * A combobox's option list (Trade / Address / Service Area fields). MCP-verified
+         * live: Mantine portals these OUTSIDE the dialog's DOM subtree entirely — the
+         * pre-existing `dialog.locator('[role="option"]')` scoping never matches anything
+         * live (confirmed 0 matches), and multiple comboboxes' option lists stay MOUNTED
+         * (but hidden) simultaneously even when only one is actually open, so an unscoped,
+         * non-visibility-filtered lookup risks resolving to a closed one. Both problems are
+         * fixed by looking page-wide (not dialog-scoped) AND filtering to `:visible`.
+         */
+        openComboboxOption: [
+            { name: 'css:dialog>>role:option[first](original, MCP-confirmed 0 matches live)', locator: page.getByRole('dialog').locator('[role="option"]') },
+            { name: 'css:role:option:visible(page-wide, confirmed-live)', locator: page.locator('[role="option"]:visible') },
+        ],
+        openComboboxListbox: [
+            { name: 'css:dialog>>role:listbox[first](original, MCP-confirmed 0 matches live)', locator: page.getByRole('dialog').locator('[role="listbox"]') },
+            { name: 'css:role:listbox:visible(page-wide, confirmed-live)', locator: page.locator('[role="listbox"]:visible') },
+        ],
+        /**
+         * Vendor-created success toast. Original mixed-engine comma-string kept as #1.
+         * MCP-verified live: after a successful create, the toast IS present in the DOM
+         * as a `role="alert"` element containing "Success" / "Vendor created
+         * successfully" text — but the original string's CSS+text-engine comma
+         * combination did not actually resolve to it in a real run (confirmed by a live
+         * failure where the DOM snapshot showed the alert present while the original
+         * locator still reported `isVisible() === false`). The `role="alert"` + text
+         * filter below is a genuinely different, confirmed-working mechanism.
+         */
+        vendorCreatedToast: [
+            { name: 'css:.mantine-Notification-root|text-regex(original, confirmed unreliable live)', locator: page.locator('.mantine-Notification-root, text=/success|created|invited/i') },
+            { name: 'role:alert[hasText=/success|created|invited/i](confirmed-live)', locator: page.getByRole('alert').filter({ hasText: /success|created|invited/i }) },
+        ],
+    };
+}
+
+/** Grid cell/row containing a given (dynamically-generated) vendor org name, used to confirm the invited vendor appears in the directory. */
+function vendorRowByNameStrategies(page, orgName) {
+    return [
+        { name: 'css:text=orgName[first](original)', locator: page.locator(`text=${orgName}`).first() },
+    ];
+}
+
+module.exports = { vendorLocators, vendorElementStrategies, vendorRowByNameStrategies };

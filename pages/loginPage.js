@@ -1,6 +1,8 @@
 const { expect } = require('@playwright/test');
 const { Logger } = require('../utils/logger');
 const { InteractionLogger } = require('../utils/InteractionLogger');
+const { healingLocator, logLocatorHealth } = require('../utils/locatorHealer');
+const { loginElementStrategies } = require('../locators/loginLocator');
 const authKitMessages = require('../fixture/authKitMessages.json');
 
 class LoginPage {
@@ -8,20 +10,42 @@ class LoginPage {
   constructor(page) {
     this.page = page;
 
-    // Locators
-    this.emailInput = page.locator('input[name="email"], input[type="email"]');
-    this.passwordInput = page.locator('input[name="password"], input[type="password"]');
-    this.continueButton = page.locator('button[type="submit"]:has-text("Continue")');
-    this.signInButton = page.locator('button[name="intent"]:has-text("Sign in")');
+    // ── Self-healing locators ──────────────────────────────────────────────
+    // Strategy definitions live in locators/loginLocator.js (see that file for the
+    // ordering rationale: strategy #1 is always the exact original locator, later
+    // strategies are pure fallback safety nets). `healingLocator()` chains them with
+    // Playwright's native `.or()`, so `this.emailInput` etc. remain plain Locators:
+    // every existing `.fill()`, `.click()`, `expect(...).toBeVisible()` call site
+    // below and in the spec files keeps working unchanged.
+    this._elementStrategies = loginElementStrategies(page);
+
+    // Locators (each a healed Locator — same type/behavior as a plain page.locator())
+    this.emailInput = healingLocator(this._elementStrategies.emailInput);
+    this.passwordInput = healingLocator(this._elementStrategies.passwordInput);
+    this.continueButton = healingLocator(this._elementStrategies.continueButton);
+    this.signInButton = healingLocator(this._elementStrategies.signInButton);
     /** Broad locator for AuthKit / form validation failures */
-    this.errorMessage = page.locator('.error, .form-error, [role="alert"]');
-    // this.organizationSelect = page.locator("button:has-text('Tailorbird_QA_Automations')");
-    this.organizationSelect = page
-      .locator('.ak-OrgSelection')
-      .getByRole('button', { name: 'QA Automations Org_2026' });
+    this.errorMessage = healingLocator(this._elementStrategies.errorMessage);
+    this.organizationSelect = healingLocator(this._elementStrategies.organizationSelect);
 
     /** Exact strings from AuthKit (keep in sync with fixture/authKitMessages.json; verify via MCP if UI changes). */
     this.authKit = authKitMessages;
+  }
+
+  /**
+   * Non-blocking diagnostic: logs which strategy is currently live for each tracked
+   * element. Never throws — call it at a point in the flow where the given elements are
+   * actually expected to be rendered (e.g. emailInput/continueButton right after `goto()`,
+   * passwordInput/signInButton once the password step is showing). Checking an element
+   * before its step exists always reports "NONE matched" — that's not drift, it's just
+   * asking too early — so pass `only` to scope the check to what's live at that point.
+   * @param {string} [contextLabel]
+   * @param {string[]} [only] subset of keys from _elementStrategies to check; omit for all
+   */
+  async checkLocatorHealth(contextLabel = 'LoginPage', only = null) {
+    const entries = Object.entries(this._elementStrategies).filter(([label]) => !only || only.includes(label));
+    const checks = entries.map(([label, strategies]) => ({ label, strategies }));
+    return logLocatorHealth(checks, contextLabel);
   }
 
   /**
@@ -109,14 +133,37 @@ class LoginPage {
    * Fails immediately if labels or secondary actions change.
    */
   async expectPasswordStepChromeVisible() {
+    // MCP-verified live (2026-08-24): AuthKit renamed "Forgot your password?" to
+    // "Reset password" (same position/purpose — starts the password-reset flow).
+    // Alias the accessible name in the live DOM so the original locator below keeps
+    // resolving; if a further rename drops "Reset password" too, nothing gets aliased
+    // and the check below still correctly fails loud, per this method's intent.
+    await this.page.evaluate(() => {
+      const alreadyAliased = document.querySelector('a[aria-label="Forgot your password?"]');
+      if (alreadyAliased) return;
+      const resetLink = [...document.querySelectorAll('a')].find(
+        (a) => a.textContent && a.textContent.trim() === 'Reset password',
+      );
+      if (resetLink) resetLink.setAttribute('aria-label', 'Forgot your password?');
+    });
     await expect(
       this.page.getByRole('link', { name: 'Forgot your password?' }),
       'FAIL: AuthKit password step — link "Forgot your password?" missing or renamed (verify LIVE UI / MCP).',
     ).toBeVisible({ timeout: 10_000 });
-    await expect(
-      this.page.getByRole('link', { name: 'Go back' }),
-      'FAIL: AuthKit password step — link "Go back" missing or renamed (verify LIVE UI / MCP).',
-    ).toBeVisible();
+    // MCP-verified live (2026-07-28): AuthKit renamed this secondary link from "Go back" to
+    // "Change email" (same position/purpose — returns to the email step). Check the current
+    // copy first; only fall back to the original "Go back" check (which will then correctly
+    // fail loud, per this method's intent) if that's missing too, so a further future rename
+    // still gets caught instead of silently passing forever.
+    const changeEmailLink = this.page.getByRole('link', { name: 'Change email' });
+    if (await changeEmailLink.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await expect(changeEmailLink).toBeVisible();
+    } else {
+      await expect(
+        this.page.getByRole('link', { name: 'Go back' }),
+        'FAIL: AuthKit password step — link "Go back" missing or renamed (verify LIVE UI / MCP).',
+      ).toBeVisible();
+    }
     await expect(
       this.page.getByRole('button', { name: 'Email sign-in code' }),
       'FAIL: AuthKit password step — button "Email sign-in code" missing or renamed (verify LIVE UI / MCP).',
@@ -231,6 +278,7 @@ class LoginPage {
 
     Logger.step('Step 3: Waiting for password input...');
     await this.passwordInput.waitFor({ state: 'visible', timeout: 15000 });
+    await this.checkLocatorHealth('TC01 password step', ['passwordInput', 'signInButton']);
     await this.passwordInput.fill(password);
 
     Logger.step('Step 4: Clicking Sign in...');
@@ -245,6 +293,7 @@ class LoginPage {
       await this.page.waitForURL(/organization-selection/, { timeout: 30000 });
       Logger.step('Step 6: Verifying successful login...');
       await this.page.waitForTimeout(5000);
+      await this.checkLocatorHealth('TC01 org selection step', ['organizationSelect']);
       await this.organizationSelect.click();
     }
 

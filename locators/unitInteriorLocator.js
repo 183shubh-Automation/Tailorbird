@@ -242,4 +242,56 @@ function unitInteriorLocators(page) {
     };
 }
 
-module.exports = { unitInteriorLocators };
+/**
+ * Self-healing strategies for TC281 (tests/TC18_UnitInterior.spec.js — Contracts>Units
+ * tab UI validation). All MCP-verified live 2026-08-06 (beta.tailorbird.com/jobs/3828,
+ * "Automation Job, please don't delete it"). Centralizes raw locators previously written
+ * directly in tests/TC18_UnitInterior.spec.js and pages/unitInteriorPage.js.
+ * @param {import('@playwright/test').Page} page
+ */
+function unitInteriorElementStrategies(page) {
+    return {
+        /** Job-detail breadcrumb/content root. `<main>` is a unique HTML5 landmark per page — already maximally robust, tracked here only for consistency/health-check visibility, not padded with a fake fallback. */
+        mainContent: [
+            { name: 'css:main(original)', locator: page.locator('main') },
+        ],
+        /** Contracts sub-tab (Contract/Units/Documents), looked up dynamically by label in a loop. */
+        contractSubTabByLabel: (label) => [
+            { name: 'role:tab[name][exact](original)', locator: page.getByRole('tab', { name: label, exact: true }) },
+        ],
+        /** Contract-overview label/value text (Property, Vendor, Duration, etc.), scoped to a caller-supplied panel. */
+        overviewLabelText: (panel, label) => [
+            { name: 'text:label[exact,first](original)', locator: panel.getByText(label, { exact: true }).first() },
+        ],
+        /** Contract-overview "Edit" CTA, scoped to a caller-supplied panel. */
+        overviewEditButton: (panel, ctaText) => [
+            { name: 'role:button[name][first](original)', locator: panel.getByRole('button', { name: ctaText }).first() },
+        ],
+        /** Units-toolbar CTA, looked up dynamically by label (Edit Scopes/Update Status/Release Units) — same mechanism as the dedicated per-button exports above, centralized for the dynamic-label loop and assertButtonEnabled(). */
+        toolbarButtonByLabel: (label) => [
+            { name: 'role:button[name](original)', locator: page.getByRole('button', { name: label }) },
+        ],
+        /** Units tabpanel's full set of column headers. */
+        allColumnHeadersInUnitsPanel: [
+            { name: 'role:tabpanel[name=Units]>>role:columnheader(original)', locator: page.getByRole('tabpanel', { name: 'Units' }).getByRole('columnheader') },
+        ],
+        /** The Units panel's own treegrid. */
+        unitsGrid: [
+            { name: 'role:tabpanel[name=Units]>>role:treegrid[first](original)', locator: page.getByRole('tabpanel', { name: 'Units' }).locator('[role="treegrid"]').first() },
+        ],
+        /** Grid cell containing a given unit number (own-text filter — same node as the exact-text match, no parent/child split risk since gridcell text is a direct leaf). */
+        gridCellByUnitNumber: (grid, unitNumber) => [
+            { name: 'css:gridcell[has=text-exact][first](original)', locator: grid.locator('div[role="gridcell"]').filter({ has: page.getByText(String(unitNumber), { exact: true }) }).first() },
+        ],
+        /** Grid cell(s) in a specific rendered row, addressed by revo-grid's own `data-rgrow` attribute. */
+        gridCellsByRgRow: (grid, rgRow) => [
+            { name: 'css:gridcell[data-rgrow](original)', locator: grid.locator(`div[role="gridcell"][data-rgrow="${rgRow}"]`) },
+        ],
+        /** Row-level "Unit actions" button, looked up dynamically by its fixture-supplied accessible-name label. */
+        unitActionsButtonByLabel: (label) => [
+            { name: 'role:button[name][first](original)', locator: page.getByRole('button', { name: label }).first() },
+        ],
+    };
+}
+
+module.exports = { unitInteriorLocators, unitInteriorElementStrategies };

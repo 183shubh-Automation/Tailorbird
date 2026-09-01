@@ -16,7 +16,7 @@ test.use({
 
 let page, approvalJob;
 
-test.describe('Approval Workflow - My Approvals E2E Tests with another user', () => {
+test.describe('My Approval', () => {
     test.describe.configure({ retries: 1 });
 
     test.beforeEach(async ({ page: p }) => {
@@ -33,9 +33,9 @@ test.describe('Approval Workflow - My Approvals E2E Tests with another user', ()
         Logger.success('Setup complete - Navigated to Approval section');
     });
 
-    test('@approval @sanity @regression TC222 My Approvals – Verify user can successfully search approval records using a valid keyword and see filtered results', async () => {
+    test('TC220 @approval @sanity @regression : Verify My Approvals search can be applied and cleared', async () => {
         try {
-            Logger.step('TC222: Testing search functionality in My Approvals tab');
+            Logger.step('TC220: Testing search functionality in My Approvals tab');
 
             await approvalJob.navigateToMyApprovalsTab();
             await approvalJob.waitForPageLoad();
@@ -56,16 +56,16 @@ test.describe('Approval Workflow - My Approvals E2E Tests with another user', ()
             const afterClearRowCount = await approvalJob.getTableRowCount();
             Logger.info('Rows after clearing search: ' + afterClearRowCount);
 
-            Logger.success('TC222 passed: Search functionality working correctly');
+            Logger.success('TC220 passed: Search functionality working correctly');
         } catch (error) {
-            Logger.error('TC222 failed: ' + error.message);
+            Logger.error('TC220 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC223 My Approvals – Verify My Approvals page loads correctly with functional toolbar, table, search, export, and approval details modal', async () => {
+    test('TC221 @approval @regression : Verify My Approvals search, export, table, and approval details', async () => {
         try {
-            Logger.step('TC223: Navigating to My Approvals tab');
+            Logger.step('TC221: Navigating to My Approvals tab');
             await approvalJob.navigateToMyApprovalsTab();
             await approvalJob.waitForPageLoad();
             await page.waitForTimeout(30000);
@@ -137,16 +137,16 @@ test.describe('Approval Workflow - My Approvals E2E Tests with another user', ()
             await expect(page.getByPlaceholder('Search...')).toBeVisible({ timeout: 10000 });
             Logger.info('Page remains functional after modal close');
 
-            Logger.success('TC223 passed: My Approvals flow validated end-to-end');
+            Logger.success('TC221 passed: My Approvals flow validated end-to-end');
         } catch (error) {
-            Logger.error('TC223 failed: ' + error.message);
+            Logger.error('TC221 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC224 Approval Workflow – Verify search behavior is handled correctly when switching between approval tabs', async () => {
+    test('TC222 @approval @regression : Verify search when switching between My Approvals and All Approvals', async () => {
         try {
-            Logger.step('TC224: E2E test - testing search behavior across tabs');
+            Logger.step('TC222: E2E test - testing search behavior across tabs');
 
             // Search in My Approvals
             await approvalJob.navigateToMyApprovalsTab();
@@ -166,16 +166,16 @@ test.describe('Approval Workflow - My Approvals E2E Tests with another user', ()
             await approvalJob.clearSearch();
             Logger.success('Search properly managed across tab switches');
 
-            Logger.success('TC224 passed: Search behavior across tabs verified');
+            Logger.success('TC222 passed: Search behavior across tabs verified');
         } catch (error) {
-            Logger.error('TC224 failed: ' + error.message);
+            Logger.error('TC222 failed: ' + error.message);
             throw error;
         }
     });
 
-    test('@approval @regression TC225 Approval Workflow – Verify user can complete the full end-to-end approval journey including search, view details, manage columns, export data, and tab navigation', async () => {
+    test('TC223 @approval @regression : Verify My Approvals search, details, export, columns, and tab navigation', async () => {
         try {
-            Logger.step('TC225: E2E complete workflow - view, search, manage columns, export');
+            Logger.step('TC223: E2E complete workflow - view, search, manage columns, export');
 
             // Step 1: Navigate to My Approvals
             Logger.step('Step 1: Navigate to My Approvals');
@@ -242,9 +242,9 @@ test.describe('Approval Workflow - My Approvals E2E Tests with another user', ()
                 "UI changed: All Approvals should show search/grid or selected all-approvals state"
             ).toBeTruthy();
             await approvalJob.waitForPageLoad();
-            Logger.success('TC225 passed: Complete E2E workflow executed successfully');
+            Logger.success('TC223 passed: Complete E2E workflow executed successfully');
         } catch (error) {
-            Logger.error('TC225 failed: ' + error.message);
+            Logger.error('TC223 failed: ' + error.message);
             throw error;
         }
     });

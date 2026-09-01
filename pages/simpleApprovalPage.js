@@ -1,15 +1,17 @@
 const { expect } = require('@playwright/test');
-const { simpleApprovalLocators } = require('../locators/simpleApprovalLocator');
+const { simpleApprovalLocators, simpleApprovalElementStrategies } = require('../locators/simpleApprovalLocator');
+const { healingLocator } = require('../utils/locatorHealer');
 const { Logger } = require('../utils/logger');
 
 class SimpleApprovalPage {
     constructor(page) {
         this.page = page;
         this.loc = simpleApprovalLocators(page);
+        this.strategies = simpleApprovalElementStrategies(page);
     }
 
     async navigateToApprovalTab() {
-        await this.loc.approvalTab.click();
+        await healingLocator(this.strategies.approvalTab).click();
         await this.page.waitForTimeout(20000);
         await this.page.waitForTimeout(1000);
     }
@@ -77,9 +79,10 @@ class SimpleApprovalPage {
     async navigateToMyApprovalsTab() {
         const approvalPromise = this.waitForApprovalApiWithData();
 
-        await this.loc.myApprovalsTab.click();
+        const myApprovalsTab = healingLocator(this.strategies.myApprovalsTab);
+        await myApprovalsTab.click();
         await this.page.waitForURL('**/approvals/my-approvals**');
-        await expect(this.loc.myApprovalsTab).toHaveAttribute('aria-selected', 'true');
+        await expect(myApprovalsTab).toHaveAttribute('aria-selected', 'true');
 
         const body = await approvalPromise;
 
@@ -119,19 +122,20 @@ class SimpleApprovalPage {
     // }
 
     async navigateToAllApprovalsTab() {
-        await this.loc.allApprovalsTab.click();
+        const allApprovalsTab = healingLocator(this.strategies.allApprovalsTab);
+        await allApprovalsTab.click();
         await this.page.waitForURL('**/approvals/all-approvals**', { timeout: 15000 }).catch(() => { });
-        await expect(this.loc.allApprovalsTab).toHaveAttribute('aria-selected', 'true', { timeout: 10000 });
+        await expect(allApprovalsTab).toHaveAttribute('aria-selected', 'true', { timeout: 10000 });
         await this.waitForPageLoad();
     }
 
     async searchApprovals(term) {
-        await this.loc.searchInput.fill(term, { timeout: 10000 });
+        await healingLocator(this.strategies.searchInput).fill(term, { timeout: 10000 });
         await this.page.waitForTimeout(600);
     }
 
     async clearSearch() {
-        await this.loc.searchInput.clear({ timeout: 10000 });
+        await healingLocator(this.strategies.searchInput).clear({ timeout: 10000 });
         await this.page.waitForTimeout(400);
     }
 
@@ -142,12 +146,12 @@ class SimpleApprovalPage {
 
     async getAllTableHeaders() {
         // Wait for the Property Name header to ensure full table is loaded
-        const propertyHeader = this.page.locator('[role="columnheader"]', { hasText: 'Property Name' });
+        const propertyHeader = healingLocator(this.strategies.propertyNameColumnHeader);
         try {
             await propertyHeader.waitFor({ state: 'visible', timeout: 15000 });
         } catch {
             // Fallback: wait for any column header to appear before giving up
-            const anyHeader = this.page.locator('[role="columnheader"]').first();
+            const anyHeader = healingLocator(this.strategies.anyColumnHeader);
             await anyHeader.waitFor({ state: 'visible', timeout: 10000 }).catch(() => { });
             await this.page.waitForTimeout(5000);
         }
@@ -197,26 +201,27 @@ class SimpleApprovalPage {
     }
 
     async clickExportButton() {
-        await this.loc.exportButton.click();
+        await healingLocator(this.strategies.exportButton).click();
         await this.page.waitForTimeout(800);
         return true;
     }
 
     async addColumndata() {
         const colName = `ApprCol_${Date.now()}`;
-        await this.loc.tableMenuButton.click();
-        await expect(this.loc.addColumnMenuItem).toBeVisible({ timeout: 10000 });
-        await this.loc.addColumnMenuItem.click();
+        await healingLocator(this.strategies.tableMenuButton).click();
+        const addColumnMenuItem = healingLocator(this.strategies.addColumnMenuItem);
+        await expect(addColumnMenuItem).toBeVisible({ timeout: 10000 });
+        await addColumnMenuItem.click();
         await this.page.waitForTimeout(400);
 
-        const nameInput = this.loc.addColumnNameInput.first();
+        const nameInput = healingLocator(this.strategies.addColumnNameInput).first();
         await expect(nameInput).toBeVisible({ timeout: 10000 });
         await nameInput.fill(colName);
-        const desc = this.loc.addColumnDescInput.first();
+        const desc = healingLocator(this.strategies.addColumnDescInput).first();
         if (await desc.isVisible().catch(() => false)) {
             await desc.fill('Automation custom column');
         }
-        await this.loc.addColumnSubmitButton.click();
+        await healingLocator(this.strategies.addColumnSubmitButton).click();
         await this.page.waitForTimeout(1000);
         return true;
     }

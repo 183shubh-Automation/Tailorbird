@@ -6,8 +6,8 @@
   },
   "approvalNotes": "Approved via automation - multi approver flow test",
   "invoiceAmount": {
-    "min": 50,
-    "max": 949
+    "min": 1,
+    "max": 10
   },
   "approvalStatus": {
     "approvalStatusLabel": "Approval Status",

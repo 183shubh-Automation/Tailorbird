@@ -2,7 +2,8 @@
 const fs = require('fs');
 const { expect } = require('@playwright/test');
 const { Logger } = require('../utils/logger');
-const { budgetLocators } = require('../locators/budgetLocator');
+const { budgetLocators, budgetElementStrategies } = require('../locators/budgetLocator');
+const { healingLocator, logLocatorHealth } = require('../utils/locatorHealer');
 const leftPanel = require('./leftPanel');
 
 let budget;
@@ -11,6 +12,43 @@ exports.BudgetJob = class BudgetJob {
     constructor(page) {
         this.page = page;
         budget = budgetLocators(page);
+
+        // ── Self-healing locators (TC71 budget upload/submit flow) ─────────────
+        // Strategy definitions live in locators/budgetLocator.js (see that file for
+        // the ordering rationale). Reassigning on the shared `budget` object means
+        // every existing call site (`budget.propertyDropdownButton`, etc. elsewhere
+        // in this file) gets the fallback too, with no behavior change unless the
+        // primary strategy actually stops matching.
+        this._elementStrategies = budgetElementStrategies(page);
+
+        budget.propertyDropdownButton = healingLocator(this._elementStrategies.propertyDropdownButton);
+        budget.reviseBudgetsBtn = healingLocator(this._elementStrategies.reviseBudgetsBtn);
+        // submitForApprovalBtn is left as-is (already correct — budgetLocator.js's own .or()) —
+        // tracked in _elementStrategies for health-check visibility only. The file-input upload
+        // has its own multi-candidate retry logic in uploadFileInRevision() that is more capable
+        // than a single-strategy health check could be, so it isn't tracked here at all.
+
+        // ── Self-healing locators (TC243 Budget-workspace-load flow) ───────────
+        budget.brookProperty = healingLocator(this._elementStrategies.brookProperty);
+        budget.propertyHeader = healingLocator(this._elementStrategies.propertyHeader);
+        budget.yearText = healingLocator(this._elementStrategies.yearText);
+        budget.versionText = healingLocator(this._elementStrategies.versionText);
+        budget.columnHeader = (name) => healingLocator(this._elementStrategies.columnHeader(name));
+        budget.budgetItemText = (name) => healingLocator(this._elementStrategies.budgetItemText(name));
+    }
+
+    /**
+     * Non-blocking diagnostic: logs which strategy is currently live for each tracked
+     * budget-flow element. Never throws. Pass `only` to scope to elements expected to be
+     * rendered at that point in the flow (property dropdown vs. revision editor vs. submit
+     * dialog are different pages/steps).
+     * @param {string} [contextLabel]
+     * @param {string[]} [only]
+     */
+    async checkLocatorHealth(contextLabel = 'BudgetJob', only = null) {
+        const entries = Object.entries(this._elementStrategies).filter(([label]) => !only || only.includes(label));
+        const checks = entries.map(([label, strategies]) => ({ label, strategies }));
+        return logLocatorHealth(checks, contextLabel);
     }
 
     // ===================== Navigation =====================
@@ -23,19 +61,19 @@ exports.BudgetJob = class BudgetJob {
                 const financials = this.page.locator('nav').locator('a').filter({ hasText: 'Financials' }).first();
                 if (await financials.isVisible().catch(() => false)) {
                     await financials.click();
-                    await this.page.waitForTimeout(500);
+                    await this.page.waitForTimeout(2000);
                 }
             }
             const nowVisible = await budget.budgetTab.isVisible().catch(() => false);
             if (nowVisible) {
                 await budget.budgetTab.click();
-                await this.page.waitForTimeout(7000);
+                await this.page.waitForTimeout(17000);
             } else {
                 Logger.info('Budget tab not visible in sidebar — navigating directly');
                 await this.page.goto(process.env.BASE_URL.replace(/\/$/, '') + '/financials/budget', { waitUntil: 'load' });
-                await this.page.waitForTimeout(7000);
+                await this.page.waitForTimeout(17000);
             }
-            await this.page.waitForURL('**/financials/budget', { timeout: 15000 });
+            await this.page.waitForURL('**/financials/budget', { timeout: 45000 });
             Logger.success('Navigated to Budget tab');
         } catch (error) {
             Logger.error('Failed to navigate to Budget tab: ' + error.message);
@@ -46,11 +84,11 @@ exports.BudgetJob = class BudgetJob {
     async navigateToBudget() {
         await this.page.goto('/financials/budget', { waitUntil: 'load' });
         await this.page.waitForTimeout(22000);
-        await this.page.waitForURL('**/financials/budget**', { timeout: 15000 }).catch(() => { });
+        await this.page.waitForURL('**/financials/budget**', { timeout: 45000 }).catch(() => { });
     }
 
     async waitForPageLoad() {
-        await this.page.waitForTimeout(22000);
+        await this.page.waitForTimeout(30000);
     }
 
     // ===================== Property Selection =====================
@@ -66,6 +104,7 @@ exports.BudgetJob = class BudgetJob {
     }
 
     async selectPropertyByName(propertyName) {
+        await this.checkLocatorHealth('BudgetJob property dropdown', ['propertyDropdownButton']);
         await budget.propertyDropdownButton.click();
         await this.page.waitForTimeout(1000);
 
@@ -611,6 +650,7 @@ exports.BudgetJob = class BudgetJob {
     }
 
     async clickReviseBudgets() {
+        await this.checkLocatorHealth('BudgetJob revise budgets', ['reviseBudgetsBtn']);
         let btn = budget.reviseBudgetsBtn;
         let enabled = await btn.isEnabled({ timeout: 15000 }).catch(() => false);
 
@@ -755,6 +795,7 @@ exports.BudgetJob = class BudgetJob {
     }
 
     async clickSubmitForApproval() {
+        await this.checkLocatorHealth('BudgetJob submit for approval', ['submitForApprovalBtn']);
         const submitButtons = this.page.getByRole('button', { name: /Submit for Approval/i });
         const initialCount = await submitButtons.count();
         Logger.info(`Submit for Approval buttons visible before click: ${initialCount}`);

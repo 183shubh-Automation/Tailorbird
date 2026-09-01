@@ -116,4 +116,112 @@ function budgetLocators(page) {
     };
 }
 
-module.exports = { budgetLocators };
+/**
+ * Self-healing locator strategies for the TC71 budget upload/submit flow
+ * (pages/budgetPage.js). budgetLocators() above already gives most elements
+ * resilient role/regex names; these three were single-strategy (or worth
+ * tracking for health-check visibility), so each gets a second, independent
+ * strategy layered on via healingLocator() in budgetPage.js. No regex, no XPath
+ * in the ADDED strategies (semgrep-safe) — primary strategies re-use
+ * budgetLocators()'s existing (pre-existing, out-of-scope-to-change) locators.
+ * @param {import('@playwright/test').Page} page
+ */
+function budgetElementStrategies(page) {
+    const budget = budgetLocators(page);
+    return {
+        propertyDropdownButton: [
+            { name: 'role:button[name=/Select a Property|Test Property|Sample Property|name_/i]', locator: budget.propertyDropdownButton },
+            /** MCP-verified 2026-08-04: real class is `.tb-property-selector-button` (a dedicated, purpose-built class) — the icon SVG has no class attribute at all, so an icon-based selector would never match. */
+            { name: 'css:.tb-property-selector-button', locator: page.locator('.tb-property-selector-button').first() },
+            /** MCP-verified: this button is the ONLY element with BOTH aria-haspopup="menu" and data-with-left-section+data-with-right-section together (count=1 on the live page) — a genuinely independent compound-attribute signal from the class/role above. */
+            { name: 'css:button[aria-haspopup=menu][data-with-left-section][data-with-right-section]', locator: page.locator('button[aria-haspopup="menu"][data-with-left-section][data-with-right-section]').first() },
+            /**
+             * MCP-verified: only 3 genuinely independent strategies found for this element — it's alone
+             * in its own .mantine-Group-root with no sibling to position against, no data-testid, no
+             * aria-label, and generic data-variant/data-size attrs shared by many other buttons. Not
+             * padded with an invented 4th.
+             */
+        ],
+        reviseBudgetsBtn: [
+            { name: 'role:button[name=/Revise Budgets|Create First Budget/i]', locator: budget.reviseBudgetsBtn },
+            /**
+             * MCP-verified 2026-08-04: a brand-new property with no budget yet renders "Create First Budget",
+             * not "Revise Budgets" — a fallback covering only one text would silently fail on exactly the
+             * properties most likely to need it. No-regex: `.or()` of two exact-substring filters expresses
+             * the same "A or B" match as the former `/Revise Budgets|Create First Budget/i` regex.
+             */
+            {
+                name: 'css:button[filter=Revise Budgets OR Create First Budget]',
+                locator: page.locator('button').filter({ hasText: 'Revise Budgets' })
+                    .or(page.locator('button').filter({ hasText: 'Create First Budget' }))
+                    .first(),
+            },
+            /**
+             * MCP-verified: real, semantically-distinct icon class svg.lucide-file-pen, confirmed unique
+             * (count=1) on the live page in the "Revise Budgets" state. Not independently re-verified
+             * against the "Create First Budget" state — but since strategies are OR'd, a strategy that
+             * doesn't match in one state is harmless (the other strategies above still cover it); it's
+             * never a false-positive risk since the class itself is confirmed unique when present.
+             */
+            { name: 'css:button:has(svg.lucide-file-pen)', locator: page.locator('button:has(svg.lucide-file-pen)') },
+            /** MCP-verified: this button is the LAST of a group whose direct children are exactly [Version Note, Revise Budgets] (`:scope > button` — see locators/manageTeamRolesLocator.js for why this matters vs. Playwright's descendant-matching `.locator('button')`). Positional, weakest signal, kept last. */
+            {
+                name: 'position:group-with-direct-VersionNote-child-last-direct-button',
+                locator: page.locator('.mantine-Group-root')
+                    .filter({ has: page.locator(':scope > button', { hasText: 'Version Note' }) })
+                    .locator(':scope > button')
+                    .last(),
+            },
+        ],
+        /**
+         * TC243 (Budget workspace load) locators — MCP-verified live 2026-08-06
+         * (beta.tailorbird.com/financials/budget, "Test Property 2_The Westerham").
+         */
+        brookProperty: [
+            { name: 'role:menuitem[name=/Test Property 2_The Westerham/i]', locator: budget.brookProperty },
+            /** MCP-verified: this menuitem is itself a real `<button>` (Mantine menu items render as buttons) — a role-scoped exact-text filter is a genuinely different mechanism (own-text filter vs. accessible-name regex) than the original. */
+            { name: 'css:role:menuitem>>button[hasText]', locator: page.getByRole('menuitem').filter({ hasText: 'Test Property 2_The Westerham' }) },
+        ],
+        propertyHeader: [
+            { name: 'role:button[name=/Test Property 2_The Westerham/i]', locator: budget.propertyHeader },
+            /** MCP-verified: same underlying button carries `aria-haspopup="menu"` — a genuinely independent compound signal from the accessible-name regex above. */
+            { name: 'css:button[aria-haspopup=menu][hasText]', locator: page.locator('button[aria-haspopup="menu"]').filter({ hasText: 'Test Property 2_The Westerham' }) },
+        ],
+        /** RevoGrid column headers — original `:has-text()` (own-text, no parent/child split risk) kept as #1; role-based fallback added since MCP-verified this table's headers carry a real `role="columnheader"`. */
+        columnHeader: (name) => [
+            { name: 'css:[role=columnheader][hasText](original)', locator: page.locator(`[role="columnheader"]:has-text("${name}")`) },
+            { name: 'role:columnheader[name]', locator: page.getByRole('columnheader', { name }) },
+        ],
+        /** Year indicator text — MCP-verified live "2026" renders as a plain leaf text node with no role/label/testid to anchor an independent fallback on; only genuinely independent option is exact-match instead of substring. */
+        yearText: [
+            { name: 'text:2026[first](original)', locator: page.locator('text=2026').first() },
+            { name: 'text:2026[exact]', locator: page.getByText('2026', { exact: true }).first() },
+        ],
+        /** Version indicator text — MCP-verified live multiple elements contain "Version" as a substring (e.g. "Version Note", "Version 102") — `.first()` already resolves this in the original; no independent second mechanism exists beyond re-confirming the same match differently, so kept honest at 1 strategy. */
+        versionText: [
+            { name: 'text:Version[first](original)', locator: page.locator('text=Version').first() },
+        ],
+        /** Budget item name cell text — MCP-verified live plain text match; no role/testid exists on these cells to hang an independent fallback on beyond exact-match. */
+        budgetItemText: (name) => [
+            { name: 'text:name[first](original)', locator: page.locator(`text=${name}`).first() },
+            { name: 'text:name[exact,first]', locator: page.getByText(name, { exact: true }).first() },
+        ],
+        submitForApprovalBtn: [
+            /** No-regex: `.or()` of two exact role/name locators replaces the former `/Submit for Approval|Submit for Review/i` regex with the same "A or B" coverage. */
+            {
+                name: 'role:dialog>button[name=Submit for Approval OR Submit for Review]',
+                locator: page.getByRole('dialog').getByRole('button', { name: 'Submit for Approval' })
+                    .or(page.getByRole('dialog').getByRole('button', { name: 'Submit for Review' }))
+                    .first(),
+            },
+            {
+                name: 'role:button[name=Submit for Approval OR Submit for Review]',
+                locator: page.getByRole('button', { name: 'Submit for Approval' })
+                    .or(page.getByRole('button', { name: 'Submit for Review' }))
+                    .first(),
+            },
+        ],
+    };
+}
+
+module.exports = { budgetLocators, budgetElementStrategies };

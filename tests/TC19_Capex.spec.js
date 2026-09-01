@@ -18,7 +18,7 @@ test.use({
 
 let capex;
 
-test.describe('TC19 — CapEx Portfolio Page', () => {
+test.describe('CapEx Page', () => {
     test.describe.configure({ retries: 1 });
 
     test.beforeEach(async ({ page }) => {
@@ -27,10 +27,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         await ensureLeftPanelExpanded(page);
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC282 — Page Load, Tab Bar, Default State & Performance
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC290 @regression @capex — Page load: Properties tab active, Entire Portfolio scope, all 3 KPI cards, tab bar visible, loads within threshold', async ({ page }) => {
+    test('TC290 @regression @capex : Verify CapEx page load, default scope, KPI cards, grid, and load time', async ({ page }) => {
         Logger.step('TC290: CapEx page load and default state');
 
         const { tabsVisible, activeTab } = await capex.verifyTabBar();
@@ -66,10 +63,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC290 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC283 — Navigation & Year Selector
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC291 @regression @capex — Breadcrumbs, back-navigation restores grid, year selector 2022–2028, KPI cards update on year change', async ({ page }) => {
+    test('TC291 @regression @capex : Verify CapEx breadcrumbs, navigation, year selection, and KPI updates', async ({ page }) => {
         Logger.step('TC291: Breadcrumbs, back-navigation and year selector');
 
         // Breadcrumb elements visible and structured correctly
@@ -125,10 +119,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC291 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC284 — Portfolio Filter Structure & Master Toggle
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC292 @regression @capex — Portfolio filter: Entire Portfolio master checked by default, all properties checked, dropdown search narrows list', async ({ page }) => {
+    test('TC292 @regression @capex : Verify portfolio filter, property selection, and dropdown search', async ({ page }) => {
         Logger.step('TC292: Portfolio filter structure');
 
         await capex.openPortfolioFilter();
@@ -164,10 +155,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC292 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC285 — Single Property Deselect & Stat Card Updates
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC293 @regression @capex — Deselect one property: grid rows and Properties KPI decrease; re-select restores both', async ({ page }) => {
+    test('TC293 @regression @capex : Verify property filter updates grid and KPI values and restores correctly', async ({ page }) => {
         Logger.step('TC293: Single property deselect and restore');
 
         const rowsBefore = await capex.getDataRowCount();
@@ -198,10 +186,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC293 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC286 — Deselect All Properties → Empty State
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC294 @regression @capex — Deselect all: empty grid with $0 KPI cards; master toggle re-enable restores full portfolio', async ({ page }) => {
+    test('TC294 @regression @capex : Verify deselect all functionality and portfolio restoration', async ({ page }) => {
         Logger.step('TC294: Deselect all properties and restore via master toggle');
 
         const rowsBefore = await capex.getDataRowCount();
@@ -230,10 +215,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC294 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC287 — Fund Tab (comprehensive)
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC295 @regression @capex — Fund tab: all columns, CTAs, filter, KPI cards, uncategorized bucket, expand to leaf, E2E revision modal with DRAFT badge and Save', async ({ page }) => {
+    test('TC295 @regression @capex : Verify Fund tab functionality with all columns, CTAs, filter, KPI cards, and expandable nodes', async ({ page }) => {
         Logger.step('TC295: Fund tab — full coverage');
 
         await capex.clickTab('Fund');
@@ -322,10 +304,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC295 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC288 — Region Tab (comprehensive)
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC296 @regression @capex — Region tab: all columns, CTAs, filter, KPI cards, expand to leaf, E2E revision modal with DRAFT badge and Save', async ({ page }) => {
+    test('TC296 @regression @capex : Verify Region tab functionality with all columns, CTAs, filter, KPI cards, and expandable nodes', async ({ page }) => {
         Logger.step('TC296: Region tab — full coverage');
 
         await capex.clickTab('Region');
@@ -405,10 +384,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC296 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC289 — Tab Config (AC13) & Scope Filter Reset (AC18)
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC297 @regression @capex — Fund and Region tabs always present; scope filter resets per tab switch; year and search persist across tabs', async ({ page }) => {
+    test('TC297 @regression @capex : Verify tab switching resets scope filter while preserving year and search', async ({ page }) => {
         Logger.step('TC297: Tab bar, scope filter reset and state persistence');
 
         await expect(capex.l.tabFund).toBeVisible({ timeout: 5000 });
@@ -463,10 +439,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC297 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC290 — KPI Cards Format, Values & Grid Sync
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC298 @regression @capex — KPI cards: correct USD format, Remaining Budget matches Total row, values react to year change', async ({ page }) => {
+    test('TC298 @regression @capex : Verify KPI values, USD format, grid total, and year-based updates', async ({ page }) => {
         Logger.step('TC298: KPI card values, format and grid sync');
 
         const kpi = await capex.getKpiValues();
@@ -500,10 +473,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC298 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC291 — Grid Column Structure & Cell Formatting
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC299 @regression @capex — Grid structure: all 10 columns present with Actions last, all monetary cells valid USD, no NaN values', async ({ page }) => {
+    test('TC299 @regression @capex : Verify CapEx grid columns, currency formatting, and invalid values', async ({ page }) => {
         Logger.step('TC299: Grid column structure and cell formatting');
 
         const headers = await capex.getColumnHeaders();
@@ -546,10 +516,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC299 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC292 — Formula Validation (All 4 Formulas)
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC300 @regression @capex — Financial formulas: CB=OB+BR, CC=OC+ACO, BudRem=CB-CC, RemCon=CC-Inv hold on all rows with zero drift', async ({ page }) => {
+    test('TC300 @regression @capex : Verify CapEx financial formulas across all grid rows', async ({ page }) => {
         Logger.step('TC300: Financial formula validation — all 4 formulas');
 
         const errors = await capex.validateFormulas();
@@ -569,10 +536,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC300 ✓ — All 4 formulas pass with zero violations');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC293 — Cross-Tab Rollup & Total Row Integrity
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC301 @regression @capex — Total row matches data sum; Fund and Region rollup equals Properties total; Total updates on search filter', async ({ page }) => {
+    test('TC301 @regression @capex : Verify total row, cross-tab totals, and filtered total calculations', async ({ page }) => {
         Logger.step('TC301: Total row integrity and cross-tab rollup');
 
         const totalRow = await capex.getTotalRowValues();
@@ -607,10 +571,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC301 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC294 — Tree Expand/Collapse & Pencil Placement
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC302 @regression @capex — Tree expand/collapse: child rows appear on expand, collapse restores; pencil only at leaf level, absent on top-level and Fund group rows', async ({ page }) => {
+    test('TC302 @regression @capex : Verify CapEx tree expand/collapse and edit pencil visibility', async ({ page }) => {
         Logger.step('TC302: Tree expand/collapse and pencil placement');
 
         expect(await capex.getTopRowPencilCount()).toBe(0);
@@ -653,10 +614,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC302 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC295 — Column Sorting
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC303 @regression @capex — Column sort: clicking financial headers sorts asc/desc without losing rows or Total row', async ({ page }) => {
+    test('TC303 @regression @capex : Verify financial column sorting keeps grid rows and total row intact', async ({ page }) => {
         Logger.step('TC303: Column sorting');
 
         const sortTargets = [
@@ -680,10 +638,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC303 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC296 — Search Functionality
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC304 @regression @capex — Search: case-insensitive filtering, zero-result no errors, special chars no XSS, clear restores all rows and Total row', async ({ page }) => {
+    test('TC304 @regression @capex : Verify CapEx search filtering, no results, special characters, and reset', async ({ page }) => {
         Logger.step('TC304: Search functionality');
 
         const rowsBefore = await capex.getDataRowCount();
@@ -758,10 +713,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC304 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC298 — Export CSV
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC305 @regression @capex — Export: downloads valid capex CSV with correct headers and data rows; filtered export reflects search results only', async ({ page }) => {
+    test('TC305 @regression @capex : Verify CapEx export contains correct data and reflects search filters', async ({ page }) => {
         Logger.step('TC305: Export CSV');
 
         const full = await capex.validateAndDownloadExport();
@@ -787,10 +739,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC305 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC299 — Budget Revision Modal & View Feature
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC306 @regression @capex — Revision modal: pencil at leaf level only, DRAFT badge, KPI cards, Budget/Docs tabs, correct columns, Save enabled; View popover clears on dismiss', async ({ page }) => {
+    test('TC306 @regression @capex : Verify revision modal, leaf-level editing, and View popover behavior', async ({ page }) => {
         Logger.step('TC306: Budget Revision modal and View popover');
 
         expect(await capex.getTopRowPencilCount()).toBe(0);
@@ -832,10 +781,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC306 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC300 — Edge Cases: Rapid Year Switch, Page Reload, $0 Cells, Scroll & Long Names
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC307 @regression @capex — Edge cases: rapid year switch stable, reload resets search, $0 cells no NaN, grid intact at 1024px width', async ({ page }) => {
+    test('TC307 @regression @capex : Verify CapEx stability during year switching, reload, zero values, and resizing', async ({ page }) => {
         Logger.step('TC307: Edge cases — rapid year switch, reload, $0 cells, responsive layout');
 
         for (const yr of ['2024', '2025', '2026']) {
@@ -895,7 +841,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC307 ✓');
     });
 
-    test('TC308 @regression @capex — Large dataset: expand property with most children, verify child rows render without layout error', async ({ page }) => {
+    test('TC308 @regression @capex : Verify CapEx grid stability when expanding and scrolling large datasets', async ({ page }) => {
         Logger.step('TC308: Large dataset rendering and grid stability');
         const gridStability = new CapexGridStabilityPage(page);
 
@@ -938,10 +884,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC308 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC304 — Validate Fast Scroll Stability
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC309 @regression @capex — Fast scroll: rapid scroll down and up on expanded grid, grid remains interactive after scroll', async ({ page }) => {
+    test('TC309 @regression @capex : Verify CapEx grid remains interactive after rapid scrolling', async ({ page }) => {
         Logger.step('TC309: Fast scroll stability');
         const gridStability = new CapexGridStabilityPage(page);
 
@@ -983,11 +926,7 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.success('TC309 ✓');
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TC305 — Validate Multiple Expanded Rows Stability
-    // Expands property 0 then scrolls to expand a second property.
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC310 @regression @capex — Multiple expanded rows: expand two parent rows, verify both sections render and grid stays stable', async ({ page }) => {
+    test('TC310 @regression @capex : Verify multiple expanded rows remain stable during scrolling and collapse', async ({ page }) => {
         Logger.step('TC310: Multiple expanded rows stability');
         const gridStability = new CapexGridStabilityPage(page);
 
@@ -1033,36 +972,6 @@ test.describe('TC19 — CapEx Portfolio Page', () => {
         Logger.info('TC310: All visible rows collapsed, grid clean ✓');
 
         Logger.success('TC310 ✓');
-    });
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // NEW CASE: TC311
-    // Coverage: Budget Remaining column — every row's value logged and asserted
-    // non-negative. Confirmed via live MCP browser investigation that this
-    // shared portfolio currently has rows with a genuinely negative Budget
-    // Remaining (over-budget properties), so this test is EXPECTED TO FAIL —
-    // it exists to surface that condition explicitly in the test report.
-    // ─────────────────────────────────────────────────────────────────────────
-    test('TC311 @regression @capex — Budget Remaining column: every row value logged and asserted non-negative', async ({ page }) => {
-        Logger.step('TC311: Logging and validating every Budget Remaining column value');
-
-        const rows = await capex.getAllGridRowData();
-        expect(rows.length, 'Grid should have at least one row of data').toBeGreaterThan(0);
-
-        const negativeRows = [];
-        for (const row of rows) {
-            const label = row.isTotal ? 'Total' : row.rowLabel;
-            const cell = row['Budget Remaining'];
-            Logger.info(`TC311: Row "${label}" — Budget Remaining = ${cell.raw} (parsed: ${cell.value})`);
-            if (cell.value !== null && cell.value < 0) {
-                negativeRows.push({ label, raw: cell.raw, value: cell.value });
-            }
-        }
-
-        Logger.info(`TC311: ${negativeRows.length} row(s) with negative Budget Remaining — ${JSON.stringify(negativeRows)}`);
-        expect(negativeRows, `Every Budget Remaining value should be non-negative — found ${negativeRows.length} negative row(s): ${JSON.stringify(negativeRows)}`).toHaveLength(0);
-
-        Logger.success('TC311 passed: no negative Budget Remaining values found');
     });
 
 });

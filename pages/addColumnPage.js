@@ -33,6 +33,21 @@ class AddColumnPage {
         await this.page.waitForTimeout(300);
     }
 
+    /**
+     * Fallback for _dismissOverlays(): CI-observed 2026-08-18 that Escape does not always
+     * dismiss a still-open Manage Columns dialog between successive column deletions,
+     * leaving it blocking the table menu button underneath and exhausting every retry in
+     * _openTableMenu() until the whole test times out. If a dialog is still visible after
+     * Escape, click its own close ("X") button instead.
+     */
+    async _dismissOverlaysViaCrossButton() {
+        const crossButton = this.loc.openDialogCloseButton;
+        if (await crossButton.isVisible({ timeout: 500 }).catch(() => false)) {
+            await crossButton.click({ force: true }).catch(() => {});
+            await this.page.waitForTimeout(300);
+        }
+    }
+
     async _waitForTableMenuOpen() {
         const portalItemProbe = this.loc.hideShowColumnsMenuItem
             .first()
@@ -50,6 +65,7 @@ class AddColumnPage {
 
     async _openTableMenu(retries = 3) {
         await this._dismissOverlays();
+        await this._dismissOverlaysViaCrossButton();
 
         for (let attempt = 0; attempt < retries; attempt++) {
             const tableBtn = this.loc.tableMenuBtn(this.scope).first();
@@ -69,6 +85,7 @@ class AddColumnPage {
             if (menuOpen) return;
 
             await this._dismissOverlays();
+            await this._dismissOverlaysViaCrossButton();
             await this.page.waitForTimeout(400);
         }
 
@@ -152,6 +169,12 @@ class AddColumnPage {
     async _waitForColumnHeader(columnName) {
         const header = this.page.locator('[role="columnheader"]').filter({ hasText: columnName }).first();
 
+        // MCP-verified live (2026-08-25): grids that accumulate many custom columns over repeated
+        // runs (e.g. Images/Property Documents, both shared org-wide state) push a freshly-added
+        // column far enough right that _scrollGridRight()'s real hover+mouse-wheel step (on top of
+        // the direct scrollLeft write) can take noticeably longer than the 250ms poll interval per
+        // iteration, so 25000ms's nominal ~100 iterations doesn't reliably translate into that many
+        // real scroll steps. Bumped for headroom rather than changing the scroll mechanism itself.
         await expect
             .poll(
                 async () => {
@@ -159,7 +182,7 @@ class AddColumnPage {
                     await this._scrollGridRight();
                     return (await header.count()) > 0;
                 },
-                { timeout: 25000, intervals: [250] },
+                { timeout: 60000, intervals: [250] },
             )
             .toBe(true);
 
@@ -168,7 +191,28 @@ class AddColumnPage {
         return header;
     }
 
+    /**
+     * Forces the revo-grid within this page object's scope to a large width so it mounts
+     * every column instead of virtualizing rightmost ones out of the DOM. MCP-verified live
+     * (2026-07-28): each newly-added custom column pushes the total column count further
+     * right — by the time a 6th column (e.g. "Checkbox") is added, its aria-colindex sits
+     * past the grid's default rendering width and the gridcell never mounts at all, so
+     * scrollIntoViewIfNeeded() times out waiting for a locator that will never resolve
+     * (not a real feature bug — the same checkbox toggle works fine once the cell exists).
+     */
+    async _forceGridFullWidth() {
+        const grid = this.scope.locator('revo-grid').first();
+        if (await grid.count().catch(() => 0)) {
+            await grid.evaluate((g) => {
+                g.style.setProperty('width', '4000px', 'important');
+                g.style.setProperty('min-width', '4000px', 'important');
+            }).catch(() => {});
+            await this.page.waitForTimeout(400);
+        }
+    }
+
     async _getFirstDataCellForColumn(columnName) {
+        await this._forceGridFullWidth();
         const header = await this._waitForColumnHeader(columnName);
         const colIndex = await header.getAttribute('aria-colindex');
         expect(colIndex, `Column "${columnName}" must have aria-colindex`).toBeTruthy();
@@ -234,13 +278,19 @@ class AddColumnPage {
     async _assertCellShows(cell, pattern, columnName, typeName, insertedValue) {
         await this._dismissEditor();
         let cellText = '';
+        // CI (headless Linux runner) commits a cell edit noticeably slower than local — the
+        // grid's persist round-trip (PATCH to the backend, then re-render) that finishes well
+        // inside 10s locally can still be in flight there. This is a brand-new column too (the
+        // rightmost, just-created one), so it's already paying the cost of the scroll-right +
+        // re-render from _waitForColumnHeader before this poll even starts. Give it more room
+        // rather than a fixed budget tuned to local timing.
         await expect
             .poll(
                 async () => {
                     cellText = await this._readCellText(cell);
                     return cellText || '';
                 },
-                { timeout: 10000 },
+                { timeout: 20000 },
             )
             .toMatch(pattern);
         this._logCellResult(columnName, typeName, insertedValue, cellText);
@@ -625,7 +675,11 @@ class AddColumnPage {
     }
 
     async closeManageColumns() {
-        await this.page.keyboard.press('Escape');
+        // Guarded like the wait below: if the outer test's own timeout tears the page down mid-run
+        // (long multi-column flows can brush up against it under CI load — see TC430), this would
+        // otherwise throw "Target page, context or browser has been closed" here instead of letting
+        // the real test-timeout error surface.
+        await this.page.keyboard.press('Escape').catch(() => {});
         await this.loc.manageColumnsDialog.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
         await this.page.waitForTimeout(300);
     }
@@ -770,7 +824,18 @@ class AddColumnPage {
             await confirmBtn.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
         }
 
-        await expect(row).toBeHidden({ timeout: 20000 });
+        try {
+            await expect(row).toBeHidden({ timeout: 20000 });
+        } catch (visibilityError) {
+            // Under concurrent test runs that mutate the same shared custom-columns list at
+            // once, deleting one entry can shift list positions so this row's locator resolves
+            // to a different, still-visible entry that just took the same spot — a false
+            // negative on visibility, not a failed delete (MCP/CI-verified 2026-08-14, same
+            // signature as a real CI failure on TC67). Confirm by name against the live list
+            // before concluding the delete actually failed.
+            const stillPresent = (await this._getCustomColumnNames()).includes(name);
+            if (stillPresent) throw visibilityError;
+        }
         Logger.success(`Deleted column "${name}"`);
         return true;
     }

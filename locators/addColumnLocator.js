@@ -46,6 +46,9 @@ function addColumnLocators(page) {
         manageColumnsDialog: page.getByRole('dialog', { name: 'Manage Columns' }),
 
         deleteConfirmBtn: page.locator('.mantine-Popover-dropdown:visible').getByRole('button', { name: 'Delete', exact: true }),
+
+        /** Generic close ("X") button on any currently-open dialog/drawer — fallback for when Escape does not dismiss it (CI-observed 2026-08-18, Manage Columns dialog specifically). */
+        openDialogCloseButton: page.locator('[role="dialog"]:visible button.mantine-CloseButton-root, [role="dialog"]:visible button:has(svg.lucide-x)').first(),
     };
 }
 

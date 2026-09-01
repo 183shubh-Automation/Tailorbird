@@ -1,5 +1,6 @@
 const { expect } = require('@playwright/test');
-const { unitInteriorLocators } = require('../locators/unitInteriorLocator');
+const { unitInteriorLocators, unitInteriorElementStrategies } = require('../locators/unitInteriorLocator');
+const { healingLocator } = require('../utils/locatorHealer');
 const { Logger } = require('../utils/logger');
 const { InteractionLogger } = require('../utils/InteractionLogger');
 
@@ -14,6 +15,7 @@ class UnitInteriorPage {
     constructor(page) {
         this.page = page;
         this.loc  = unitInteriorLocators(page);
+        this.strategies = unitInteriorElementStrategies(page);
     }
 
     // ── Navigation (UI-driven — no hardcoded job URLs) ─────────────────────
@@ -167,9 +169,7 @@ class UnitInteriorPage {
 
     /** Returns text of all visible column headers in the Units grid. */
     async getColumnHeaders() {
-        const headers = await this.page
-            .getByRole('tabpanel', { name: 'Units' })
-            .getByRole('columnheader')
+        const headers = await healingLocator(this.strategies.allColumnHeadersInUnitsPanel)
             .allTextContents();
         const cleaned = headers.map(h => h.trim()).filter(Boolean);
         Logger.info(`[UnitInterior] Column headers: ${JSON.stringify(cleaned)}`);
@@ -200,17 +200,11 @@ class UnitInteriorPage {
     async getUnitStatus(unitNumber) {
         await this.page.waitForTimeout(500);
 
-        const unitsGrid = this.page
-            .getByRole('tabpanel', { name: 'Units' })
-            .locator('[role="treegrid"]')
-            .first();
+        const unitsGrid = healingLocator(this.strategies.unitsGrid);
 
         // Playwright pierces shadow DOM when evaluating CSS selectors, so this
         // finds the <div role="gridcell"> inside revo-grid's shadow root.
-        const unitCell = unitsGrid
-            .locator('div[role="gridcell"]')
-            .filter({ has: this.page.getByText(String(unitNumber), { exact: true }) })
-            .first();
+        const unitCell = healingLocator(this.strategies.gridCellByUnitNumber(unitsGrid, unitNumber));
 
         const cellVisible = await unitCell.isVisible({ timeout: 5000 }).catch(() => false);
         if (!cellVisible) {
@@ -231,8 +225,7 @@ class UnitInteriorPage {
         // Mantine's injected <style> tag content, polluting every cell string.
         // Use evaluateAll with el.innerText instead — innerText skips <style>/<script>
         // and returns only the rendered visible text (e.g. "Released", "2bdrm").
-        const rowCellTexts = await unitsGrid
-            .locator(`div[role="gridcell"][data-rgrow="${rgRow}"]`)
+        const rowCellTexts = await healingLocator(this.strategies.gridCellsByRgRow(unitsGrid, rgRow))
             .evaluateAll(els => els.map(el => (el.innerText || '').trim()));
 
         const cleaned = rowCellTexts.filter(Boolean);
@@ -335,7 +328,7 @@ class UnitInteriorPage {
      * @param {boolean} expectedEnabled
      */
     async assertButtonEnabled(buttonName, expectedEnabled) {
-        const btn = this.page.getByRole('button', { name: buttonName });
+        const btn = healingLocator(this.strategies.toolbarButtonByLabel(buttonName));
         await btn.waitFor({ state: 'visible', timeout: 10000 });
         const actualEnabled = !(await btn.isDisabled());
         const passed = actualEnabled === expectedEnabled;

@@ -36,7 +36,7 @@ test.beforeEach(async ({ page }) => {
     await _appShell05.waitFor({ state: 'visible', timeout: 20_000 });
 });
 
-test('TC69 @regression @projectAndJob : Navigate to Projects & Jobs and verify page loads successfully within 2 seconds and zero console error', async ({ page }) => {
+test('TC69 @regression @projectAndJob : verify page loads successfully within 2 seconds and zero console error', async ({ page }) => {
     await projectPage.navigateToProjects();
 });
 
@@ -120,7 +120,7 @@ test('TC74 @regression @projectAndJob : Validate cancel button closes without sa
     await projectPage.verifyModalClosed();
 });
 
-test('TC75 @regression @projectAndJob : Validate Create Project form mandatory fields assertion, property dropdown options and date can be filled directly without using calender', async () => {
+test('TC75 @regression @projectAndJob : Validate Create Project form mandatory fields assertion and property dropdown options', async () => {
     await projectPage.navigateToProjects();
     await projectPage.openCreateProjectModal();
     await projectPage.validateMandatoryFields();
@@ -128,7 +128,7 @@ test('TC75 @regression @projectAndJob : Validate Create Project form mandatory f
     await projectPage.fillDateField('2024-07-01', '2024-12-31');
 });
 
-test('TC76 @regression @projectAndJob : Positive user journeys for Projects, Jobs and Bids', async ({ page }) => {
+test('TC76 @regression @projectAndJob : Validate navigation for Project and job and every CTA is visible', async ({ page }) => {
     const loc = projectPage.tc05Loc();
     await test.step('P1: Projects workspace loads with key controls', async () => {
         await projectPage.tc05GotoProjectsWorkspace();
@@ -309,7 +309,7 @@ test('TC77 @regression @projectAndJob : Negative and missing input validations',
 
 });
 
-test('TC78 @regression @projectAndJob : Edge behavior and state transition checks', async ({ page }) => {
+test('TC78 @regression @projectAndJob : Verify project search, filters, menus, and navigation work correctly', async ({ page }) => {
     const loc = projectPage.tc05Loc();
     await test.step('E1: Very long project search input should be accepted and recoverable', async () => {
         await projectPage.tc05GotoProjectsWorkspace();
@@ -352,7 +352,7 @@ test('TC78 @regression @projectAndJob : Edge behavior and state transition check
     });
 });
 
-test('@regression @projectAndJob TC79 - Reject project creation with "      " name', async ({ page }) => {
+test('TC79 @regression @projectAndJob : Reject project creation with "      " name', async ({ page }) => {
     await projectPage.navigateToProjects();
     await projectPage.openCreateProjectModal();
 

@@ -2,13 +2,7 @@ require('dotenv').config();
 const { test, expect } = require('@playwright/test');
 const { ReassignInvoicePage } = require('../pages/reassignInvoicePage');
 const { Logger } = require('../utils/logger');
-const fs = require('fs');
-const path = require('path');
 const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
-// Reassign Invoice is only exposed to an approver on the invoice's approval chain
-// (verified live: the invoice creator alone does not see "Reassign Invoice" in the
-// Actions column; the configured approver does) — so this suite runs as that other
-// user, same as TC11's "another user" approval suite.
 test.use({
     storageState: 'OtherSessionState.json',
     video: 'retain-on-failure',
@@ -17,37 +11,16 @@ test.use({
 });
 
 const PROPERTY_NAME = 'Test Property5_Reassigning_Automation';
-const MODAL_DATA_PATH = path.join(__dirname, '../data/reassignInvoiceModalData.json');
 
-function saveModalData(data) {
-    fs.writeFileSync(MODAL_DATA_PATH, JSON.stringify(data, null, 2), 'utf8');
-}
-
-function loadModalData() {
-    return JSON.parse(fs.readFileSync(MODAL_DATA_PATH, 'utf8'));
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared helpers for Scenarios 1–4 (TC368–TC371) below.
-// Every call inside these is an EXISTING ReassignInvoicePage / InvoicePage method or an
-// EXISTING locator (reassignInvoiceLocators) — nothing new is added to any page object,
-// locator file, JSON file, or utility file. This is pure composition/orchestration local
-// to this spec, in the same spirit as the saveModalData/loadModalData helpers above.
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Invoice-list grid column order (confirmed live via MCP browser): Invoice Number,
-// Financial Type, Title, Description, Invoiced Amount, Gross Amount, Retainage Withheld,
-// Retainage Released, Outstanding Retainage, Net Payable, Status, Attachments, Approved At.
 const INVOICE_COL = { TITLE: 2, DESCRIPTION: 3, INVOICED_AMOUNT: 4, STATUS: 10 };
 
-/** Reads one gridcell (by column index) from the row matching invoiceNumber, on whatever job's Invoice tab is currently open. */
 async function getInvoiceGridCellText(rip, invoiceNumber, colIndex) {
+    await rip.forceInvoiceGridFullWidth();
     const row = rip.loc.invoiceDataRows.filter({ hasText: invoiceNumber }).first();
     await expect(row, `Row for "${invoiceNumber}" not found`).toBeVisible({ timeout: 15000 });
     return (await row.locator('[role="gridcell"]').nth(colIndex).textContent().catch(() => '')).trim();
 }
 
-/** Snapshots Title/Description/Invoiced Amount/Status for an invoice on the currently-open Invoice tab. */
 async function captureInvoiceFields(rip, invoiceNumber) {
     return {
         title: await getInvoiceGridCellText(rip, invoiceNumber, INVOICE_COL.TITLE),
@@ -57,20 +30,11 @@ async function captureInvoiceFields(rip, invoiceNumber) {
     };
 }
 
-/**
- * Discovers every job for the property (name + owning project) by reading the live Jobs grid
- * opened via the property's existing "Jobs" stat button — nothing hardcoded, nothing cached.
- */
 async function discoverPropertyJobs(rip, propertyName) {
     await rip.openPropertyByName(propertyName);
     await rip.loc.jobsStatButton.click();
     await rip.page.waitForURL(/\/jobs/, { timeout: 20000 });
     await rip.loc.jobsGrid.waitFor({ state: 'visible', timeout: 20000 });
-
-    // The Jobs stat button lands on the GLOBAL /jobs listing (not property-scoped by URL) —
-    // revo-grid virtualizes rows, so this property's jobs can be off-screen once the org's
-    // total job count grows past one viewport (MCP-verified live). Search narrows the grid's
-    // own dataset first, same as ReassignInvoicePage.openJobOfProperty.
     await rip.loc.jobsSearchInput.fill(propertyName);
     await rip.page.waitForTimeout(1000);
 
@@ -88,35 +52,23 @@ async function discoverPropertyJobs(rip, propertyName) {
     return jobs;
 }
 
-/** Opens a job's Invoice tab and returns its current invoice-row count — read live, never assumed. */
 async function countInvoicesInJob(rip, propertyName, jobName) {
     await rip.openJobOfProperty(propertyName, { jobName });
     await rip.openInvoiceTab();
-
-    // The invoice grid renders asynchronously (virtualized) — reading count() immediately can
-    // observe 0 rows before they've painted, misclassifying a populated job as empty (a proven
-    // race in this scenario). Wait for either a data row or the explicit empty-state message.
     await Promise.race([
-        rip.loc.invoiceDataRows.first().waitFor({ state: 'visible', timeout: 15000 }).catch(() => {}),
-        rip.page.getByText('No invoices added yet').waitFor({ state: 'visible', timeout: 15000 }).catch(() => {}),
+        rip.loc.invoiceDataRows.first().waitFor({ state: 'visible', timeout: 15000 }).catch(() => { }),
+        rip.page.getByText('No invoices added yet').waitFor({ state: 'visible', timeout: 15000 }).catch(() => { }),
     ]);
 
     const noInvoicesVisible = await rip.page.getByText('No invoices added yet').isVisible().catch(() => false);
     if (noInvoicesVisible) return 0;
-
-    // revo-grid VIRTUALIZES rows — it only paints what fits the current viewport, so once a job's
-    // invoice list grows past one screen, invoiceDataRows.count() undercounts the true total (proven
-    // live via MCP browser: 20 invoices in the API response / aria-rowcount="20", only 9 painted in
-    // the DOM). aria-rowcount on the grid element reflects revo-grid's real dataset size regardless
-    // of what's currently rendered, so prefer that; fall back to the DOM count if it's ever absent.
-    const ariaRowCount = await rip.loc.invoiceGridScope.getAttribute('aria-rowcount').catch(() => null);
+   const ariaRowCount = await rip.loc.invoiceGridScope.getAttribute('aria-rowcount').catch(() => null);
     const parsed = parseInt(ariaRowCount, 10);
     if (Number.isFinite(parsed)) return parsed;
 
     return rip.loc.invoiceDataRows.count();
 }
 
-/** Creates + approves an invoice for an arbitrary amount, composed entirely from existing InvoicePage methods. */
 async function createAndApproveInvoice(rip, { title, description, amount }) {
     await rip.invoicePage.clickAddInvoice();
     const invoiceNumber = await rip.invoicePage.getInvoiceNumber();
@@ -133,7 +85,6 @@ async function createAndApproveInvoice(rip, { title, description, amount }) {
     return invoiceNumber;
 }
 
-/** Static modal content + New Project dropdown — asserted identically in every scenario (mirrors TC366). */
 async function assertModalStaticContentAndProjects(rip, { expectedProject, expectedJob } = {}) {
     const staticContent = await rip.captureStaticModalContent();
     expect(staticContent.heading).toBe('Reassign Invoice');
@@ -151,12 +102,6 @@ async function assertModalStaticContentAndProjects(rip, { expectedProject, expec
     return { staticContent, newProjectOptions };
 }
 
-/**
- * Drives New Project -> New Job -> Scope using caller-supplied pickers, asserting every
- * dropdown's option list is non-empty and that Confirm Reassignment stays disabled until a
- * scope is chosen (true for every scenario, not just Scenario 3). Returns the full capture
- * (for JSON-snapshot comparison) plus the resolved project/job/scope.
- */
 async function driveModalSelections(rip, { expectedProject, expectedJob, pickProject, pickJob, pickScope }) {
     const { staticContent, newProjectOptions } = await assertModalStaticContentAndProjects(rip, { expectedProject, expectedJob });
 
@@ -189,18 +134,11 @@ async function driveModalSelections(rip, { expectedProject, expectedJob, pickPro
     };
 }
 
-/**
- * Full modal validation, JSON-snapshot round trip (open -> capture -> save -> close -> reopen ->
- * capture -> compare), then the real reassignment — the shared flow every scenario runs before
- * confirming. Pass 2's expected project/job are derived from Pass 1's own capture (not the
- * caller's), so this also self-checks the modal is internally consistent across two opens.
- */
 async function validateModalAndReassign(rip, { invoiceNumber, expectedProject, expectedJob, pickProject, pickJob, pickScope }) {
     const before = await captureInvoiceFields(rip, invoiceNumber);
 
     await rip.openReassignModalForInvoice(invoiceNumber);
     const pass1 = await driveModalSelections(rip, { expectedProject, expectedJob, pickProject, pickJob, pickScope });
-    saveModalData(pass1.capture);
     await rip.cancelReassignModal();
 
     await rip.openReassignModalForInvoice(invoiceNumber);
@@ -209,8 +147,7 @@ async function validateModalAndReassign(rip, { invoiceNumber, expectedProject, e
         expectedJob: pass1.capture.currentJob,
         pickProject, pickJob, pickScope,
     });
-    const saved = loadModalData();
-    expect(pass2.capture, 'Re-opened modal (project/job/scope/options) must match the saved JSON snapshot').toEqual(saved);
+    expect(pass2.capture, "Re-opened modal (project/job/scope/options) must match this test's own first-pass capture").toEqual(pass1.capture);
     expect(pass2.targetProject).toBe(pass1.targetProject);
     expect(pass2.targetJob).toBe(pass1.targetJob);
     expect(pass2.targetScope).toBe(pass1.targetScope);
@@ -220,11 +157,6 @@ async function validateModalAndReassign(rip, { invoiceNumber, expectedProject, e
     return { ...pass2, before, sourceProject: pass1.capture.currentProject, sourceJob: pass1.capture.currentJob };
 }
 
-/**
- * Post-reassignment validation shared by every scenario: source removal, destination presence
- * (exactly once), and title/description/amount/status/project/job/scope all correct — every
- * read is by invoiceNumber match, never by row order/position.
- */
 async function verifyReassignmentResult(rip, { invoiceNumber, targetProject, targetJob, targetScope, before }) {
     await rip.waitForInvoiceAbsent(invoiceNumber);
 
@@ -242,9 +174,6 @@ async function verifyReassignmentResult(rip, { invoiceNumber, targetProject, tar
     expect(after.status, 'Invoice status must be unchanged by reassignment').toBe(before.status);
     expect(after.status, `"${invoiceNumber}" status should still be Approved`).toMatch(/approved/i);
 
-    // Read project/job/scope back from the app's own "Current Assignment" fields — the most
-    // authoritative source, and proves the invoice lives under this scope only (an invoice has
-    // exactly one current scope at a time).
     await rip.openReassignModalForInvoice(invoiceNumber);
     const modalAfter = await rip.captureStaticModalContent();
     expect(modalAfter.currentProject, 'Project should reflect the reassignment target').toBe(targetProject);
@@ -270,14 +199,7 @@ test.describe('Reassign Invoice', () => {
         await ensureLeftPanelExpanded(page);
     });
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // TC366 — Reassign Invoice modal UI and dropdown assertions
-    // Non-destructive: captures every label/dropdown/option, persists it to a JSON
-    // fixture, re-opens the modal and asserts the live UI still matches that fixture,
-    // then walks every dropdown to the end (New Project -> New Job -> Scope) purely
-    // to assert their contents/enablement — and always Cancels, never confirms.
-    // ──────────────────────────────────────────────────────────────────────────
-    test('TC366 @regression @reassignInvoice : Should assert every Reassign Invoice modal field, label and dropdown option, and persist/compare them via JSON', async () => {
+    test('TC366 @regression @reassignInvoice : Verify Reassign Invoice modal fields, dropdown options, and selection flow', async () => {
         test.setTimeout(180000);
 
         Logger.step('TC366: Navigating to property -> first job -> Invoice tab');
@@ -291,7 +213,6 @@ test.describe('Reassign Invoice', () => {
         const invoiceNumber = firstInvoiceNumberMatch[0];
         Logger.info(`TC366: Using existing invoice "${invoiceNumber}" for modal assertions (read-only — will Cancel, never Confirm)`);
 
-        // ── First pass: open modal, capture everything, save to JSON ──────────────
         await reassignInvoicePage.openReassignModalForInvoice(invoiceNumber);
 
         const staticContent = await reassignInvoicePage.captureStaticModalContent();
@@ -309,23 +230,19 @@ test.describe('Reassign Invoice', () => {
         Logger.success(`TC366: New Project options captured: ${JSON.stringify(newProjectOptions)}`);
 
         const capturedData = { ...staticContent, newProjectOptions };
-        saveModalData(capturedData);
-        Logger.success(`TC366: Modal data saved to ${MODAL_DATA_PATH}`);
+        Logger.success(`TC366: Modal data captured: ${JSON.stringify(capturedData)}`);
 
         await reassignInvoicePage.cancelReassignModal();
 
-        // ── Second pass: re-open the same modal, re-capture, compare against JSON ──
         await reassignInvoicePage.openReassignModalForInvoice(invoiceNumber);
 
         const staticContentAgain = await reassignInvoicePage.captureStaticModalContent();
         const newProjectOptionsAgain = await reassignInvoicePage.getNewProjectOptions();
         const recapturedData = { ...staticContentAgain, newProjectOptions: newProjectOptionsAgain };
 
-        const savedData = loadModalData();
-        expect(recapturedData, 'Re-opened modal content must match the saved JSON snapshot').toEqual(savedData);
-        Logger.success('TC366: Re-opened modal content matches saved JSON snapshot');
+        expect(recapturedData, "Re-opened modal content must match this test's own first-pass capture").toEqual(capturedData);
+        Logger.success('TC366: Re-opened modal content matches first-pass capture');
 
-        // ── Walk every dropdown to the end (assert-only — pick any project/job/scope) ──
         const otherProject = newProjectOptionsAgain.find((p) => p !== staticContentAgain.currentProject) || newProjectOptionsAgain[0];
         await reassignInvoicePage.selectNewProject(otherProject);
         Logger.success(`TC366: Selected New Project "${otherProject}"`);
@@ -351,16 +268,11 @@ test.describe('Reassign Invoice', () => {
         const confirmEnabled = await reassignInvoicePage.isConfirmReassignmentEnabled();
         expect(confirmEnabled, 'Confirm Reassignment should enable once project/job/scope are all selected').toBe(true);
 
-        // Discard — this test only asserts the UI, it must never actually reassign a real invoice.
         await reassignInvoicePage.cancelReassignModal();
         Logger.success('TC366 passed: every Reassign Invoice modal field/dropdown asserted, JSON snapshot compared, dialog cancelled without saving');
     });
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // TC367 — Full Reassign Invoice E2E: create $5 invoice -> approve -> reassign
-    // to a different project/job -> verify it's gone from the original job.
-    // ──────────────────────────────────────────────────────────────────────────
-    test('TC367 @regression @reassignInvoice : Should create a $5 invoice, approve it, reassign it to another project/job, and verify it is removed from the original job', async () => {
+    test('TC367 @regression @reassignInvoice : Verify approved invoice reassignment between jobs and removal from original job', async () => {
         test.setTimeout(180000);
 
         Logger.step('TC367: Navigating to property -> first job -> Invoice tab');
@@ -373,9 +285,6 @@ test.describe('Reassign Invoice', () => {
         expect(invoiceNumber).toBeTruthy();
 
         await reassignInvoicePage.confirmAndApproveInvoice();
-
-        // getInvoiceStatus polls the already-rendered grid (expect(...).toPass()) instead of a
-        // fixed sleep + one-shot check, so this survives any lag between confirm and re-render.
         const status = await reassignInvoicePage.getInvoiceStatus(invoiceNumber);
         expect(status, `Invoice "${invoiceNumber}" should be Approved after confirming`).toMatch(/approved/i);
         Logger.success(`TC367: Invoice "${invoiceNumber}" status confirmed: "${status}"`);
@@ -403,18 +312,13 @@ test.describe('Reassign Invoice', () => {
         Logger.info(`TC367: Reassigning "${invoiceNumber}" -> project="${targetProject}", job="${targetJob}", scope="${targetScope}"`);
         await reassignInvoicePage.confirmReassignment();
 
-        // Polls (expect(...).toPass()) instead of a fixed sleep + one-shot read — the grid can
-        // take a moment to drop the row after the reassign toast fires.
         await reassignInvoicePage.waitForInvoiceAbsent(invoiceNumber);
         Logger.success(`TC367: "${invoiceNumber}" is no longer available under the original job "${originalJobName}"`);
 
-        // ── Verify the invoice now lives under the target project/job, with the same amount and status ──
         Logger.step(`TC367: Verifying "${invoiceNumber}" is now visible under target job "${targetJob}" (project "${targetProject}")`);
         await reassignInvoicePage.openJobOfProperty(PROPERTY_NAME, { jobName: targetJob });
         await reassignInvoicePage.openInvoiceTab();
 
-        // Single poll for the row (presence + amount + status all read from the same text) —
-        // avoids stacking three separate flaky one-shot checks after a navigation.
         const targetRowText = await reassignInvoicePage.waitForInvoiceRowText(invoiceNumber);
         const targetStatus = reassignInvoicePage.extractStatusFromRowText(targetRowText);
         expect(targetStatus, `"${invoiceNumber}" should still be Approved under "${targetJob}"`).toMatch(/approved/i);
@@ -424,10 +328,7 @@ test.describe('Reassign Invoice', () => {
         Logger.success(`TC367 passed: "${invoiceNumber}" reassigned from "${originalJobName}" to "${targetJob}" — verified absent from original job and present (same amount/status) in target job`);
     });
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // TC368 — Scenario 1: Reassign between two jobs within the SAME project.
-    // ──────────────────────────────────────────────────────────────────────────
-    test('TC368 @regression @reassignInvoice : Scenario 1 — Should reassign a $5 invoice between two jobs in the same project and verify every field/modal/dropdown', async () => {
+    test('TC368 @regression @reassignInvoice : Verify invoice reassignment between jobs within the same project', async () => {
         test.setTimeout(300000);
 
         Logger.step('TC368 (Scenario 1): Discovering a project with 2+ jobs on the property (no assumptions)');
@@ -474,10 +375,7 @@ test.describe('Reassign Invoice', () => {
         Logger.success(`TC368 passed: "${invoiceNumber}" reassigned within "${sameProject}" from "${sourceJobName}" to "${result.targetJob}" — same project confirmed, job changed, scope "${result.targetScope}" persisted, all fields unchanged`);
     });
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // TC369 — Scenario 2: Reassign between jobs across DIFFERENT projects.
-    // ──────────────────────────────────────────────────────────────────────────
-    test('TC369 @regression @reassignInvoice : Scenario 2 — Should reassign a $6 invoice across two different projects and verify every field/modal/dropdown', async () => {
+    test('TC369 @regression @reassignInvoice : Verify invoice reassignment across different projects', async () => {
         test.setTimeout(300000);
 
         Logger.step('TC369 (Scenario 2): Navigating to property -> first job -> Invoice tab');
@@ -514,10 +412,7 @@ test.describe('Reassign Invoice', () => {
         Logger.success(`TC369 passed: "${invoiceNumber}" reassigned from project "${result.sourceProject}"/job "${sourceJobName}" to project "${result.targetProject}"/job "${result.targetJob}" — project changed, job changed, scope "${result.targetScope}" persisted, exactly one copy exists`);
     });
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // TC370 — Scenario 3: Reassign to a job with multiple (>1) scopes.
-    // ──────────────────────────────────────────────────────────────────────────
-    test('TC370 @regression @reassignInvoice : Scenario 3 — Should reassign a $7 invoice to a job with multiple scopes and verify only the selected scope is used', async () => {
+    test('TC370 @regression @reassignInvoice : Verify invoice reassignment to a job with multiple scopes', async () => {
         test.setTimeout(300000);
 
         Logger.step('TC370 (Scenario 3): Navigating to property -> first job -> Invoice tab');
@@ -529,7 +424,6 @@ test.describe('Reassign Invoice', () => {
         const invoiceNumber = await createAndApproveInvoice(reassignInvoicePage, { title, description, amount: 7 });
         Logger.success(`TC370: Created and approved "${invoiceNumber}" ($7) on "${sourceJobName}"`);
 
-        // ── Discover (dynamically — no assumptions) a project/job whose Scope dropdown has >1 option ──
         Logger.step('TC370: Discovering a target job with more than one scope');
         await reassignInvoicePage.openReassignModalForInvoice(invoiceNumber);
         const discoveryStatic = await reassignInvoicePage.captureStaticModalContent();
@@ -583,9 +477,6 @@ test.describe('Reassign Invoice', () => {
             before: result.before,
         });
 
-        // "Not visible under non-selected scopes": the app models scope as a single current value
-        // per invoice (already confirmed === chosenScope by verifyReassignmentResult above) — any
-        // of the OTHER discovered scopes is therefore, by definition, not this invoice's scope.
         const otherScopes = multiScopeOptions.filter((s) => s !== chosenScope);
         expect(otherScopes.length, 'There should be at least one non-selected scope to contrast against').toBeGreaterThan(0);
         Logger.info(`TC370: Confirmed invoice scope is "${chosenScope}" only — not any of ${JSON.stringify(otherScopes)}`);
@@ -593,14 +484,7 @@ test.describe('Reassign Invoice', () => {
         Logger.success(`TC370 passed: "${invoiceNumber}" reassigned to multi-scope job "${multiScopeJob}" (${multiScopeOptions.length} scopes) — scope "${chosenScope}" selected and persisted, Confirm correctly gated on scope selection`);
     });
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // TC371 — Scenario 4: Reassign to a job WITH existing invoices, then again to a
-    // job WITH NO invoices — both target jobs discovered dynamically at runtime.
-    // ──────────────────────────────────────────────────────────────────────────
-    test('TC371 @regression @reassignInvoice : Scenario 4 — Should reassign a $8 invoice into a populated job and then into an empty job, verifying both destinations', async () => {
-        // Discovery scans every job on the property (each a full property->job navigation via
-        // the existing, unmodified openJobOfProperty), and this property's job count only grows
-        // over time as this suite (and others) keep running against it — budget generously.
+    test('TC371 @regression @reassignInvoice : Verify invoice reassignment between populated and empty jobs', async () => {
         test.setTimeout(900000);
 
         Logger.step('TC371 (Scenario 4): Discovering every job on the property and its current invoice count');
@@ -623,10 +507,6 @@ test.describe('Reassign Invoice', () => {
         const populatedProject = populatedCandidate.projectName;
         const populatedCountBefore = populatedCandidate.count;
 
-        // Prefer a genuinely empty job. This scenario itself permanently consumes empty jobs (it
-        // moves an invoice INTO whichever one it finds), so on a long-lived shared property this
-        // will eventually run out — when that happens, fall back to the least-populated *other*
-        // job so the suite keeps passing indefinitely on future runs, logged clearly either way.
         const emptyCandidate = counts.find((c) => c.count === 0 && c.jobName !== populatedJob);
         const fallbackCandidate = !emptyCandidate
             ? counts.filter((c) => c.jobName !== populatedJob).sort((a, b) => a.count - b.count)[0]
@@ -650,7 +530,6 @@ test.describe('Reassign Invoice', () => {
         const invoiceNumber = await createAndApproveInvoice(reassignInvoicePage, { title, description, amount: 8 });
         Logger.success(`TC371: Created and approved "${invoiceNumber}" ($8) on "${sourceJobName}"`);
 
-        // ── Leg 1: reassign into the POPULATED job ──────────────────────────────────
         const leg1 = await validateModalAndReassign(reassignInvoicePage, {
             invoiceNumber,
             expectedJob: sourceJobName,
@@ -673,15 +552,10 @@ test.describe('Reassign Invoice', () => {
             before: leg1.before,
         });
 
-        // Existing invoices in the populated job must remain untouched — count should be exactly +1,
-        // regardless of where among them our invoice ended up (invoice ordering does not matter).
-        // Reuse countInvoicesInJob (not a raw .count()) — the grid renders asynchronously and a
-        // bare count immediately after navigation can catch it mid-render (proven race, headed mode).
         const populatedCountAfter = await countInvoicesInJob(reassignInvoicePage, PROPERTY_NAME, populatedJob);
         expect(populatedCountAfter, `"${populatedJob}" should now have exactly one more invoice than before (existing invoices untouched)`).toBe(populatedCountBefore + 1);
         Logger.success(`TC371 (Leg 1): "${invoiceNumber}" reassigned into populated job "${populatedJob}" — row count ${populatedCountBefore} -> ${populatedCountAfter}, existing invoices untouched`);
 
-        // ── Leg 2: reassign the SAME invoice again, this time into the EMPTY job ────
         const leg2 = await validateModalAndReassign(reassignInvoicePage, {
             invoiceNumber,
             expectedJob: populatedJob,

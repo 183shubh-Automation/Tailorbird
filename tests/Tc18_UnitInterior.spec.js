@@ -3,7 +3,8 @@ const { test, expect } = require('@playwright/test');
 const { Logger } = require('../utils/logger');
 const { InteractionLogger } = require('../utils/InteractionLogger');
 const { UnitInteriorPage, JOB_NAME, JOB_ID } = require('../pages/unitInteriorPage');
-const { unitInteriorLocators } = require('../locators/unitInteriorLocator');
+const { unitInteriorLocators, unitInteriorElementStrategies } = require('../locators/unitInteriorLocator');
+const { healingLocator } = require('../utils/locatorHealer');
 const fixture = require('../fixture/unitInterior.json');
 const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 
@@ -23,12 +24,14 @@ test.use({
 let page;
 let po;   // UnitInteriorPage instance
 let loc;  // unitInteriorLocators instance
+let strategies; // unitInteriorElementStrategies instance
 
 // ── beforeEach: full UI navigation, no hardcoded job URL ──────────────────────
 test.beforeEach(async ({ page: testPage }) => {
     page = testPage;
     po   = new UnitInteriorPage(page);
     loc  = unitInteriorLocators(page);
+    strategies = unitInteriorElementStrategies(page);
 
     // Apply zoom for stable visuals
     page.on('domcontentloaded', async () => {
@@ -58,9 +61,9 @@ test.afterAll(() => {
 });
 
 // ── Suite ─────────────────────────────────────────────────────────────────────
-test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
+test.describe('Unit Interior', () => {
 
-    test('TC281 @sanity @regression Verify user is able to navigate from Jobs listing to Contracts Units tab and validate complete Units page UI including tabs, labels, CTAs, toolbar buttons, grid headers, unit statuses and action controls against fixture data',
+    test('TC281 @sanity @regression : Verify Units page navigation and UI elements, grid data, and actions',
         async () => {
             Logger.info('[TC_UI_001] START: Full navigation + fixture text assertions');
 
@@ -68,7 +71,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
             await test.step('S1: URL confirms Units sub-tab and breadcrumb contains job name', async () => {
                 const url = page.url();
                 expect(url, 'URL must include contractSubTab=units').toMatch(/contractSubTab=units/);
-                const mainText = await page.locator('main').textContent().catch(() => '');
+                const mainText = await healingLocator(strategies.mainContent).textContent().catch(() => '');
                 expect(mainText, `Breadcrumb must contain job name "${fixture.jobSearch.jobName}"`).toContain(fixture.jobSearch.jobName);
                 InteractionLogger.logCheckpoint('Navigation complete', `URL: ${url}`);
                 Logger.success(`[TC_UI_001-S1] URL and breadcrumb confirmed`);
@@ -79,7 +82,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
                 for (const label of fixture.contractSubTabs) {
                     await expect(
                         // exact: true prevents "Contract" matching the outer "Contracts" tab
-                        page.getByRole('tab', { name: label, exact: true }),
+                        healingLocator(strategies.contractSubTabByLabel(label)),
                         `Inner sub-tab "${label}" must be visible`,
                     ).toBeVisible({ timeout: 8000 });
                     InteractionLogger.logVisibility(`Inner sub-tab: "${label}"`, true);
@@ -93,8 +96,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
                 const overview = loc.contractsTabPanel;
                 for (const [key, label] of Object.entries(fixture.contractOverview)) {
                     if (label === fixture.contractOverview.editButtonCTA) continue; // handled separately
-                    const visible = await overview.getByText(label, { exact: true })
-                        .first()
+                    const visible = await healingLocator(strategies.overviewLabelText(overview, label))
                         .isVisible({ timeout: 5000 })
                         .catch(() => false);
                     InteractionLogger.logVisibility(`Overview field label "${label}"`, visible);
@@ -104,7 +106,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
                 // Edit button CTA — use .first() because multiple "Edit" buttons may exist in the panel
                 const editCTA = fixture.contractOverview.editButtonCTA;
                 await expect(
-                    overview.getByRole('button', { name: editCTA }).first(),
+                    healingLocator(strategies.overviewEditButton(overview, editCTA)),
                     `"${editCTA}" button must be visible in contract overview`,
                 ).toBeVisible({ timeout: 8000 });
                 InteractionLogger.logVisibility(`"${editCTA}" CTA`, true);
@@ -127,7 +129,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
                 const { editScopes, updateStatus, releaseUnits } = fixture.unitsTab.toolbarButtons;
                 for (const cta of [editScopes, updateStatus, releaseUnits]) {
                     await expect(
-                        page.getByRole('button', { name: cta }),
+                        healingLocator(strategies.toolbarButtonByLabel(cta)),
                         `Toolbar button "${cta}" must be visible`,
                     ).toBeVisible({ timeout: 8000 });
                     InteractionLogger.logVisibility(`Toolbar button "${cta}"`, true);
@@ -200,10 +202,10 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
             // ── S8: Unit Actions button ───────────────────────────────────────
             await test.step('S8: Unit actions button is present per row with correct label', async () => {
                 const label = fixture.unitsTab.unitActionsButtonLabel;
-                const first = page.getByRole('button', { name: label }).first();
+                const first = healingLocator(strategies.unitActionsButtonByLabel(label));
                 await expect(first, `"${label}" button must be visible in Actions column`).toBeVisible({ timeout: 8000 });
                 InteractionLogger.logVisibility(`"${label}" button`, true);
-                const count = await page.getByRole('button', { name: label }).count();
+                const count = await healingLocator(strategies.unitActionsButtonByLabel(label)).count();
                 Logger.info(`[TC_UI_001-S8] "${label}" button count: ${count} (one per data row expected)`);
                 expect(count, 'There must be at least 1 Unit actions button').toBeGreaterThan(0);
                 Logger.success(`[TC_UI_001-S8] "${label}" button confirmed`);
@@ -213,7 +215,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
         },
     );
 
-    test('TC282 @regression Verify selecting a non-expandable plain unit enables only Release Units action and keeps Update Status and Edit Scopes disabled, including validation of button reset after deselection',
+    test('TC282 @regression : Verify plain unit selection enables Release Units and resets actions after deselection',
         async () => {
             Logger.info('[TC_UI_002] START');
 
@@ -263,7 +265,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
         },
     );
 
-    test('TC283 @regression Verify selecting an expandable unit with scope data enables applicable unit actions and validates Update Status dropdown functionality by verifying all available status options, labels and ordering',
+    test('TC283 @regression : Verify expandable unit selection, available actions, and Update Status options',
         async () => {
             Logger.info('[TC_UI_003] START: Toggle row button states + dropdown option labels');
 
@@ -300,7 +302,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
                 Logger.success(`[TC_UI_003-S2] Release Units and Update Status enabled for unit ${activeToggleUnit}; Edit Scopes=${s.editScopes}`);
             });
 
-            await test.step('S3: Open dropdown and assert all 6 option CTAs match fixture (text + count)', async () => {
+            await test.step('S3: Open dropdown and assert all 5 option CTAs match fixture (text + count)', async () => {
                 const actualOptions = await po.getUpdateStatusOptions();
                 Logger.info(`[TC_UI_003-S3] Dropdown options: ${JSON.stringify(actualOptions)}`);
 
@@ -339,19 +341,19 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
         },
     );
 
-    test('TC284 @regression Verify Update Status functionality is working as expected by applying all supported status changes on units and validating updated grid status along with conditional status switching between multiple units',
+    test('TC284 @regression : Verify Update Status changes, grid updates, and status switching between units',
         async () => {
-            Logger.info('[TC_UI_004] START: Full Update Status E2E for all 6 options');
+            Logger.info('[TC_UI_004] START: Full Update Status E2E for all 5 options');
 
             const allOptions = fixture.unitsTab.updateStatusDropdown.options;
 
-            await test.step('S1: Cycle 5 restorable Update Status options on unit 105 — apply, verify grid, restore to Released between each', async () => {
-                // The 6 dropdown options include "Not in Reno" which the app treats as a one-way
+            await test.step('S1: Cycle 4 restorable Update Status options on unit 105 — apply, verify grid, restore to Released between each', async () => {
+                // The 5 dropdown options include "Not in Reno" which the app treats as a one-way
                 // de-release: it removes all scope associations so the Release Units dialog can no
-                // longer re-release that unit.  We test the 5 options that support the full
+                // longer re-release that unit.  We test the 4 options that support the full
                 // apply → verify → restore cycle.  "Not in Reno" is documented in TC_UI_003 as a
                 // visible option and its presence in the dropdown is already asserted.
-                const cyclableOptions = ['Not Started', 'In Progress', 'Completed', 'Cancelled', 'Released'];
+                const cyclableOptions = ['In Progress', 'Completed', 'Cancelled', 'Released'];
                 // ("Released" triggers the Release Units with Scopes dialog — valid path, keep it)
 
                 // Precondition: start from Released (recover from any previous test state)
@@ -417,19 +419,19 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
                 Logger.success('[TC_UI_004-S2] Unit 105 confirmed Released');
             });
 
-            await test.step('S3: Conditional In Progress ↔ Not Started toggle on units 105 + 106 (2 passes)', async () => {
+            await test.step('S3: Conditional In Progress ↔ Completed toggle on units 105 + 106 (2 passes)', async () => {
                 // First pass — applies whichever of the two is NOT current
-                const target1 = await po.updateStatusConditional([105, 106], 'In Progress', 'Not Started');
+                const target1 = await po.updateStatusConditional([105, 106], 'In Progress', 'Completed');
                 Logger.info(`[TC_UI_004-S3] Pass 1 target: "${target1}"`);
                 const s105a = await po.getUnitStatus(105);
                 const s106a = await po.getUnitStatus(106);
-                expect(['In Progress', 'Not Started'], `Status must be one of the two targets`).toContain(s105a);
+                expect(['In Progress', 'Completed'], `Status must be one of the two targets`).toContain(s105a);
                 expect(s105a, 'Units 105 and 106 must show same status').toBe(s106a);
                 Logger.info(`[TC_UI_004-S3] After pass 1 — 105: "${s105a}", 106: "${s106a}"`);
                 await po.clearAllSelections();
 
                 // Second pass — flips to the other one
-                const target2 = await po.updateStatusConditional([105, 106], 'In Progress', 'Not Started');
+                const target2 = await po.updateStatusConditional([105, 106], 'In Progress', 'Completed');
                 expect(target2, 'Second pass must flip to opposite').not.toBe(target1);
                 const s105b = await po.getUnitStatus(105);
                 InteractionLogger.logAssertion('Conditional', 'Status toggled', `!${target1}`, s105b ?? '', s105b !== target1);
@@ -438,11 +440,11 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
                 await po.clearAllSelections();
             });
 
-            Logger.success('[TC_UI_004] COMPLETE: All 6 Update Status options and conditional toggle tested E2E');
+            Logger.success('[TC_UI_004] COMPLETE: All 5 Update Status options and conditional toggle tested E2E');
         },
     );
 
-    test('TC285 @regression Verify Release Units functionality end-to-end by validating release dialog content, cancel flow, apply same scopes to all units functionality and successful release with updated unit status verification',
+    test('TC285 @regression : Verify Release Units dialog, scope selection, cancel flow, and unit release',
         async () => {
             Logger.info('[TC_UI_005] START: Release Units dialog full E2E');
 
@@ -633,7 +635,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
         },
     );
 
-    test('TC286 @regression Verify Units tab negative and edge scenarios including default disabled actions, invalid release attempts, search filtering, no-result handling and button state reset after selection changes',
+    test('TC286 @regression : Verify Units tab search, action states, invalid actions, and selection reset',
         async () => {
             Logger.info('[TC_UI_006] START: Negative and edge cases');
 
@@ -736,7 +738,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
         },
     );
 
-    test('TC287 @visual Visual testing scenarios for Units tab including initial load, plain vs toggle row selection states, and Release Units dialog appearance',
+    test('TC287 @visual : Verify Units tab visual states for selection and Release Units dialog',
         async () => {
             Logger.info('[TC_UI_007] START: Visual regression snapshots');
 
@@ -793,7 +795,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
         },
     );
 
-    test('TC288 @regression Verify filter functionality on Units tab — Status filter (Released and In Progress hardcoded), FP Type filter and Unit Type filter each reduce grid rows to matching records only, combined filters apply AND logic, and Clear all restores the full grid',
+    test('TC288 @regression : Verify Units tab filters, combined filtering, and Clear all behavior',
         async () => {
             Logger.info('[TC_UI_008] START: Filter functionality E2E');
 
@@ -1029,7 +1031,7 @@ test.describe('Unit Interior — Contracts > Units tab full E2E suite', () => {
         },
     );
 
-    test('TC289 @regression Verify FP type presence correlates with Released tag: unit whose bid has no FP type ("-") must not show Released tag; units whose bids have FP type set must show Released tag',
+    test('TC289 @regression : Verify FP type determines the Released status tag for units',
         async () => {
             Logger.info('[TC289] START — navigating to "FP type testing" job for FP type ↔ Released validation');
             await po.navigateToJobUnitsTab('FP type testing');

@@ -1,5 +1,6 @@
 const { expect } = require("@playwright/test");
-const { categoryPageLocators } = require("../locators/categoryPageLocator");
+const { categoryPageLocators, categoryElementStrategies, categoryGridCellByTextStrategies, categoryFilterCloseNearStrategies } = require("../locators/categoryPageLocator");
+const { healingLocator } = require("../utils/locatorHealer");
 
 class FinancialsCategoryPage {
     /**
@@ -9,6 +10,7 @@ class FinancialsCategoryPage {
         this.page = page;
         const L = categoryPageLocators(page);
         this.catLoc = L;
+        this.catStrategies = categoryElementStrategies(page);
 
         this.financialsNav = L.financialsNav;
         this.categoryLink = L.categoryLink;
@@ -82,8 +84,7 @@ class FinancialsCategoryPage {
         await this.page.waitForLoadState('domcontentloaded');
         await this.page.waitForTimeout(10000);
 
-        const contentIndicator = this.page.locator('table, [role="table"], [role="grid"], [role="treegrid"], button:has(svg.lucide-upload), [title="Import Data"], main')
-            .first();
+        const contentIndicator = healingLocator(this.catStrategies.contentReadyIndicator).first();
         await contentIndicator.waitFor({ state: 'visible', timeout: timeoutMs });
         await this.page.waitForTimeout(800);
     }
@@ -169,14 +170,14 @@ class FinancialsCategoryPage {
         await this.page.waitForLoadState("domcontentloaded");
         await this.page.waitForTimeout(10000);
 
-        const contentReady = this.page.locator('button:has(svg.lucide-upload), [title="Import Data"], button:has-text("Import Data")').first();
+        const contentReady = healingLocator(this.catStrategies.contentReadyIndicator).first();
         await contentReady.waitFor({ state: 'visible', timeout: 20000 });
         await this.page.waitForTimeout(1000);
 
-        const importMainBtn = this.page.locator('main').getByRole('button', { name: /^Import$/i }).first();
-        const uploadBtn = this.page.locator('button:has(svg.lucide-upload)').first();
-        const importBtn = this.importDataButton;
-        const importRoleBtn = this.page.getByRole('button', { name: 'Import Data' });
+        const importMainBtn = healingLocator(this.catStrategies.importMainBtn).first();
+        const uploadBtn = healingLocator(this.catStrategies.uploadIconBtn).first();
+        const importBtn = healingLocator(this.catStrategies.importDataButtonHealed).first();
+        const importRoleBtn = healingLocator(this.catStrategies.importRoleBtn).first();
 
         let clicked = false;
         for (let attempt = 1; attempt <= 3 && !clicked; attempt++) {
@@ -203,7 +204,7 @@ class FinancialsCategoryPage {
 
         await this.page.waitForTimeout(1500);
 
-        const fromDeviceBtn = this.page.getByRole('button', { name: 'From device' });
+        const fromDeviceBtn = healingLocator(this.catStrategies.fromDeviceBtn);
         await fromDeviceBtn.waitFor({ state: 'visible', timeout: 15000 });
 
         const [fileChooser] = await Promise.all([
@@ -213,7 +214,7 @@ class FinancialsCategoryPage {
         await fileChooser.setFiles(filePath);
 
         await this.page.waitForTimeout(2500);
-        const doneBtn = this.page.getByRole('button', { name: 'Done' });
+        const doneBtn = healingLocator(this.catStrategies.uploadDoneBtn);
         await doneBtn.waitFor({ state: 'visible', timeout: 10000 });
         await doneBtn.click();
         await this.page.waitForTimeout(10000);
@@ -261,18 +262,14 @@ class FinancialsCategoryPage {
 
         await this.page.waitForTimeout(10000);
 
-        const matchingCells = this.page.locator('[role="gridcell"]').filter({
-            hasText: filterValue
-        });
+        const matchingCells = healingLocator(categoryGridCellByTextStrategies(this.page, filterValue));
         const rowCount = await matchingCells.count();
 
         if (rowCount === 0) {
             throw new Error(`No rows found after filtering "${columnName}" with value "${filterValue}"`);
         }
 
-        const closeFilterBtn = this.page.locator('button:has(svg.lucide-x)').filter({
-            near: this.page.getByText('Filters', { exact: true })
-        }).first();
+        const closeFilterBtn = healingLocator(categoryFilterCloseNearStrategies(this.page)).first();
 
         if (await closeFilterBtn.isVisible().catch(() => false)) {
             await closeFilterBtn.click();

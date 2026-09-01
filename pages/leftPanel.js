@@ -3,8 +3,31 @@ const locators = require('../locators/leftPanelLocator');
 const { Logger } = require('../utils/logger');
 const { expect } = require('@playwright/test');
 const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
+const { healingLocator, logLocatorHealth } = require('../utils/locatorHealer');
 
 module.exports = {
+
+    /** Strategy definitions live in locators/leftPanelLocator.js (collapseContainerStrategies). */
+    _collapseContainerStrategies: function (page, parentLocator, label) {
+        return locators.collapseContainerStrategies(page, parentLocator, label);
+    },
+
+    /** Healed collapse-container locator for a given section label — same Locator API as before. */
+    getCollapseContainer: function (page, parentLocator, label) {
+        return healingLocator(this._collapseContainerStrategies(page, parentLocator, label));
+    },
+
+    /**
+     * Non-blocking diagnostic: logs which collapse-container strategy is currently
+     * live for a given section label. Never throws.
+     * @param {import('@playwright/test').Page} page
+     * @param {string} label
+     * @param {string} [contextLabel]
+     */
+    async checkCollapseContainerHealth(page, label, contextLabel = 'leftPanel') {
+        const parentLocator = page.locator('nav a.mantine-NavLink-root').filter({ hasText: label }).first();
+        return logLocatorHealth([{ label: `collapseContainer[${label}]`, strategies: this._collapseContainerStrategies(page, parentLocator, label) }], contextLabel);
+    },
 
     /**
      * Expand collapsible sections to reveal child items (for label collection)
@@ -15,7 +38,7 @@ module.exports = {
             try {
                 const parent = page.locator('nav a.mantine-NavLink-root').filter({ hasText: section }).first();
                 if (await parent.count() > 0 && await parent.isVisible().catch(() => false)) {
-                    const collapse = parent.locator(locators.collapseContainer);
+                    const collapse = this.getCollapseContainer(page, parent, section);
                     if (await collapse.count() > 0) {
                         const visible = await this.listVisibleSuboptions(collapse);
                         if (visible.length === 0) {
@@ -147,7 +170,7 @@ module.exports = {
      */
     getSectionLocators: async function (page, label) {
         const parent = page.locator(locators.leftPanelItem(label)).first();
-        const collapse = parent.locator(locators.collapseContainer);
+        const collapse = this.getCollapseContainer(page, parent, label);
         return { parent, collapse };
     },
 
@@ -173,7 +196,7 @@ module.exports = {
 
         if (directExists) {
             // Section is in main nav
-            const collapse = directParent.locator(locators.collapseContainer);
+            const collapse = this.getCollapseContainer(page, directParent, sectionLabel);
             await directParent.waitFor({ state: 'attached' });
             await directParent.scrollIntoViewIfNeeded();
             // Sections can take a while to render visible right after the panel is
@@ -317,8 +340,10 @@ module.exports = {
         }
         await page.waitForTimeout(300);
 
+        await this.checkCollapseContainerHealth(page, label, `runTwoClickTest[${label}]`);
+
         // Get collapse container
-        const collapse = directParent.locator(locators.collapseContainer);
+        const collapse = this.getCollapseContainer(page, directParent, label);
         const collapseExists = await collapse.count() > 0;
         
         if (!collapseExists) {

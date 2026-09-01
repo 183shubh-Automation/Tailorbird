@@ -134,8 +134,27 @@ class ReassignInvoicePage {
 
     // ── Invoice list helpers ─────────────────────────────────────────────────────
 
+    /**
+     * Forces the invoice list grid to a large width so revo-grid mounts every column
+     * (including "Status") instead of virtualizing the rightmost ones out of the DOM.
+     * MCP-verified live on https://beta.tailorbird.com/jobs/*?tab=invoices: without this,
+     * the grid renders only 8 columns (through "Gross Amount") — "Status" is dropped
+     * entirely, so extractStatusFromRowText() returns null even though the row is present.
+     */
+    async forceInvoiceGridFullWidth() {
+        const grid = this.loc.invoiceGridScope;
+        if (await grid.count().catch(() => 0)) {
+            await grid.first().evaluate((g) => {
+                g.style.setProperty('width', '3000px', 'important');
+                g.style.setProperty('min-width', '3000px', 'important');
+            }).catch(() => {});
+            await this.page.waitForTimeout(400);
+        }
+    }
+
     /** Returns the full text of the invoice's row (contains amount + status columns), or null if not found. */
     async getInvoiceRowText(invoiceNumber) {
+        await this.forceInvoiceGridFullWidth();
         const rows = this.loc.invoiceDataRows;
         const count = await rows.count().catch(() => 0);
         for (let i = 0; i < count; i++) {
@@ -166,12 +185,27 @@ class ReassignInvoicePage {
         return rowText;
     }
 
-    /** Polls until the invoice's row is confirmed absent from the current (unfiltered) grid. */
+    /**
+     * Polls until the invoice's row is confirmed absent from the current (unfiltered) grid.
+     * Falls back to a reload (same pattern as openReassignModalForInvoice's action-pane
+     * retry) if it's still showing after the polling window — MCP-verified: the grid doesn't
+     * always live-refetch after a reassignment, so a plain re-poll of the same stale DOM can
+     * spin for the full timeout even though the backend already moved the invoice.
+     */
     async waitForInvoiceAbsent(invoiceNumber, { timeout = 20000 } = {}) {
-        await expect(async () => {
-            const present = await this.isInvoiceInList(invoiceNumber);
-            expect(present, `Invoice "${invoiceNumber}" still present — expected it to be gone by now`).toBe(false);
-        }).toPass({ timeout, intervals: [1000, 2000, 3000] });
+        try {
+            await expect(async () => {
+                const present = await this.isInvoiceInList(invoiceNumber);
+                expect(present, `Invoice "${invoiceNumber}" still present — expected it to be gone by now`).toBe(false);
+            }).toPass({ timeout, intervals: [1000, 2000, 3000] });
+        } catch (err) {
+            await this.page.reload({ waitUntil: 'load' }).catch(() => {});
+            await this.page.waitForTimeout(2000);
+            await expect(async () => {
+                const present = await this.isInvoiceInList(invoiceNumber);
+                expect(present, `Invoice "${invoiceNumber}" still present after reload — expected it to be gone`).toBe(false);
+            }).toPass({ timeout: 15000, intervals: [1000, 2000, 3000] });
+        }
     }
 
     /** Extracts the Status column value (Draft/Pending Approval/Approved/Rejected) from a row's full text. */

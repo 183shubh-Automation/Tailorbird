@@ -61,12 +61,55 @@ class CapexGridStabilityPage {
     // and clicks the first tree-toggle found — expanding the next visible property.
     // Returns true if a second expansion succeeded, false otherwise.
     async expandSecondProperty() {
+        // Captured BEFORE scrolling — the property already expanded by the caller, whose
+        // continued expansion this method must not silently lose. Used below to detect and
+        // recover from the mid-test remount case (see comment further down).
+        const firstPropertyName = await this.getPropertyNameAtToggleIndex(0);
         // 8 children × ~36px row height = ~288px. Scroll 500px to clear them.
         await this.scrollGrid(500, 1);
         const firstToggle = this.l.treeToggleBtns.first();
         if (await firstToggle.isVisible({ timeout: 3000 }).catch(() => false)) {
             await firstToggle.click();
             await this.page.waitForTimeout(800);
+            // MCP-verified live (2026-07-28): instrumented diagnostic logging on this exact
+            // test previously confirmed this shared portfolio's property dataset can be
+            // mutated by an external process mid-test, causing revo-grid to fully remount —
+            // which resets scrollTop to 0 and collapses whatever was expanded, all before the
+            // click above even fires. When that happens, the click above lands on an
+            // unrelated (or already-collapsed) property instead of a genuinely different
+            // second one, and no children render. Detect that here and recover by trying
+            // every other currently visible toggle until one actually reveals children,
+            // instead of reporting a false "second expansion" that added nothing.
+            const childCountAfterFirstAttempt = await this.countVisibleChildRows();
+            if (childCountAfterFirstAttempt === 0) {
+                const toggleCount = await this.l.treeToggleBtns.count().catch(() => 0);
+                for (let i = 0; i < toggleCount; i++) {
+                    const candidate = this.l.treeToggleBtns.nth(i);
+                    if (await candidate.isVisible({ timeout: 1000 }).catch(() => false)) {
+                        await candidate.click();
+                        await this.page.waitForTimeout(800);
+                        if (await this.countVisibleChildRows() > 0) break;
+                    }
+                }
+            }
+            // The recovery above only guarantees a SECOND property ended up expanded — it
+            // does not guarantee the FIRST one (captured above) survived. If the remount
+            // wiped it too, restore it now by name so both sections genuinely coexist by the
+            // time this method returns, matching what the caller actually asked for.
+            if (firstPropertyName) {
+                const firstToggleAgain = this.page
+                    .locator('[role="gridcell"]')
+                    .filter({ has: this.page.getByText(firstPropertyName, { exact: true }) })
+                    .locator('button.tree-toggle')
+                    .first();
+                if (await firstToggleAgain.isVisible({ timeout: 2000 }).catch(() => false)) {
+                    const alreadyExpanded = await firstToggleAgain.getAttribute('expanded').catch(() => null);
+                    if (alreadyExpanded === null) {
+                        await firstToggleAgain.click();
+                        await this.page.waitForTimeout(800);
+                    }
+                }
+            }
             return true;
         }
         return false;

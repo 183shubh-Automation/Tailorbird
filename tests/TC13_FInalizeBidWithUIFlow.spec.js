@@ -29,8 +29,8 @@ test.use({
 
 const PROPERTY_TYPES = ['Garden Style', 'Mid Rise', 'High Rise', 'Military Housing'];
 
-test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
-    test('TC226 @regression @contract @finalizeBidUi @property @projectAndJob : E2E flow to finalize contract', async ({
+test.describe.serial('Finalize contract UI flow', () => {
+    test('TC224 @regression @contract @finalizeBidUi @property @projectAndJob : Verify E2E flow to finalize contract', async ({
         page,
     }) => {
         /** Long single journey; default 30s is insufficient. */
@@ -57,7 +57,7 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
         await page.waitForTimeout(1500);
         await ensureLeftPanelExpanded(page);
 
-        Logger.step('TC226: Create property + persist propertyData (TC14 core)');
+        Logger.step('TC224: Create property + persist propertyData (TC14 core)');
         await prop.goToProperties();
         await prop.createProperty(propertyName, address, city, state, zip, propertyType);
 
@@ -69,7 +69,7 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
         fs.writeFileSync(propertyDataPath, JSON.stringify(propertyPayload, null, 2));
         fs.writeFileSync(downloadsPropertyPath, JSON.stringify(propertyPayload, null, 2));
 
-        Logger.step('TC226: Budget revision + create project (TC31)');
+        Logger.step('TC224: Budget revision + create project (TC31)');
         const budgetDataPath = path.resolve(process.cwd(), 'files', 'budget_data_for_E2EFlow.csv');
         expect(fs.existsSync(budgetDataPath), 'files/budget_data_for_E2EFlow.csv must exist').toBeTruthy();
 
@@ -109,7 +109,7 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
         const projectDataPath = path.join(__dirname, '../data/projectData.json');
         const projectData = JSON.parse(fs.readFileSync(projectDataPath, 'utf8'));
 
-        Logger.step('TC226: Add job + contract overview edit + lastCreatedJob (TC37 trimmed)');
+        Logger.step('TC224: Add job + contract overview edit + lastCreatedJob (TC37 trimmed)');
         await projectPage.navigateToProjects();
         await projectPage.openProject(projectData.projectName);
         await projectJob.navigateToJobsTab();
@@ -202,28 +202,7 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
             )
         );
 
-        // Logger.step('TC226 Scenario 1: Assert Budget Category is prefilled when Add Contract is clicked');
-        // const addContractBtn = page.getByRole('button', { name: /Add Contract/i });
-        // await expect(addContractBtn).toBeVisible({ timeout: 10000 });
-        // if (selectedCategory) {
-        //     const beforeAddCount = await page
-        //         .getByRole('gridcell', { name: selectedCategory, exact: true })
-        //         .count();
-        //     await addContractBtn.click();
-        //     await page.waitForTimeout(2000);
-        //     const afterAddCount = await page
-        //         .getByRole('gridcell', { name: selectedCategory, exact: true })
-        //         .count();
-        //     expect(
-        //         afterAddCount,
-        //         `New contract row must have Budget Category "${selectedCategory}" prefilled`
-        //     ).toEqual(beforeAddCount);
-        //     Logger.success(`TC226 Scenario 1: Budget Category "${selectedCategory}" is prefilled in new contract row ✓`);
-        // } else {
-        //     Logger.info('TC226 Scenario 1: selectedCategory not captured — prefill assertion skipped');
-        // }
-
-        Logger.step('TC226 Scenario 2: Table → Manage Columns → hide Cost Item → assert hidden → restore');
+        Logger.step('TC224 Scenario 2: Table → Manage Columns → hide Cost Item → assert hidden → restore');
         const tableMenuBtn = page.getByRole('button', { name: 'Table' });
         await expect(tableMenuBtn).toBeVisible({ timeout: 10000 });
         await tableMenuBtn.click();
@@ -238,7 +217,7 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
             page.getByRole('columnheader', { name: 'Cost Item', exact: true }),
             '"Cost Item" column header must be hidden after unchecking in Manage Columns'
         ).not.toBeVisible({ timeout: 5000 });
-        Logger.success('TC226 Scenario 2: Cost Item column is hidden ✓');
+        Logger.success('TC224 Scenario 2: Cost Item column is hidden ✓');
         await manageColumnsDialog.getByText('Cost Item', { exact: true }).click();
         await page.waitForTimeout(1000);
         await manageColumnsDialog.getByRole('banner').getByRole('button').click();
@@ -247,15 +226,15 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
             page.getByRole('columnheader', { name: 'Cost Item', exact: true }),
             '"Cost Item" column header must be visible after re-enabling in Manage Columns'
         ).toBeVisible({ timeout: 5000 });
-        Logger.success('TC226 Scenario 2: Cost Item column restored ✓');
+        Logger.success('TC224 Scenario 2: Cost Item column restored ✓');
 
-        Logger.step('TC226: Jobs menu contract grid + finalize (TC47_NEW_UI)');
+        Logger.step('TC224: Jobs menu contract grid + finalize (TC47_NEW_UI)');
         await projectJob.runTc47NewUiContractFinalize(projectData);
 
-        Logger.success('TC226: Full chain completed');
+        Logger.success('TC224: Full chain completed');
     });
 
-    test('@ooo @e2e TC227-SETUP-APPROVAL-INVOICE Create an Invoice approval template with three required approvers on the TC258 property and submit a test invoice to prepare for the approval routing verification test', async ({ page }) => {
+    test('TC225 @ooo @e2e : Verify Invoice approval template with three required approvers and test invoice is created', async ({ page }) => {
         test.setTimeout(300000);
         Logger.step('TC-OOO-SETUP-APPROVAL-INVOICE: Start');
 
@@ -396,7 +375,7 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
     test.describe('TC260-APPROVAL-VERIFY — verify Other user can see the created approval for OUt of Office', () => {
         test.use({ storageState: _hasOtherSession15 ? 'OtherSessionState.json' : 'sessionState.json' });
 
-        test('TC228 @ooo @e2e TC-OOO-APPROVAL-VERIFY The test invoice shows up in All Approvals with the correct amount and Pending status and the Approval Details panel lists all three expected approvers with their individual statuses', async ({ page }) => {
+        test('TC226 @ooo @e2e : Verify invoice appears in All Approvals with amount and approver statuses', async ({ page }) => {
             test.skip(!_hasOtherSession15, 'OtherSessionState.json missing — provide a second authenticated user session to run this test');
             test.setTimeout(120000);
             Logger.step('TC-OOO-APPROVAL-VERIFY: Verify the setup invoice in All Approvals with all 3 approvers');
@@ -425,13 +404,14 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
             await expect(invoiceRow.getByText(invoiceAmountFormatted), `Amount "${invoiceAmountFormatted}" must be in the row`).toBeVisible({ timeout: 5000 });
             Logger.success(`TC-OOO-APPROVAL-VERIFY: Row found — ID="${invoiceId}", amount="${invoiceAmountFormatted}" ✓`);
 
-            const statusCell = invoiceRow.getByRole('gridcell').filter({ hasText: /pending/i }).first();
-            await expect(statusCell, 'Status cell must show Pending').toBeVisible({ timeout: 5000 });
-            const rawStatusText = await statusCell.innerText().catch(() => statusCell.textContent());
-            const statusText = (rawStatusText.match(/(Pending Approval|Pending Assignment|Pending|Approved|Rejected)/i)?.[0] || rawStatusText).trim();
-            expect(statusText, 'Status must be a pending variant').toMatch(/pending/i);
-            Logger.success(`TC-OOO-APPROVAL-VERIFY: Status is "${statusText}" ✓`);
-
+            // MCP-verified live (2026-07-29): the All Approvals grid no longer has a Status
+            // column at all — current columns are Property Name, Job, Approval Type, ID,
+            // Financial Type, Amount, Actions. A row-level gridcell search for "pending" text
+            // can never match regardless of the invoice's real approval state; the per-approver
+            // Pending/Skipped status only exists inside the "Approval Details" dialog opened
+            // below (verified live: "Eligible approvers: Sumit Mishra"/"Sumit Test" show
+            // "Pending Approval", "Sumit Harsh" shows "Skipped"). Move the pending-status
+            // assertion there instead of expecting it in the row.
             const viewDetailsBtn = page.getByRole('button', { name: 'View Details' }).first();
             await expect(viewDetailsBtn, '"View Details" must be visible').toBeVisible({ timeout: 10000 });
             await viewDetailsBtn.click();
@@ -447,6 +427,7 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
             Logger.success(`TC-OOO-APPROVAL-VERIFY: All 3 approvers confirmed — ${expectedApprovers.join(', ')} ✓`);
 
             const STATUS_VALUES = ['Pending Approval', 'Pending Assignment', 'Pending', 'Skipped', 'Rejected', 'Approved'];
+            const approverStatuses = [];
             for (const name of expectedApprovers) {
                 const nameEl = dialog.getByText(name, { exact: true }).first();
                 const approverStatus = await nameEl.evaluate((el, statuses) => {
@@ -463,7 +444,11 @@ test.describe.serial('Finalize bid / contract + OOO approval chain', () => {
                     return 'Unknown';
                 }, STATUS_VALUES);
                 Logger.info(`TC-OOO-APPROVAL-VERIFY: "${name}" → "${approverStatus}"`);
+                approverStatuses.push(approverStatus);
             }
+            const statusText = approverStatuses.find((s) => /pending/i.test(s)) || approverStatuses.join(', ');
+            expect(approverStatuses.some((s) => /pending/i.test(s)), 'At least one eligible approver must be in a pending state').toBe(true);
+            Logger.success(`TC-OOO-APPROVAL-VERIFY: Status is "${statusText}" ✓`);
 
             Logger.success(
                 `TC-OOO-APPROVAL-VERIFY PASSED — Invoice ${invoiceNumber} in All Approvals ` +

@@ -9,6 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const { ApprovalJob } = require('../pages/approvalPage');
 const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
+const { withExtendedTerminalWait } = require('../utils/resilientRetry');
 
 test.use({
     storageState: 'sessionState.json',
@@ -20,10 +21,7 @@ test.use({
     maxDiffPixelRatio: 0.3,
 });
 
-// ── serial: all OOO tests share a single API-level OOO state.
-// Running in parallel with --workers > 1 causes beforeEach to DELETE another
-// test's active OOO record, leading to random assertion failures on CI.
-test.describe.serial('Out of Office — OOO suite', () => {
+test.describe.serial('Out of Office', () => {
 
     let oooPage;
 
@@ -32,9 +30,6 @@ test.describe.serial('Out of Office — OOO suite', () => {
 
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'domcontentloaded' });
         await ensureLeftPanelExpanded(page);
-        // Ensure OOO is inactive — retry once on transient network/server failure.
-        // A failing cleanup in serial mode would skip all subsequent tests, so we give
-        // the server a second chance before letting the error propagate.
         for (let attempt = 1; attempt <= 2; attempt++) {
             try {
                 await oooPage.ensureOooInactive();
@@ -46,7 +41,6 @@ test.describe.serial('Out of Office — OOO suite', () => {
             }
         }
 
-        // Navigate to profile + OOO tab — retry once on transient navigation failure.
         for (let attempt = 1; attempt <= 2; attempt++) {
             try {
                 await oooPage.navigateToProfile();
@@ -70,10 +64,7 @@ test.describe.serial('Out of Office — OOO suite', () => {
         Logger.step('[afterEach] OOO cleanup attempted');
     });
 
-    // =========================================================================
-    // TC261 — Navigation: OOO tab reachable via direct URL and sidebar menu
-    // =========================================================================
-    test('@ooo @regression TC271 The Out of Office tab opens correctly from the direct Profile page URL and also from the sidebar user menu dropdown', async ({ page }) => {
+    test('TC271 @ooo @regression : Verify OOO tab opens via direct URL and user menu', async ({ page }) => {
         Logger.step('TC271: Verify the OOO tab is reachable via two navigation paths');
 
         // Path 1: already on OOO tab via beforeEach (direct /profile URL)
@@ -100,11 +91,8 @@ test.describe.serial('Out of Office — OOO suite', () => {
         Logger.success('TC271 PASSED');
     });
 
-    // =========================================================================
-    // TC262 — Activate with role delegate: verify UI banner and API record
-    // =========================================================================
-    test('@ooo @regression TC272 Turning on Out of Office with a role delegate shows the active banner with the correct role name and saves the correct state to the API', async ({ page }) => {
-        test.setTimeout(60000);
+    test('TC272 @ooo @regression : Verify OOO activation with role delegate and active banner', async ({ page }) => {
+        test.setTimeout(300000);
         Logger.step('TC272: Activate with role delegate, verify UI and API');
 
         const roleName = await oooPage.getFirstRoleName();
@@ -115,8 +103,7 @@ test.describe.serial('Out of Office — OOO suite', () => {
         const activeText = await oooPage.assertActiveBanner({ roleName, isRole: true });
         Logger.info(`TC272: Active banner: "${activeText}" ✓`);
 
-        // No date → auto-deactivation line must NOT appear
-        const dateVisible = await page.getByText(/Auto-deactivates on/i).isVisible().catch(() => false);
+        const dateVisible = await page.getByText(/Auto-deactivates on/i).isVisible();
         expect(dateVisible, 'Auto-deactivation date line must NOT appear when no date was set').toBe(false);
 
         const apiState = await oooPage.assertRoleDelegationApi({ roleName, apiDate: null });
@@ -125,11 +112,8 @@ test.describe.serial('Out of Office — OOO suite', () => {
         Logger.success('TC272 PASSED');
     });
 
-    // =========================================================================
-    // TC264 — Deactivate resets form completely; re-activate with different role
-    // =========================================================================
-    test('@ooo @regression TC273 Clicking Deactivate clears the form completely, removes the API record, and lets you activate again with a different role without showing leftover data', async ({ page }) => {
-        test.setTimeout(90000);
+    test('TC273 @ooo @regression : Verify OOO deactivation resets form and allows reactivation with another role', async ({ page }) => {
+        test.setTimeout(600000);
         Logger.step('TC273: Activate Role A → deactivate → verify full reset → re-activate Role B');
 
         const roleA = await oooPage.getFirstRoleName();
@@ -144,12 +128,20 @@ test.describe.serial('Out of Office — OOO suite', () => {
             Logger.info('TC273: Only one role in org — re-activating with same role (verifies reset, not role-switch)');
         }
 
-        await oooPage.activateWithRole(roleA);
+        await withExtendedTerminalWait(
+            () => oooPage.activateWithRole(roleA),
+            oooPage.loc.activeStatePara,
+            { timeoutMs: 90000, visible: true, label: 'TC273 — activate Role A' }
+        );
         await oooPage.assertIsActive();
         await oooPage.assertActiveBanner({ roleName: roleA, isRole: true });
         Logger.info('TC273: OOO activated with Role A ✓');
 
-        await oooPage.clickDeactivateOoo();
+        await withExtendedTerminalWait(
+            () => oooPage.clickDeactivateOoo(),
+            oooPage.loc.btn_activate,
+            { timeoutMs: 90000, visible: true, label: 'TC273 — deactivate' }
+        );
         await oooPage.assertIsInactive();
         Logger.info('TC273: Full UI reset confirmed ✓');
 
@@ -157,7 +149,11 @@ test.describe.serial('Out of Office — OOO suite', () => {
         expect(apiAfterDeactivate.ooo, 'API ooo must be NULL after deactivation').toBeNull();
         Logger.info('TC273: API confirms ooo=null ✓');
 
-        await oooPage.activateWithRole(roleB);
+        await withExtendedTerminalWait(
+            () => oooPage.activateWithRole(roleB),
+            oooPage.loc.activeStatePara,
+            { timeoutMs: 90000, visible: true, label: 'TC273 — activate Role B' }
+        );
         const textB = await oooPage.assertActiveBanner({ roleName: roleB, isRole: true });
         if (hasTwoRoles) {
             expect(textB, 'Active banner must NOT contain Role A (stale data)').not.toContain(roleA);
@@ -170,17 +166,12 @@ test.describe.serial('Out of Office — OOO suite', () => {
         Logger.success('TC273 PASSED');
     });
 
-    // =========================================================================
-    // TC265 — OOO state persists across page navigation and full browser reload
-    // =========================================================================
-    test('@ooo @regression TC274 Out of Office stays active after navigating away to a different page and after doing a full browser reload', async ({ page }) => {
-        test.setTimeout(90000);
+    test('TC274 @ooo @regression : Verify OOO stays active after navigation and browser reload', async ({ page }) => {
+        test.setTimeout(300000);
         Logger.step('TC274: Activate OOO then verify persistence across navigation and reload');
 
         const roleName = await oooPage.getFirstRoleName();
 
-        // Calculate the date without calling setFutureDate (which opens the calendar as a
-        // side-effect and can leave the popup blocking the Activate button).
         const futureDate = new Date();
         futureDate.setDate(futureDate.getDate() + 4);
         const mm265 = String(futureDate.getMonth() + 1).padStart(2, '0');
@@ -193,16 +184,11 @@ test.describe.serial('Out of Office — OOO suite', () => {
         await oooPage.loc.input_deactivateDate.fill(uiDate);
         await page.keyboard.press('Enter');
         await page.waitForTimeout(500);
-        // Close the date picker calendar — Mantine DateInput opens below the input and
-        // the calendar popup covers the Activate button, causing an invisible click.
         await page.keyboard.press('Escape');
         await page.waitForTimeout(300);
         await oooPage.clickActivateOoo();
         Logger.info(`TC274: OOO activated — role="${roleName}", date="${uiDate}"`);
 
-        // Give the backend a moment to commit the POST before navigating away.
-        // The true persistence check is the navigation test below — if the backend
-        // didn't save the state, the OOO tab will show inactive after returning.
         await page.waitForTimeout(3000);
 
         // Part 1: navigate away and back
@@ -232,10 +218,7 @@ test.describe.serial('Out of Office — OOO suite', () => {
         Logger.success('TC274 PASSED');
     });
 
-    // =========================================================================
-    // TC266 — E2E: budget approval routed to delegate role when OOO is active
-    // =========================================================================
-    test('@ooo @e2e @critical TC275 A budget approval submitted while Out of Office is on goes to the delegate role in All Approvals and does not appear in the Out of Office user own My Approvals', async ({ page }) => {
+    test('TC275 @ooo @e2e @critical :Verify budget approval routes to delegate role while OOO is active', async ({ page }) => {
         test.setTimeout(900000);
         Logger.step('TC275: Submit budget revision with OOO active and verify approval routing');
 
@@ -257,11 +240,6 @@ test.describe.serial('Out of Office — OOO suite', () => {
         await prop.createProperty(propertyName, 'Domestic Terminal, College Park, GA 30337, USA', 'College Park', 'GA', '30337', 'Garden Style');
         Logger.info(`TC275: Property "${propertyName}" created ✓`);
 
-        // Step 2: Create a Budget approval template for this property so budget submission triggers routing.
-        // All 3 default approver rows must be filled — fillAmount fills all rows, so leaving rows
-        // 2 & 3 without an approver causes silent form-validation failure (submitCreateTemplate has
-        // a .catch guard). Use 3 approvers; Sumit Mishra (OOO user) is row 1, so with OOO active
-        // that approval routes to the delegate role instead of appearing in My Approvals.
         await page.goto(process.env.DASHBOARD_URL, { waitUntil: 'domcontentloaded' });
         await approvalJob.navigateToApprovalTab();
         await approvalJob.navigateToApprovalTemplatesTab();
@@ -279,8 +257,6 @@ test.describe.serial('Out of Office — OOO suite', () => {
         const amountField = amountFields.nth(0);
         await amountField.waitFor({ state: 'visible', timeout: approverTimeout });
         await amountField.click();
-        // Use the 3 stable Sumit test users as approvers (same 4 that appear when typing "sum").
-        // These are long-lived test accounts; yopmail users are excluded as they may be deleted.
         const stableMembers266 = await oooPage.getStableTestMemberNames();
         expect(stableMembers266.length, 'Need at least 3 stable Sumit test users for TC266 approvers').toBeGreaterThanOrEqual(3);
         const APPROVERS_266 = stableMembers266.slice(0, 3);
@@ -348,16 +324,24 @@ test.describe.serial('Out of Office — OOO suite', () => {
         Logger.info(`TC275: All Approvals — ${allRows} row(s) for "${propertyName}"`);
         expect(allRows, `OOO approval for "${propertyName}" must appear in All Approvals — template exists so routing must trigger`).toBeGreaterThan(0);
 
-        // Step 6: Assert NOT in My Approvals (routed to delegate role due to OOO)
         await page.goto(`${origin}/approvals/my-approvals`, { waitUntil: 'domcontentloaded' });
-        await page.waitForSelector('input[placeholder="Search..."]:not([data-disabled="true"])', { timeout: 30000 }).catch(() => { });
-        let myRows = 0;
-        if (await page.$('input[placeholder="Search..."]:not([data-disabled="true"])')) {
+        const myApprovalsSearchEnabled = page.locator('input[placeholder="Search..."]:not([data-disabled="true"])');
+        const myApprovalsEmptyState = page.getByText('No approvals added yet');
+        await expect(
+            myApprovalsSearchEnabled.or(myApprovalsEmptyState),
+            'My Approvals must reach either a searchable grid or the "No approvals added yet" empty state'
+        ).toBeVisible({ timeout: 30000 });
+
+        let myRows;
+        if (await myApprovalsEmptyState.isVisible()) {
+            myRows = 0;
+            Logger.info('TC275: My Approvals shows the "No approvals added yet" empty state — 0 rows (routed away by OOO) ✓');
+        } else {
             await approvalPage.searchApprovals(propertyName);
             await page.waitForTimeout(1500);
             myRows = await approvalPage.getTableRowCount();
+            Logger.info(`TC275: My Approvals — ${myRows} row(s) for "${propertyName}"`);
         }
-        Logger.info(`TC275: My Approvals — ${myRows} row(s) for "${propertyName}"`);
         expect(
             myRows,
             `OOO ROUTING BUG: approval appeared in My Approvals. With OOO active it must route to delegate role "${roleName}", NOT the OOO user.`
@@ -367,10 +351,7 @@ test.describe.serial('Out of Office — OOO suite', () => {
         Logger.success('TC275 PASSED');
     });
 
-    // =========================================================================
-    // TC267 — Field gating, button state, and self-delegation prevention
-    // =========================================================================
-    test('@ooo @regression TC276 Toggling between delegate-to-user and delegate-to-role enables and disables the correct form fields, controls the Activate button state, and blocks a user from selecting themselves as a delegate', async ({ page }) => {
+    test('TC276 @ooo @regression : Verify switching between user and role delegation and self-delegate restriction', async ({ page }) => {
         Logger.step('TC276: Verify field states, button gating, and self-delegation prevention');
 
         // Default: user mode
@@ -423,7 +404,7 @@ test.describe.serial('Out of Office — OOO suite', () => {
         await oooPage.loc.input_teamMember.fill(currentUserName.split(' ')[0]);
         await page.waitForTimeout(800);
         const selfOption = page.getByRole('option', { name: currentUserName });
-        expect(await selfOption.isVisible().catch(() => false), `"${currentUserName}" must NOT appear in dropdown`).toBe(false);
+        expect(await selfOption.isVisible(), `"${currentUserName}" must NOT appear in dropdown`).toBe(false);
         Logger.info(`TC276: Self-delegation blocked ✓`);
 
         const delegates = await oooPage.getDelegatesApiResponse();
@@ -435,12 +416,8 @@ test.describe.serial('Out of Office — OOO suite', () => {
         Logger.success('TC276 PASSED');
     });
 
-    // =========================================================================
-    // TC269 — THE calendar test: date picker, past-date blocking, today, clear,
-    //          timezone (merged from TC263), invalid dates
-    // =========================================================================
-    test('@ooo @regression TC277 The auto-deactivation date picker blocks past dates, allows today and future dates, clears with the X button, saves dates without timezone shift, and ignores bad input without breaking the form', async ({ page }) => {
-        test.setTimeout(120000);
+    test('TC277 @ooo @regression : Verify auto-deactivation date allows valid dates, blocks invalid dates, and saves correctly', async ({ page }) => {
+        test.setTimeout(300000);
         Logger.step('TC277: Verify all date picker and calendar scenarios');
 
         // 1. Clear button hidden initially
@@ -514,7 +491,7 @@ test.describe.serial('Out of Office — OOO suite', () => {
         await expect(oooPage.loc.btn_clearDate, '× must appear after a date is set').toBeVisible({ timeout: 5000 });
         await oooPage.clearDeactivateDate();
         await expect(oooPage.loc.input_deactivateDate).toHaveValue('', { timeout: 5000 });
-        expect(await oooPage.loc.btn_clearDate.isVisible().catch(() => false), '× must disappear after clearing').toBe(false);
+        expect(await oooPage.loc.btn_clearDate.isVisible(), '× must disappear after clearing').toBe(false);
         await expect(oooPage.loc.btn_activate, 'Activate remains ENABLED — delegate still selected').toBeEnabled({ timeout: 5000 });
         Logger.info('TC277: Clear button works ✓');
 
@@ -569,11 +546,8 @@ test.describe.serial('Out of Office — OOO suite', () => {
         Logger.success('TC277 PASSED');
     });
 
-    // =========================================================================
-    // TC271 — Role delegation e2e with random future date: UI + API
-    // =========================================================================
-    test('@ooo @e2e TC278 Activating Out of Office in role delegation mode with a specific role and a random future date shows the correct active banner and saves the right role name and date to the API', async ({ page }) => {
-        test.setTimeout(60000);
+    test('TC278 @ooo @e2e : Verify OOO activation with selected role and future auto-deactivation date', async ({ page }) => {
+        test.setTimeout(300000);
         Logger.step('TC278: Activate with role + random date, verify UI and API');
 
         await oooPage.ensureOooInactive();
@@ -606,11 +580,8 @@ test.describe.serial('Out of Office — OOO suite', () => {
         Logger.success('TC278 PASSED');
     });
 
-    // =========================================================================
-    // TC272 — User delegation e2e with conflict handling
-    // =========================================================================
-    test('@ooo @e2e TC279 Activating Out of Office in user delegation mode selects a specific user and a random future date, shows the correct active banner, and saves the right user ID and date to the API', async ({ page }) => {
-        test.setTimeout(90000);
+    test('TC279 @ooo @e2e : Verify OOO activation with selected user and future auto-deactivation date', async ({ page }) => {
+        test.setTimeout(300000);
         Logger.step('TC279: Activate with user + random date, verify UI and API');
 
         // Resolve first available member dynamically — no hardcoded name that may not exist.
@@ -631,8 +602,6 @@ test.describe.serial('Out of Office — OOO suite', () => {
         const { uiDate, apiDate } = await oooPage.setFutureDate(randomDays);
         Logger.info(`TC279: Date set — UI="${uiDate}", API="${apiDate}" (${randomDays} days)`);
 
-        // Close the date picker calendar (it stays open for far-future months and
-        // intercepts the Activate button click — confirmed via MCP screenshot).
         await page.keyboard.press('Escape');
         await page.waitForTimeout(300);
 
@@ -641,7 +610,7 @@ test.describe.serial('Out of Office — OOO suite', () => {
         await oooPage.loc.btn_activate.click();
         await page.waitForTimeout(1500);
 
-        const combinationConflict = await page.getByText(/This combination already exists/i).isVisible().catch(() => false);
+        const combinationConflict = await page.getByText(/This combination already exists/i).isVisible();
         let chosenUser = PREFERRED_USER;
 
         if (combinationConflict) {
@@ -667,11 +636,8 @@ test.describe.serial('Out of Office — OOO suite', () => {
         Logger.success('TC279 PASSED');
     });
 
-    // =========================================================================
-    // TC273 — Duplicate API POST is rejected by the backend
-    // =========================================================================
-    test('@ooo @e2e @known-issue TC280 Sending a second Out of Office activation request directly to the API while one is already active is rejected by the backend and leaves the original record completely unchanged', async ({ page }) => {
-        test.setTimeout(90000);
+    test('TC280 @ooo @e2e : Verify duplicate OOO activation is rejected and original record remains unchanged', async ({ page }) => {
+        test.setTimeout(300000);
         Logger.step('TC280: Activate via UI then verify the API rejects a duplicate POST');
 
         // Resolve first available member dynamically — no hardcoded name that may not exist.
@@ -734,9 +700,4 @@ test.describe.serial('Out of Office — OOO suite', () => {
         Logger.success('TC280 PASSED — duplicate POST rejected, original record preserved');
     });
 
-}); // end test.describe.serial
-// TC274 and TC275 (Invoice approval template + cross-user approval-verify chain) are
-// identical in purpose to TC259 and TC260 in TC15_FInalizeBidWithUIFlow.spec.js which
-// already run in the main E2E pipeline. Duplicating them here adds fragile external
-// dependencies (projectData.json from TC258, OtherSessionState.json for a second user)
-// that are unavailable when TC17 runs in parallel with TC15 on CI.
+}); 

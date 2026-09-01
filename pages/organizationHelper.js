@@ -1,10 +1,23 @@
 const { expect } = require("@playwright/test");
 const organizationLocators = require("../locators/organization");
 const data = require("../fixture/organization.json");
+const { healingLocator } = require("../utils/locatorHealer");
 
 class OrganizationHelper {
   constructor(page) {
     this.page = page;
+  }
+
+  /**
+   * Healed "User actions" row-menu button. Strategy definitions live in
+   * locators/organization.js (userActionsButtonStrategies — 4 independent
+   * strategies, see that file for the MCP-verification rationale). `scope` lets
+   * callers pass a row-scoped locator (revoke's primary attempt) or the page
+   * itself (rowIndex-correlated fallback, openFirstMenu's fallback).
+   * @param {import('@playwright/test').Locator} scope
+   */
+  userActionsButton(scope) {
+    return healingLocator(organizationLocators.userActionsButtonStrategies(scope));
   }
 
   /**
@@ -233,15 +246,34 @@ class OrganizationHelper {
       }
       await this.page.waitForTimeout(2000);
       const confirmInvite = invitePanel.dialogRoot.getByRole("button", { name: data.inviteButtonText, exact: true });
+
+      // The app re-fetches the members list itself once an invite is accepted — confirmed live
+      // via MCP browser: GET /api/organization/users fires again right after the invite POST
+      // completes, with no manual reload needed. Wait for that instead of a hard page reload
+      // with networkidle (this repo's documented rule: never use networkidle — org/financial
+      // pages keep background network activity alive, so it hangs instead of resolving in CI).
+      // Registered before the submitting click below so a fast-firing refetch can't be missed.
+      const usersRefetchPromise = this.page.waitForResponse(
+        (res) => res.url().includes('/api/organization/users') && res.request().method() === 'GET' && res.status() === 200,
+        { timeout: 25_000 },
+      ).then(() => true).catch(() => false);
+
       if (await confirmInvite.isVisible({ timeout: 10_000 }).catch(() => false)) {
         await confirmInvite.evaluate((el) => el.click());
         // Wait for the invite dialog to close — signals the backend accepted the invite
         await invitePanel.dialogRoot.waitFor({ state: "hidden", timeout: 40_000 }).catch(() => {});
       }
-      // Reload to ensure the member table reflects the backend's latest state.
-      // Without this, a slow CI server may not push the new member row before the 120s wait expires.
-      await this.page.reload({ waitUntil: 'networkidle' }).catch(() => {});
-      await this.page.waitForTimeout(7500);
+
+      const refetched = await usersRefetchPromise;
+      if (!refetched) {
+        // Fallback safety net for a slow CI backend that doesn't auto-refresh in time — a real
+        // reload, but domcontentloaded + an explicit element wait, never networkidle.
+        this.log("Members list did not auto-refresh after invite — falling back to a reload.");
+        await this.page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
+        const appShell = this.page.locator('.mantine-AppShell-main, .mantine-AppShell-navbar, main').first();
+        await appShell.waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {});
+      }
+      await this.page.waitForTimeout(refetched ? 1500 : 7500);
       const inviteDialog = invitePanel.dialogRoot;
       if (
         await inviteDialog
@@ -350,8 +382,12 @@ class OrganizationHelper {
   async revoke(row, email) {
     try {
       this.log(`Revoking invitation for: ${email}`);
-      const menu = row.locator(organizationLocators.userActionsBtn);
-      await menu.click();
+      const menu = this.userActionsButton(row);
+      // Short timeout: this locator is scoped to the data-pane row and the "User actions"
+      // button lives in a structurally separate actions-pane row (MCP-verified live), so this
+      // can never resolve — waiting the full default timeout here only burns real-world time
+      // that risks the grid/DOM drifting before the (working) fallback below even starts.
+      await menu.click({ timeout: 3000 });
       this.log("Opened user action menu.");
       await this.page.locator(organizationLocators.menuItemRevoke).click();
       this.log("Clicked 'Revoke invite'.");
@@ -373,6 +409,44 @@ class OrganizationHelper {
       this.log(`Invitation revoked for ${email}.`);
     } catch (err) {
       this.log(`❌ ERROR revoking invitation for ${email}: ${err}`);
+      // MCP-verified live (2026-07-28): the Users tab now renders as a revo-grid instead of
+      // the native <table> these locators were written for. Each row is split across two
+      // separate DOM subtrees (a "data" pane and an "actions" pane) that both carry the same
+      // data-rgrow index but are NOT in an ancestor/descendant relationship — so
+      // row.locator(userActionsBtn) above can never find the actions pane's "User actions"
+      // button, no matter how long it waits. This fallback re-locates that button by
+      // correlating on the shared data-rgrow index instead, then completes the exact same
+      // revoke flow as above.
+      try {
+        const rowIndex = await row.getAttribute("data-rgrow");
+        if (rowIndex === null) throw err;
+        this.log(`Falling back to grid actions-pane lookup for row index ${rowIndex}...`);
+        const actionsPaneRow = this.page.locator(`[role="row"][data-rgrow="${rowIndex}"]`);
+        const actionsBtn = this.userActionsButton(actionsPaneRow).first();
+        await actionsBtn.click({ timeout: 15000 });
+        this.log("Opened user action menu (fallback).");
+        await this.page.locator(organizationLocators.menuItemRevoke).click();
+        this.log("Clicked 'Revoke invite' (fallback).");
+        const fallbackModal = this.page.locator(organizationLocators.modal);
+        await expect(fallbackModal).toBeVisible({ timeout: 5000 });
+        this.log("Revoke modal visible (fallback).");
+        const fallbackTitle = fallbackModal.locator(organizationLocators.modalTitle);
+        await expect(fallbackTitle).toHaveText(data.revokeDialogTitle);
+        this.log("Revoke dialog title validated (fallback).");
+        const fallbackExpectedMsg = this.fillDynamic(data.revokeDialogMessage, email);
+        const fallbackMsgLocator = fallbackModal.locator("p");
+        const fallbackActualMsg = (await fallbackMsgLocator.innerText()).trim();
+        this.log("Extracted message (fallback): " + fallbackActualMsg);
+        await expect(fallbackMsgLocator).toHaveText(fallbackExpectedMsg);
+        this.log("Revoke message validated (fallback).");
+        await fallbackModal.locator(`button:has-text("${data.revokeConfirmButton}")`).click();
+        this.log("Clicked revoke confirm (fallback).");
+        await fallbackModal.waitFor({ state: "hidden" });
+        this.log(`Invitation revoked for ${email} (fallback).`);
+        return;
+      } catch (fallbackErr) {
+        this.log(`❌ Fallback also failed revoking invitation for ${email}: ${fallbackErr}`);
+      }
       throw err;
     }
   }
@@ -395,10 +469,29 @@ class OrganizationHelper {
   async openFirstMenu() {
     try {
       this.log("Opening first row menu...");
-      await this.page.locator(organizationLocators.firstRowMenuBtn,{timeout:40000}).click();
+      // Short timeout: 'table tbody tr:first-child ...' can never match (no <table> renders
+      // anymore, MCP-verified live) — waiting a long timeout here only burns real-world time
+      // that risks the grid/DOM drifting before the (working) fallback below even starts.
+      // (The {timeout:40000} previously here was passed to .locator(), which doesn't accept
+      // that option, so .click() was actually still using the ~55s default action timeout.)
+      await this.page.locator(organizationLocators.firstRowMenuBtn).click({ timeout: 3000 });
       this.log("First row menu opened.");
     } catch (err) {
       this.log("ERROR opening first row menu: " + err);
+      // MCP-verified live (2026-07-28): the Users tab no longer renders a native <table> at
+      // all — it's a revo-grid now — so 'table tbody tr:first-child ...' can never match a
+      // single element, regardless of timeout. Fall back to the grid's own first row
+      // (data-rgrow="0") and its row-index-correlated actions-pane "User actions" button.
+      try {
+        this.log("Falling back to grid actions-pane lookup for the first row...");
+        const firstActionsPaneRow = this.page.locator('[role="row"][data-rgrow="0"]');
+        const actionsBtn = this.userActionsButton(firstActionsPaneRow).first();
+        await actionsBtn.click({ timeout: 15000 });
+        this.log("First row menu opened (fallback).");
+        return;
+      } catch (fallbackErr) {
+        this.log("❌ Fallback also failed opening first row menu: " + fallbackErr);
+      }
       throw err;
     }
   }
@@ -408,10 +501,12 @@ class OrganizationHelper {
       this.log(`Initiating resend invite for: ${email}`);
       await this.page.locator(organizationLocators.menuItemResend).click();
       this.log("Clicked Resend.");
-      const firstDialog = this.page.getByRole("alertdialog").filter({ hasText: data.resendDialogTitle });
+      // MCP-verified live (2026-07-29): the resend confirmation is a Mantine Modal —
+      // role="dialog" (not "alertdialog"), with its title in an <h2> (not <h1>).
+      const firstDialog = this.page.getByRole("dialog").filter({ hasText: data.resendDialogTitle });
       await expect(firstDialog).toBeVisible();
       this.log("First Resend dialog visible.");
-      await expect(firstDialog.locator("h1")).toHaveText(data.resendDialogTitle);
+      await expect(firstDialog.locator("h2")).toHaveText(data.resendDialogTitle);
       this.log("First title validated.");
       const expectedMsg = this.fillDynamic(data.resendDialogMessage, email);
       const msgLocator = firstDialog.locator("p");
@@ -429,22 +524,27 @@ class OrganizationHelper {
 
   async verifyResendSuccess(email) {
     try {
-      this.log("Verifying resend success second dialog...");
-      const secondDialog = this.page.getByRole("dialog").filter({ hasText: data.resendSuccessTitle });
-      await expect(secondDialog).toBeVisible();
-      this.log("Second dialog visible.");
-      await expect(secondDialog.locator("h1")).toHaveText(data.resendSuccessTitle);
-      this.log("Second title validated.");
+      this.log("Verifying resend success notification...");
+      // MCP-verified live (2026-07-29): the post-resend confirmation is a Mantine
+      // Notification toast — role="alert" (not "dialog"), no heading tag at all (title is
+      // a plain div), and it auto-dismisses on its own after a few seconds, so this must
+      // grab it immediately after resendInvite() returns rather than assuming it lingers.
+      const secondDialog = this.page.getByRole("alert").filter({ hasText: data.resendSuccessTitle });
+      await expect(secondDialog).toBeVisible({ timeout: 8000 });
+      this.log("Success notification visible.");
+      await expect(secondDialog.getByText(data.resendSuccessTitle, { exact: true })).toBeVisible();
+      this.log("Title validated.");
       const expectedMsg = this.fillDynamic(data.resendSuccessMessage, email);
-      const msgLocator = secondDialog.locator("p");
-      const actualMsg = (await msgLocator.innerText()).trim();
-      this.log("Second message: " + actualMsg);
-      await expect(msgLocator).toHaveText(expectedMsg);
-      this.log("Second message validated.");
-      await secondDialog.locator(`button:has-text("${data.resendSuccessCloseButton}")`).click();
+      const actualMsg = (await secondDialog.innerText()).trim();
+      this.log("Message: " + actualMsg);
+      expect(actualMsg).toContain(expectedMsg);
+      this.log("Message validated.");
+      // The close (X) button has no accessible name here — it's icon-only — so target it
+      // structurally (the notification's own button) instead of by text.
+      await secondDialog.getByRole("button").first().click();
       this.log("Clicked Close.");
       await expect(this.page.getByRole("dialog")).toBeHidden({ timeout: 5000 });
-      await expect(this.page.getByRole("alertdialog")).toBeHidden({ timeout: 5000 });
+      await expect(secondDialog).toBeHidden({ timeout: 5000 });
       this.log("Both dialogs closed.");
     } catch (err) {
       this.log("❌ ERROR verifying resend success: " + err);

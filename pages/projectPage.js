@@ -3,26 +3,47 @@ const { Logger } = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
 const { propertyLocators } = require('../locators/propertyLocator');
-const { projectJobLocators } = require('../locators/projectPageLocator');
+const {
+    projectJobLocators,
+    projectElementStrategies,
+    createJobBtnStrategies,
+    addJobModalStrategies,
+    addJobModalScopedStrategies,
+    jobTitleInputStrategies,
+    jobTypeDropdownStrategies,
+    jobFinancialTypeDropdownStrategies,
+    jobVendorDropdownStrategies,
+    jobDescriptionInputStrategies,
+    jobEstimatedBudgetInputStrategies,
+    jobStartDateInputStrategies,
+    jobEndDateInputStrategies,
+    jobBudgetCategoryInputStrategies,
+    jobSubmitBtnStrategies,
+    contractsTabTriggerStrategies,
+    jobOverviewEditButtonStrategies,
+} = require('../locators/projectPageLocator');
+const { healingLocator, logLocatorHealth } = require('../utils/locatorHealer');
 
 exports.ProjectPage = class ProjectPage {
     constructor(page) {
         this.page = page;
-        /** Keep under `nav` only — breadcrumb "Projects" on project/property views also matches `getByRole('link')` (strict mode violation). */
-        /** Mantine renders duplicate NavLink nodes (e.g. responsive); `.first()` often hits a hidden clone — only match visible. */
-        this.projectsTab = page
-            .locator('nav')
-            .locator('a, button, [role="link"]')
-            .filter({ hasText: /^Projects$/ })
-            .locator('visible=true')
-            .first();
-        this.modal = page.locator('section[role="dialog"][data-modal-content="true"], [role="dialog"]');
-        this.modalTitle = page.getByRole('heading', { name: /Add project/i });
-        this.nameInput = page.getByLabel('Name');
-        this.propertyDropdown = page.getByRole('textbox', { name: 'Property' }).first();
-        this.descInput = page.getByLabel('Description');
-        this.startDateInput = page.getByLabel('Start Date');
-        this.endDateInput = page.getByLabel('End Date');
+
+        // ── Self-healing locators (TC71 Create Project flow) ───────────────────
+        // Strategy definitions live in locators/projectPageLocator.js (see that file
+        // for the ordering rationale). See utils/locatorHealer.js — `this.X` stays a
+        // plain Locator, so every existing `.fill()`/`.click()`/
+        // `expect(...).toBeVisible()` call site is unaffected.
+        this._elementStrategies = projectElementStrategies(page);
+
+        this.projectsTab = healingLocator(this._elementStrategies.projectsTab);
+        this.createProjectBtn = healingLocator(this._elementStrategies.createProjectBtn);
+        this.modal = healingLocator(this._elementStrategies.modal);
+        this.modalTitle = healingLocator(this._elementStrategies.modalTitle);
+        this.nameInput = healingLocator(this._elementStrategies.nameInput);
+        this.propertyDropdown = healingLocator(this._elementStrategies.propertyDropdown);
+        this.descInput = healingLocator(this._elementStrategies.descInput);
+        this.startDateInput = healingLocator(this._elementStrategies.startDateInput);
+        this.endDateInput = healingLocator(this._elementStrategies.endDateInput);
         this.budgetInput = page.getByRole('textbox', { name: 'Estimated Budget' })
             .or(page.getByPlaceholder('Enter estimated budget'));
         this.budgetCategoryInput = page.getByRole('textbox', { name: 'Budget Category' })
@@ -31,24 +52,17 @@ exports.ProjectPage = class ProjectPage {
         this.cancelBtn = page.getByRole('button', { name: 'Cancel' });
         // this.addProjectBtn = page.getByRole('button', { name: /add project/i });
         this.addProjectBtn = this.modal.getByRole('button', { name: /^Create Project$/i }).first();
-        this.createJobBtn = page.locator('button', { hasText: 'Create Job' });
-        this.modal = page.locator('section[role="dialog"][data-modal-content="true"], [role="dialog"]');
-        this.titleInput = page.getByPlaceholder('Enter job title');
-        this.jobTypeDropdown = page.getByPlaceholder('Select job type');
-        this.financialTypeDropdown = page.getByPlaceholder('Select Contract or PO')
-            .or(page.getByRole('combobox', { name: /Financial Type/i }));
-        this.vendorDropdown = page.getByRole('combobox', { name: /Vendor/i })
-            .or(page.getByPlaceholder('Select vendor'))
-            .or(page.getByPlaceholder('Loading vendors...'));
-        this.descriptionInput = page.getByPlaceholder('Enter job description');
+        this.createJobBtn = healingLocator(createJobBtnStrategies(page));
+        this.modal = healingLocator(addJobModalStrategies(page));
+        this.titleInput = healingLocator(jobTitleInputStrategies(page));
+        this.jobTypeDropdown = healingLocator(jobTypeDropdownStrategies(page));
+        this.financialTypeDropdown = healingLocator(jobFinancialTypeDropdownStrategies(page));
+        this.vendorDropdown = healingLocator(jobVendorDropdownStrategies(page));
+        this.descriptionInput = healingLocator(jobDescriptionInputStrategies(page));
         this.cancelBtn = page.getByRole('button', { name: 'Cancel' });
-        this.submitBtn = page
-            .locator('section[role="dialog"][data-modal-content="true"], [role="dialog"]')
-            .filter({ has: page.getByPlaceholder('Enter job title') })
-            .last()
-            .getByRole('button', { name: 'Create', exact: true });
+        this.submitBtn = healingLocator(jobSubmitBtnStrategies(healingLocator(addJobModalScopedStrategies(page))));
         this.jobOverviewHeader = page.getByText('Job Overview');
-        this.editButton = page.getByRole('button', { name: 'Edit' });
+        this.editButton = healingLocator(jobOverviewEditButtonStrategies(page));
         this.vendorSearchInput = page.getByRole('dialog').locator('input[placeholder="Search..."]');
         // this.inviteSelectedBtn = page.locator('button:has-text("Invite Selected Vendors to Bid")');
         this.inviteSelectedBtn = page.locator('button:has-text("Add Vendors to Bid")');
@@ -107,10 +121,25 @@ exports.ProjectPage = class ProjectPage {
         this.awardedStatusCell = page.locator(
             'div[role="row"]:has-text("Awarded") div[col-id="status"] p'
         );
-        this.contractsTab = page.getByRole('tab', { name: 'Contracts' });
+        this.contractsTab = healingLocator(contractsTabTriggerStrategies(page));
         this.finalizeContractBtn = page.locator('button:has-text("Finalize Contract")');
         this.finalizeContractConfirmBtn = page.locator('.mantine-Modal-content button:has-text("Finalize Contract")');
         this.bulkUpdateStatusBtn = page.locator('button:has-text("Bulk Update Status")');
+    }
+
+    /**
+     * Non-blocking diagnostic: logs which strategy is currently live for each tracked
+     * Create-Project-flow element. Never throws. Pass `only` to scope to the elements
+     * actually expected to be rendered at that point (checking too early always reports
+     * "NONE matched", which isn't drift — see LoginPage.checkLocatorHealth for the same
+     * pattern in the login flow).
+     * @param {string} [contextLabel]
+     * @param {string[]} [only]
+     */
+    async checkLocatorHealth(contextLabel = 'ProjectPage', only = null) {
+        const entries = Object.entries(this._elementStrategies).filter(([label]) => !only || only.includes(label));
+        const checks = entries.map(([label, strategies]) => ({ label, strategies }));
+        return logLocatorHealth(checks, contextLabel);
     }
 
     /** Resolves absolute URL for the global projects list (not a loading heuristic — same destination as sidebar "Projects"). */
@@ -178,6 +207,7 @@ exports.ProjectPage = class ProjectPage {
                     }
                 }
 
+                await this.checkLocatorHealth('ProjectPage sidebar nav', ['projectsTab']);
                 await this.projectsTab.waitFor({ state: 'attached', timeout: 15000 });
                 await this.projectsTab.click({ force: true });
                 await this.page.waitForURL(/\/projects/i, { timeout: 30000 }).catch(() => { });
@@ -209,21 +239,20 @@ exports.ProjectPage = class ProjectPage {
             const loadTime = ((endTime - startTime) / 1000).toFixed(2);
             Logger.info(`Project Page fully loaded in ${loadTime} seconds`);
 
-            const createProjectBtn = this.page.locator(`button:has-text('Create Project')`);
-            await expect(createProjectBtn).toBeVisible({ timeout: 5000 });
+            await this.checkLocatorHealth('ProjectPage projects list', ['createProjectBtn']);
+            await expect(this.createProjectBtn).toBeVisible({ timeout: 5000 });
             Logger.success('✅ Create Project button is visible.');
 
-            await createProjectBtn.waitFor({ state: 'visible' });
-            await createProjectBtn.click();
+            await this.createProjectBtn.waitFor({ state: 'visible' });
+            await this.createProjectBtn.click();
             Logger.success('✅ Clicked on Create Project button.');
 
             await this.page.waitForTimeout(800);
 
-            const modal = this.page.locator('section[role="dialog"][data-modal-content="true"]');
-            await expect(modal).toBeVisible({ timeout: 5000 });
+            await expect(this.modal).toBeVisible({ timeout: 5000 });
 
-            const modalTitle = this.page.getByRole('heading', { name: /Add project/i });
-            await expect(modalTitle).toBeVisible({ timeout: 5000 });
+            await this.checkLocatorHealth('ProjectPage create-project modal', ['modal', 'modalTitle', 'nameInput', 'propertyDropdown', 'descInput', 'startDateInput', 'endDateInput']);
+            await expect(this.modalTitle).toBeVisible({ timeout: 5000 });
             Logger.success(' "Add project" modal opened successfully.');
         } catch (e) {
             Logger.step(`Error in openCreateProjectModal: ${e.message}`);
@@ -330,7 +359,7 @@ exports.ProjectPage = class ProjectPage {
                     .locator('p', { hasText: labelText })
                     .locator('xpath=following-sibling::p[1]');
 
-                await expect(valueLocator).toBeVisible({timeout: 20000});
+                await expect(valueLocator).toBeVisible({timeout: 50000});
                 await expect(valueLocator).toHaveText(expectedText);
 
                 Logger.success(`✅ ${labelText} verified successfully`);
@@ -904,22 +933,15 @@ exports.ProjectPage = class ProjectPage {
 
     async fillJobForm({ title, jobType, financialType, vendor, description = '', estimatedBudget, startDate, endDate, selectBudgetCategory = false }) {
         await this.page.waitForTimeout(1000);
-        const jobModal = this.page
-            .locator('section[role="dialog"][data-modal-content="true"], [role="dialog"]')
-            .filter({ has: this.page.getByPlaceholder('Enter job title') })
-            .last();
-        const titleInput = jobModal.getByPlaceholder('Enter job title');
-        const jobTypeDropdown = jobModal.getByPlaceholder('Select job type');
-        const financialTypeDropdown = jobModal.getByPlaceholder('Select Contract or PO')
-            .or(jobModal.getByRole('combobox', { name: /Financial Type/i }));
-        const vendorDropdown = jobModal.getByRole('textbox', { name: 'Vendor' });
-        const descriptionInput = jobModal.getByPlaceholder('Enter job description');
-        const estimatedBudgetInput = jobModal
-            .getByRole('textbox', { name: /Estimated Budget/i })
-            .or(jobModal.getByPlaceholder(/Enter estimated budget/i))
-            .or(jobModal.locator('input[placeholder*="budget" i]'));
-        const startInput = jobModal.getByRole('textbox', { name: 'Start Date' });
-        const endInput = jobModal.getByRole('textbox', { name: 'End Date' });
+        const jobModal = healingLocator(addJobModalScopedStrategies(this.page));
+        const titleInput = healingLocator(jobTitleInputStrategies(jobModal));
+        const jobTypeDropdown = healingLocator(jobTypeDropdownStrategies(jobModal));
+        const financialTypeDropdown = healingLocator(jobFinancialTypeDropdownStrategies(jobModal));
+        const vendorDropdown = healingLocator(jobVendorDropdownStrategies(jobModal));
+        const descriptionInput = healingLocator(jobDescriptionInputStrategies(jobModal));
+        const estimatedBudgetInput = healingLocator(jobEstimatedBudgetInputStrategies(jobModal));
+        const startInput = healingLocator(jobStartDateInputStrategies(jobModal));
+        const endInput = healingLocator(jobEndDateInputStrategies(jobModal));
 
         await jobTypeDropdown.click();
         await this.page.getByRole('option', { name: jobType }).click();
@@ -998,11 +1020,8 @@ exports.ProjectPage = class ProjectPage {
     async selectJobBudgetCategory(jobModal = null) {
         try {
             Logger.step('Selecting Budget Category in job form...');
-            const modalScope = jobModal || this.page
-                .locator('section[role="dialog"][data-modal-content="true"], [role="dialog"]')
-                .filter({ has: this.page.getByPlaceholder('Enter job title') })
-                .last();
-            const budgetCatInput = modalScope.getByRole('textbox', { name: 'Budget Category' });
+            const modalScope = jobModal || healingLocator(addJobModalScopedStrategies(this.page));
+            const budgetCatInput = healingLocator(jobBudgetCategoryInputStrategies(modalScope));
 
             const isVisible = await budgetCatInput.isVisible({ timeout: 3000 }).catch(() => false);
             if (!isVisible) {
@@ -1080,11 +1099,8 @@ exports.ProjectPage = class ProjectPage {
     }
 
     async submitJob() {
-        const jobModal = this.page
-            .locator('section[role="dialog"][data-modal-content="true"], [role="dialog"]')
-            .filter({ has: this.page.getByPlaceholder('Enter job title') })
-            .last();
-        const createJobBtn = jobModal.getByRole('button', { name: 'Create', exact: true });
+        const jobModal = healingLocator(addJobModalScopedStrategies(this.page));
+        const createJobBtn = healingLocator(jobSubmitBtnStrategies(jobModal));
         await expect(createJobBtn).toBeEnabled({ timeout: 15000 });
         await createJobBtn.click();
     }

@@ -9,8 +9,9 @@ import { getPropertyName } from '../utils/propertyUtils';
 import testData from '../fixture/property.json';
 const uiMessages = require('../fixture/tailorbirdUiMessages.json');
 const loc = require('../locators/locationLocator');
-const { verifyColumnContentDoesNotWrap } = require('../utils/columnResizeHelper');
-import { propertyLocators } from '../locators/propertyLocator.js';
+const { verifyColumnContentDoesNotWrap, forceGridFullWidth } = require('../utils/columnResizeHelper');
+import { propertyLocators, filterButtonStrategies, filterCloseButtonStrategies, assetViewerTabStrategies, dropdownInputByLabelStrategies, exportButtonStrategies } from '../locators/propertyLocator.js';
+const { healingLocator } = require('../utils/locatorHealer');
 const { ProjectPage } = require('../pages/projectPage');
 const { AddColumnPage } = require('../pages/addColumnPage');
 const { Logger } = require('../utils/logger');
@@ -83,10 +84,10 @@ test.afterAll(async () => {
   if (context) await context.close();
 });
 
-test.describe('PROPERTY FLOW TEST SUITE', () => {
+test.describe('PROPERTY', () => {
   test.describe.configure({ retries: 1 });
 
-  test('@sanity @mandatory @regression @property @contract TC49 - Validate Property Export Functionality and New Property Creation', async () => {
+  test('TC49 @sanity @mandatory @regression @property @contract - Validate Property Export Functionality and New Property Creation', async () => {
     await test.step('Table View â€” BirdTable toolbar (Export) is available', async () => {
       await prop.changeView(testData.viewName);
     });
@@ -124,17 +125,18 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     });
   });
 
-  test('@regression @property TC50 - Change Property View and Validate Search Results', async () => {
+  test('TC50 @regression @property - Change Property View and Validate Search Results', async () => {
     const propertyName = getPropertyName();
     await prop.changeView(testData.viewName);
     await prop.searchProperty(propertyName);
     await prop.clearSearch("");
   });
 
-  test('@sanity @property @regression TC51 - Validate Filters: Garden, Mid-Rise, High-Rise, and Military', async () => {
+  test('TC51 @sanity @property @regression - Validate Filters: Garden, Mid-Rise, High-Rise, and Military', async () => {
     await prop.changeView(testData.viewName);
-    await page.locator(propertyLocators.birdTableFilterButton).waitFor({ state: 'visible' });
-    await page.locator(propertyLocators.birdTableFilterButton).click();
+    const filterBtn = healingLocator(filterButtonStrategies(page));
+    await filterBtn.waitFor({ state: 'visible' });
+    await filterBtn.click();
 
     const filterDrawer = prop.filterPopup();
     await filterDrawer.waitFor({ state: 'visible', timeout: 15000 });
@@ -148,12 +150,20 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
 
     await expect(filterDrawer.getByRole('button', { name: 'Reset Filters' })).toHaveCount(0);
 
-    await filterDrawer.locator('.mantine-CloseButton-root').waitFor({ state: 'visible' });
-    await filterDrawer.locator('.mantine-CloseButton-root').click();
+    const filterCloseBtn = healingLocator(filterCloseButtonStrategies(filterDrawer));
+    await filterCloseBtn.waitFor({ state: 'visible' });
+    await filterCloseBtn.click();
   });
 
-  test('@regression @property TC52 - Validate All Column Headers in Table View', async () => {
+  test('TC52 @regression @property - Validate All Column Headers in Table View', async () => {
     await prop.changeView('Table View');
+    // MCP-verified live (2026-07-28): this grid virtualizes rightmost columns out of the DOM
+    // at narrower effective render widths (1280px renders only 9 of 14 columns; 1920px renders
+    // all 14) — the per-column scroll-by-increment + .nth(index) lookups below assume every
+    // column is already mounted, so force full width once up front instead of relying on
+    // scrollHorizontally() to keep pace with a virtualization boundary that can shift with
+    // viewport/font metrics.
+    await forceGridFullWidth(page);
     for (let i = 0; i < testData.expectedHeaders.length; i++) {
       await prop.scrollHorizontally(i);
       const headerTxt = await prop.getHeaderText(i);
@@ -163,7 +173,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     await prop.scrollBackToStart();
   });
 
-  test('@regression @property TC53 - Validate Overview Fields and Property Document Actions', async () => {
+  test('TC53 @regression @property - Validate Overview Fields and Property Document Actions', async () => {
     await prop.goToProperties();
     await page.waitForTimeout(30000);
     await page.waitForTimeout(2000);
@@ -191,7 +201,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
 
   });
 
-  test('@regression @property TC54 - Validate Document Section Table', async () => {
+  test('TC54 @regression @property - Validate Document Section Table', async () => {
     await prop.goto(tcTakeoffsStartUrl);
     const propertyName = getPropertyName();
     await prop.goToProperties();
@@ -202,7 +212,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     await prop.validateFirstRowValues();
   });
 
-  test('@regression @property TC55 - validate add data form', async () => {
+  test('TC55 @regression @property - validate add data form', async () => {
     await prop.goToProperties();
     const propertyName = getPropertyName();
     console.log('Using property name:', propertyName);
@@ -214,7 +224,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
 
   });
 
-  test("@sanity @regression @property TC56 - Validate Location Tab", async () => {
+  test("TC56 @sanity @regression @property - Validate Location Tab", async () => {
     test.setTimeout(180000);
     await prop.goto(tcTakeoffsStartUrl);
     await prop.goToProperties();
@@ -247,7 +257,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     });
   });
 
-  test('@sanity @regression @property TC57 - validate takeoffs Interior panel and dropdowns', async () => {
+  test('TC57 @sanity @regression @property - validate takeoffs Interior panel and dropdowns', async () => {
     test.setTimeout(240000);
     await prop.goto(tcTakeoffsStartUrl);
     await prop.goToProperties();
@@ -267,7 +277,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     // await prop.addColumnTakeOff('interior');
   });
 
-  test('@sanity @regression @property TC58 - validate takeoffs Exterior panel and dropdowns', async () => {
+  test('TC58 @sanity @regression @property - validate takeoffs Exterior panel and dropdowns', async () => {
     test.setTimeout(240000);
     await prop.goto(tcTakeoffsStartUrl);
     await prop.goToProperties();
@@ -287,7 +297,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     // await prop.addColumnTakeOff('exterior');
   });
 
-  test('@sanity @regression @property TC59 â€“ asset viewer', async () => {
+  test('TC59 @sanity @regression @property - Validate Asset Viewer dropdown options and verify each selection', async () => {
     await prop.goto(tcTakeoffsStartUrl);
     await prop.goToProperties();
     test.setTimeout(480000)
@@ -333,13 +343,13 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     await safe("Changing table view", async () => await prop.changeView("Table View"))
     await safe("Searching property", async () => await prop.searchProperty("Test Property 2_The Westerham"))
     await safe("Opening View Details", async () => await prop.viewDetailsButton())
-    await safe("Opening Asset Viewer", async () => await page.locator('button:has-text("Asset Viewer")').click({ force: true }))
+    await safe("Opening Asset Viewer", async () => await healingLocator(assetViewerTabStrategies(page)).click({ force: true }))
 
     await page.waitForTimeout(30000);
     await page.waitForTimeout(3000);
 
     log("Getting Asset Viewer panel id...")
-    let tab = page.locator('button:has-text("Asset Viewer")')
+    let tab = healingLocator(assetViewerTabStrategies(page))
     let id = await tab.getAttribute("aria-controls")
 
     while (!id) {
@@ -374,7 +384,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
       .map(name => ({
         name,
         // Use first() to avoid strict-mode collisions when similar inputs exist in panel.
-        input: pnl.locator(`label:has-text("${name}") + div input`).first()
+        input: healingLocator(dropdownInputByLabelStrategies(pnl, name)).first()
       }))
 
     log(`TOTAL DROPDOWNS FOUND = ${dropdowns.length}`)
@@ -482,7 +492,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
 
   });
 
-  test('@regression @property TC60 - Validate Filters: gibberish', async () => {
+  test('TC60 @regression @property - Validate Filters: gibberish', async () => {
     await prop.goToProperties();
     await prop.changeView('Table View');
     name = 'gibberish';
@@ -495,7 +505,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
 
   });
 
-  test('@regression @property TC61 - validate No models available in asset viewer tab', async () => {
+  test('TC61 @regression @property - validate No models available in asset viewer tab', async () => {
     await prop.goto(tcTakeoffsStartUrl);
     await prop.goToProperties();
     await page.waitForTimeout(30000);
@@ -521,7 +531,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     await prop.iconAssertion();
   });
 
-  test("@sanity @property TC62 - Validate add Units rows inside Locations and no duplicate row added", async () => {
+  test("TC62 @sanity @property - Validate add Units rows inside Locations and no duplicate row added", async () => {
     await prop.goto(tcTakeoffsStartUrl);
     await prop.goToProperties();
     await prop.changeView('Table View');
@@ -537,7 +547,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
 
     await prop.viewDetailsButton();
 
-    const locationsTab = page.getByRole('tab', { name: /Locations/i }).first();
+    const locationsTab = healingLocator(loc.locationsTabStrategies(page)).first();
     await expect(locationsTab).toBeVisible({ timeout: 15000 });
     await locationsTab.click();
     await expect(locationsTab).toHaveAttribute('data-active', 'true');
@@ -545,7 +555,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
 
     await prop.selectLocation("unit");
     await page.waitForLoadState('domcontentloaded');
-    const locationsPanel = page.getByRole("tabpanel", { name: "Locations" });
+    const locationsPanel = healingLocator(loc.locationsTabpanelStrategies(page));
     const noUnitsState = locationsPanel.getByText(/No units added yet/i).first();
 
     await expect(
@@ -577,7 +587,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
 
     await page.waitForTimeout(1500);
 
-    const exportInLocations = page.getByRole('tabpanel', { name: 'Locations' }).getByRole('button', { name: /^Export$/i }).first();
+    const exportInLocations = healingLocator(exportButtonStrategies(healingLocator(loc.locationsTabpanelStrategies(page)))).first();
     await exportInLocations.waitFor({ state: 'visible', timeout: 15000 });
     const [download] = await Promise.all([
       page.waitForEvent('download'),
@@ -638,7 +648,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
   // Regression bundle: single Properties load + merged negative/edge/bench + multi-screen visuals (was TC04-reg-01â€¦07, bench, vis).
   // Saves runtime vs per-test navigation. Add baselines: npx playwright test tests/TC04_properties.spec.js -g TC04-reg-bundle --update-snapshots
   // -------------------------------------------------------------------------
-  test.describe('PROPERTY REGRESSION â€” search, filters, injection, visuals', () => {
+  test.describe('PROPERTY', () => {
     test('TC63 @regression @property Negative, edge, bench, visuals (single Properties load)', async () => {
       const searchMask = page.locator('main input[placeholder="Search..."], main [role="textbox"][placeholder="Search..."]').first();
       const shotMain = {
@@ -911,7 +921,7 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
     await expect(page.locator('[style*="files.tailorbird.com"]')).toBeVisible({ timeout: 15000 });
   });
 
-  test.only('TC67 @property @regression : Verify reusable add column function for all column types', async ({ page }) => {
+  test('TC67 @property @regression : Verify reusable add column function for all column types', async ({ page }) => {
     test.setTimeout(600000);
     const projectPage = new ProjectPage(page);
     const addColumnPage = new AddColumnPage(page, { scope: page.locator('main') });
@@ -980,6 +990,89 @@ test.describe('PROPERTY FLOW TEST SUITE', () => {
         await capex.selectAllDefaultFinancialColumns().catch(() => { });
       }
     }
+  });
+
+  test('TC69 @property @regression : Verify Add Column functionality on the Property Overview tab (Property Documents grid)', async () => {
+    test.setTimeout(180000);
+    await prop.goto(tcTakeoffsStartUrl);
+    await prop.goToProperties();
+    const propertyName = 'Test Property 1_Cottages on Elm';
+    await test.step('Search and open property', async () => {
+      await prop.changeView('Table View');
+      await prop.searchProperty(propertyName);
+      await prop.viewDetailsButton();
+    });
+    await test.step('Go to Overview tab', async () => {
+      await page.getByRole('tab', { name: 'Overview', exact: true }).click();
+    });
+
+    // MCP-verified live (2026-08-13): the Property Documents grid on the Overview tab does
+    // NOT follow the "View button -> Add custom column" pattern the shared addColumndata()
+    // helper assumes (its "View" button here opens an unrelated "Save current view as"
+    // popover) — its column actions live under "Table" -> "Add custom column" / "Hide / show
+    // columns" instead. Its Manage Columns row buttons are also ordered differently than
+    // deleteCustomColumn() assumes: button[0] toggles inline rename, button[1] opens the real
+    // "Delete Column" confirmation, button[2] opens an unrelated "Add to Filter" menu. Written
+    // self-contained against this grid's actual behavior rather than reusing those helpers.
+    const columnName = `TC69 Add Column ${Date.now()}`;
+    const documentsTableButton = page.getByRole('button', { name: 'Table', exact: true });
+
+    await test.step('Add a custom column on the Property Documents grid', async () => {
+      await documentsTableButton.click();
+      await page.getByTestId('bt-table-action-add-column').click();
+      await page.getByRole('textbox', { name: /Enter column name/i }).fill(columnName);
+      await page.getByRole('textbox', { name: /Enter column description/i }).fill('Added by TC69 automation');
+      await page.getByRole('button', { name: 'Add column', exact: true }).click();
+
+      // MCP-verified live (2026-08-25): this grid is a revo-grid and only mounts a viewport-width
+      // slice of columns into the DOM (same virtualization already documented/handled for other
+      // revo-grids via AddColumnPage's _waitForColumnHeader/_forceGridFullWidth). This property's
+      // Documents grid has accumulated a large number of custom columns from prior runs, so a
+      // freshly-added column's header lands far to the right and never mounts without scrolling —
+      // a bare toBeVisible() times out even though the column was created successfully (confirmed
+      // present and checked-visible in Manage Columns). Poll + scroll the grid right, same pattern.
+      const newHeader = page.getByRole('columnheader', { name: columnName, exact: true });
+      await expect
+        .poll(
+          async () => {
+            if (await newHeader.count() > 0) return true;
+            await page.evaluate(() => {
+              document.querySelectorAll('revo-grid, [role="treegrid"], revogr-viewport-scroll').forEach((node) => {
+                if (node.scrollWidth > node.clientWidth + 5) {
+                  node.scrollLeft = Math.min(node.scrollLeft + 500, node.scrollWidth);
+                }
+              });
+            });
+            return await newHeader.count() > 0;
+          },
+          { timeout: 25000, intervals: [250] },
+        )
+        .toBe(true);
+      await newHeader.scrollIntoViewIfNeeded();
+      await expect(newHeader).toBeVisible({ timeout: 10000 });
+    });
+
+    await test.step('Verify the new column in Manage Columns, then delete it', async () => {
+      await documentsTableButton.click();
+      await page.getByTestId('bt-table-action-hide-show-columns').click();
+
+      const drawer = page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: 'Manage Columns' }) });
+      await expect(drawer).toBeVisible({ timeout: 10000 });
+      await expect(drawer.getByText('Custom Columns', { exact: true })).toBeVisible();
+
+      const columnNameText = drawer.getByText(columnName, { exact: true });
+      await expect(columnNameText).toBeVisible({ timeout: 10000 });
+
+      const columnRow = columnNameText.locator('xpath=../..');
+      await columnRow.locator('button').nth(1).click();
+
+      const confirmDialog = page.getByRole('dialog').filter({ has: page.getByText('Delete Column', { exact: true }) });
+      await expect(confirmDialog).toBeVisible({ timeout: 5000 });
+      await confirmDialog.getByRole('button', { name: 'Delete', exact: true }).click();
+      await expect(columnNameText).toBeHidden({ timeout: 10000 });
+
+      await page.keyboard.press('Escape');
+    });
   });
 
 });

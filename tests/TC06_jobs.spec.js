@@ -8,6 +8,14 @@ const path = require('path');
 const PropertiesHelper = require('../pages/properties');
 const { setTabsDisabledState } = require('../utils/tabsDisabledHelper');
 const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
+const { healingLocator } = require('../utils/locatorHealer');
+const {
+    contractsTabPanelStrategies,
+    contractEditButtonStrategies,
+    editContractDialogStrategies,
+    estimatedTotalCostInputStrategies,
+    saveChangesBtnStrategies,
+} = require('../locators/projectPageLocator');
 
 test.use({
     storageState: 'sessionState.json',
@@ -35,7 +43,7 @@ async function openJobsWorkspaceFromLeftNav(page) {
     await page.waitForURL(/\/jobs|tab=jobs/i, { timeout: 15000 }).catch(() => { });
 }
 
-test.describe('Verify Create Project and Add Job flow', () => {
+test.describe('Project and Jobs', () => {
 
     test.beforeEach(async ({ page: p }) => {
         page = p;
@@ -134,22 +142,16 @@ test.describe('Verify Create Project and Add Job flow', () => {
         await page.waitForTimeout(10000);
 
         // Scope to the Contracts tab so .first() cannot click another "Edit" (failure snapshot: wrong dialog was "Edit Job").
-        const contractsTabPanel = page.getByRole('tabpanel', { name: 'Contracts' });
-        const editContractBtn = contractsTabPanel.getByRole('button', { name: /^Edit$/i }).first();
+        const contractsTabPanel = healingLocator(contractsTabPanelStrategies(page));
+        const editContractBtn = healingLocator(contractEditButtonStrategies(contractsTabPanel)).first();
         await expect(editContractBtn).toBeVisible({ timeout: 15000 });
         await editContractBtn.click({ force: true });
 
         // EditContractOverviewDrawer title: `Edit ${instrumentLabels.noun} Overview` → "Edit Contract Overview" | "Edit PO Overview"
-        const editContractDialog = page
-            .getByRole('dialog')
-            .filter({ hasText: /Edit (Contract|PO) Overview/i })
-            .first();
+        const editContractDialog = healingLocator(editContractDialogStrategies(page)).first();
         await expect(editContractDialog).toBeVisible({ timeout: 15000 });
 
-        const estimatedTotalCostInput = editContractDialog
-            .getByRole('textbox', { name: /Estimated total cost/i })
-            .or(editContractDialog.getByLabel(/Estimated total cost/i))
-            .first();
+        const estimatedTotalCostInput = healingLocator(estimatedTotalCostInputStrategies(editContractDialog)).first();
         await expect(estimatedTotalCostInput).toBeVisible({ timeout: 10000 });
         await estimatedTotalCostInput.click({ force: true });
         await estimatedTotalCostInput.press('Control+A');
@@ -157,7 +159,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         await estimatedTotalCostInput.fill(String(contractEstimatedBudget));
         await estimatedTotalCostInput.press('Tab');
 
-        const saveChangesBtn = editContractDialog.getByRole('button', { name: /Save Changes|Save/i }).first();
+        const saveChangesBtn = healingLocator(saveChangesBtnStrategies(editContractDialog)).first();
         await expect(saveChangesBtn).toBeVisible({ timeout: 10000 });
         await expect(saveChangesBtn).toBeEnabled({ timeout: 10000 });
         await saveChangesBtn.click();
@@ -775,7 +777,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         }
     });
 
-    test('TC85 @regression @projectAndJob : Jobs positive user journey assertions', async () => {
+    test('TC85 @regression @projectAndJob : Verify Jobs page search, export, and create job functionality', async () => {
         await test.step('P1: Open target project and Jobs tab successfully', async () => {
             await openJobsWorkspaceFromLeftNav(page);
             await expect(page).toHaveURL(/\/jobs|tab=jobs/i);
@@ -810,7 +812,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         });
     });
 
-    test('TC86 @regression @projectAndJob : Jobs negative and missing validations', async () => {
+    test('TC86 @regression @projectAndJob : Verify Jobs page validation for invalid and empty inputs', async () => {
         await test.step('N1: Empty Create Job submit should remain guarded', async () => {
             await openJobsWorkspaceFromLeftNav(page);
             await projectPage.openCreateJobModal();
@@ -857,7 +859,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         });
     });
 
-    test('TC87 @regression @projectAndJob : Jobs edge and stress interactions', async () => {
+    test('TC87 @regression @projectAndJob : Verify Jobs page handles long input and repeated actions', async () => {
         await test.step('E1: Long search strings should be accepted and recover', async () => {
             await openJobsWorkspaceFromLeftNav(page);
             const search = projectPage.tc05Loc().mainSearchInput;
@@ -892,7 +894,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         });
     });
 
-    test('TC88 @regression @projectAndJob : Jobs visual assurance across states', async () => {
+    test('TC88 @regression @projectAndJob : Jobs visual assertions', async () => {
         const loc = projectPage.tc05Loc();
         const shotMain = { ...JOB_VISUAL_ASSERT, mask: [loc.mainSearchInput] };
 
@@ -945,7 +947,7 @@ test.describe('Verify Create Project and Add Job flow', () => {
         });
     });
 
-    test('@regression @projectAndJob TC89 - Reject job creation with whitespace-only title', async () => {
+    test('TC89 @regression @projectAndJob : Reject job creation with whitespace-only title', async () => {
         await openJobsWorkspaceFromLeftNav(page);
         await projectPage.openCreateJobModal();
 

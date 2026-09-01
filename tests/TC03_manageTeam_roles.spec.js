@@ -16,11 +16,13 @@ const {
   manageTeamRolesBench: roleManagementUiLabels,
   orgUrls,
 } = require("../pages/manageTeamRolesHelper");
+const { healingLocator } = require("../utils/locatorHealer");
+const { tableButtonStrategies } = require("../locators/manageTeamRolesLocator");
 
 const dashboardLandingUrl = process.env.DASHBOARD_URL || orgUrls.dashboardUrl;
 const tailorbirdOrigin = process.env.BASE_URL
 
-test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
+test.describe("Manage Team & Roles", () => {
   test.describe("Authenticated (sessionState)", () => {
     test.use({
       storageState: "sessionState.json",
@@ -34,7 +36,7 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
       test.skip(!process.env.DASHBOARD_URL && !orgUrls.dashboardUrl, "DASHBOARD_URL or fixture dashboard required");
     });
 
-    test("TC36 @regression @manageTeam @roles Direct user-role-management lands with benchmark controls", async ({
+    test("TC36 @regression @manageTeam @roles Verify user role management page loads successfully", async ({
       page,
     }) => {
       Logger.info("[MT-roles-pos-01] Starting: Direct navigation to user-role-management");
@@ -47,7 +49,7 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
       Logger.success("[MT-roles-pos-01] ✅ Direct user-role-management navigation with benchmark controls passed");
     });
 
-    test("TC37 @regression @manageTeam @roles Menu path Manage Approvers shows benchmark", async ({ page }) => {
+    test("TC37 @regression @manageTeam @roles Verify Manage Approvers page loads successfully", async ({ page }) => {
       Logger.info("[MT-roles-pos-02] Starting: Menu path navigation to Manage Approvers");
       const userRoleManagement = new ManageTeamRolesHelper(page);
       InteractionLogger.logNavigation(dashboardLandingUrl, "Dashboard — profile menu → Manage Approvers");
@@ -57,7 +59,7 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
       Logger.success("[MT-roles-pos-02] ✅ Menu path to Manage Approvers with benchmark visible passed");
     });
 
-    test("TC38 @regression @manageTeam @roles Role matrix exposes Properties / Location columns", async ({
+    test("TC38 @regression @manageTeam @roles Verify role table displays Properties and Location column headers.", async ({
       page,
     }) => {
       Logger.info("[MT-roles-pos-03] Starting: Role matrix column headers check");
@@ -68,7 +70,7 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
       Logger.success("[MT-roles-pos-03] ✅ Role matrix Properties / Location columns visible passed");
     });
 
-    test("TC39 @regression @manageTeam @roles Add role control is available", async ({ page }) => {
+    test("TC39 @regression @manageTeam @roles Verify role management page displays the Add Role button", async ({ page }) => {
       Logger.info("[MT-roles-pos-04] Starting: Add role button availability check");
       const userRoleManagement = new ManageTeamRolesHelper(page);
       await userRoleManagement.gotoManageTeamRolesViaQuery();
@@ -80,7 +82,7 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
       Logger.success("[MT-roles-pos-04] ✅ Add role control available passed");
     });
 
-    test("TC40 @regression @manageTeam @roles Built-in or automation roles visible as column headers", async ({
+    test("TC40 @regression @manageTeam @roles Verify role management table displays built-in and custom roles as column headers including Editor, View Only, and E2E roles.", async ({
       page,
     }) => {
       Logger.info("[MT-roles-pos-05] Starting: Built-in and automation role column headers check");
@@ -100,7 +102,7 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
       Logger.success("[MT-roles-pos-05] ✅ Built-in / automation roles visible as column headers passed");
     });
 
-    test("TC41 @regression @manageTeam @roles Organization: Users ↔ Property access tabs switch cleanly", async ({
+    test("TC41 @regression @manageTeam @roles Organization: Verify Organization Users and Property Access tabs switch correctly and stays on the selected state.", async ({
       page,
     }) => {
       Logger.info("[MT-roles-pos-06] Starting: Organization Users ↔ Property access tab switching");
@@ -125,7 +127,7 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
       Logger.success("[MT-roles-pos-06] ✅ Organization Users ↔ Property access tab switching passed");
     });
 
-    test("TC42 @regression @manageTeam @roles Invalid tab query still renders app shell on organization", async ({
+    test("TC42 @regression @manageTeam @roles Verify Organization page loads with an invalid tab in URL", async ({
       page,
     }) => {
       Logger.info("[MT-roles-neg-01] Starting: Invalid tab query graceful degradation check");
@@ -143,7 +145,7 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
       Logger.success("[MT-roles-neg-01] ✅ Invalid tab query still renders app shell passed");
     });
 
-    test("TC43 @regression @manageTeam @roles Reload keeps user-role-management usable", async ({ page }) => {
+    test("TC43 @regression @manageTeam @roles Verify page reload keeps user-role-management usable", async ({ page }) => {
       Logger.info("[MT-roles-edge-01] Starting: Page reload keeps user-role-management usable");
       const userRoleManagement = new ManageTeamRolesHelper(page);
       await userRoleManagement.gotoManageTeamRolesViaQuery();
@@ -157,7 +159,7 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
       Logger.success("[MT-roles-edge-01] ✅ Reload keeps user-role-management usable passed");
     });
 
-    test("TC44 @regression @manageTeam @roles Organization: rapid Users ↔ Property access keeps shell stable", async ({
+    test("TC44 @regression @manageTeam @roles Verify Users and Property access tabs switch successfully", async ({
       page,
     }) => {
       Logger.info("[MT-roles-edge-02] Starting: Rapid tab switching keeps Organization shell stable");
@@ -185,7 +187,7 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
       Logger.success("[MT-roles-edge-02] ✅ Rapid Users ↔ Property access tab switching keeps shell stable passed");
     });
 
-    test("TC45 @regression @manageTeam @roles Breadcrumb shows Approvers Management on matrix page", async ({
+    test("TC45 @regression @manageTeam @roles Verify Breadcrumb shows Approvers Management", async ({
       page,
     }) => {
       Logger.info("[MT-roles-edge-03] Starting: Breadcrumb shows Approvers Management on matrix page");
@@ -196,7 +198,7 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
       Logger.success("[MT-roles-edge-03] ✅ Breadcrumb shows Approvers Management on matrix page passed");
     });
 
-    test("TC46 @regression @manageTeam @roles Organization Property access differs from Users tab", async ({
+    test("TC46 @regression @manageTeam @roles Verify Organization Property access differs from Users tab", async ({
       page,
     }) => {
       Logger.info("[MT-roles-edge-04] Starting: Organization Property access tab content differs from Users tab");
@@ -241,7 +243,7 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
       maxDiffPixelRatio: 0.15,
     });
 
-    test("TC47 @regression @manageTeam @roles Approvers-management without session shows AuthKit Sign in", async ({
+    test("TC47 @regression @manageTeam @roles Verify Approvers-management without session shows AuthKit Sign in", async ({
       page,
     }) => {
       test.skip(!dashboardLandingUrl, "DASHBOARD_URL / dashboard missing");
@@ -257,10 +259,10 @@ test.describe("TC18 Manage Team — Roles (positive / negative / edge)", () => {
 });
 
 // ─── Text Agent ───────────────────────────────────────────────────────────────
-test.describe("TC03 Manage Team Roles — Text Agent (live MCP browser scan)", () => {
+test.describe("Manage Team & Roles", () => {
   test.setTimeout(120_000);
 
-  test("TC48 @manageTeam @roles @sanity Full user-role-management text agent — CTAs, search, table columns", async ({ browser }) => {
+  test("TC48 @manageTeam @roles @sanity Verify User Role Management page search, buttons, and table columns", async ({ browser }) => {
     test.skip(!dashboardLandingUrl, "DASHBOARD_URL / dashboard missing");
     const rolesUrl = new URL("/user-role-management", tailorbirdOrigin).href;
     InteractionLogger.logNavigation(rolesUrl, "User Role Management — Text Agent");
@@ -308,7 +310,13 @@ test.describe("TC03 Manage Team Roles — Text Agent (live MCP browser scan)", (
 
         for (const btnName of ["View", "Table", "Export", "Import Property Role"]) {
           InteractionLogger.logButtonClick(btnName, btnName);
-          await expect(page.getByRole("button", { name: btnName })).toBeVisible({ timeout: 8_000 });
+          // "Table" strategies live in locators/manageTeamRolesLocator.js (tableButtonStrategies) —
+          // see that file for the 4-strategy rationale and the strict-mode bug it documents.
+          // View/Export/Add Role/Import Property Role have no further independent attribute, so stay text-only.
+          const buttonLocator = btnName === "Table"
+            ? healingLocator(tableButtonStrategies(page))
+            : page.getByRole("button", { name: btnName });
+          await expect(buttonLocator).toBeVisible({ timeout: 8_000 });
         }
 
         for (const col of ["Properties", "Location", "address"]) {

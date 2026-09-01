@@ -5,6 +5,7 @@ const { LoginPage } = require('../pages/loginPage');
 const { InteractionLogger } = require('../utils/InteractionLogger');
 const helper = require('../pages/leftPanel');
 const locators = require('../locators/leftPanelLocator');
+const { healingLocator } = require('../utils/locatorHealer');
 const { ensureLeftPanelExpanded } = require('../utils/leftPanelExpander');
 const data = require('../fixture/leftPanel.json');
 const uiBenchmark = require('../fixture/tailorbirdUiMessages.json');
@@ -60,10 +61,10 @@ test.afterAll(async () => {
 });
 
 
-test.describe('Tailorbird Left Panel Flow - Modular', () => {
+test.describe('Left Panel - Modular', () => {
 
     test('TC07 @sanity @regression Verify all left panel menu options are available', async () => {
-       
+
         const actualLabels = await helper.getLeftPanelLabels(page);
 
         if (actualLabels.length === 0)
@@ -75,7 +76,7 @@ test.describe('Tailorbird Left Panel Flow - Modular', () => {
         }
     });
 
-      test('TC08 @regression Verify each left panel menu item navigates to its correct URL when clicked',
+    test('TC08 @regression Verify each left panel menu item navigates to its correct URL when clicked',
         async () => {
             test.setTimeout(180000);
 
@@ -90,7 +91,7 @@ test.describe('Tailorbird Left Panel Flow - Modular', () => {
             // ── S1: Direct nav items visible without any section expansion ───────────
             for (const item of [
                 { label: 'Properties', path: '/properties' },
-                { label: 'Approvals',  path: '/approvals'  },
+                { label: 'Approvals', path: '/approvals' },
             ]) {
                 await test.step(`S1: Click "${item.label}" → URL must contain "${item.path}"`, async () => {
                     Logger.info(`[TC22-S1] Clicking "${item.label}"`);
@@ -113,11 +114,11 @@ test.describe('Tailorbird Left Panel Flow - Modular', () => {
             Logger.info('[TC22] Construction Management expanded — testing CM child routes');
 
             for (const item of [
-                { label: 'Projects',              path: '/projects'       },
-                { label: 'Jobs (Contracts & POs)', path: '/jobs'           },
-                { label: 'Bids',                  path: '/bids'           },
-                { label: 'Change Orders',         path: '/change-orders'  },
-                { label: 'Invoices',              path: '/invoices'       },
+                { label: 'Projects', path: '/projects' },
+                { label: 'Jobs (Contracts & POs)', path: '/jobs' },
+                { label: 'Bids', path: '/bids' },
+                { label: 'Change Orders', path: '/change-orders' },
+                { label: 'Invoices', path: '/invoices' },
             ]) {
                 await test.step(`S2: Click "${item.label}" (Construction Management) → URL must contain "${item.path}"`, async () => {
                     Logger.info(`[TC22-S2] Clicking "${item.label}"`);
@@ -138,8 +139,8 @@ test.describe('Tailorbird Left Panel Flow - Modular', () => {
 
             for (const item of [
                 { label: 'Category', path: '/financials/category' },
-                { label: 'Budget',   path: '/financials/budget'   },
-                { label: 'CapEx',    path: '/financials/capex'    },
+                { label: 'Budget', path: '/financials/budget' },
+                { label: 'CapEx', path: '/financials/capex' },
             ]) {
                 await test.step(`S3: Click "${item.label}" (Financials nav) → URL must contain "${item.path}"`, async () => {
                     Logger.info(`[TC22-S3] Clicking "${item.label}" from Financials nav section`);
@@ -157,11 +158,11 @@ test.describe('Tailorbird Left Panel Flow - Modular', () => {
             Logger.info('[TC22] Testing More overflow items — Trackers/Documents/Vendors');
 
             for (const item of [
-                { label: 'Unit Tracker',  path: '/unit-tracker'      },
-                { label: 'Asset Tracker', path: '/asset-tracker'     },
-                { label: 'Files',         path: '/documents/files'   },
-                { label: 'Images',        path: '/documents/images'  },
-                { label: 'Directory',     path: '/vendors/directory' },
+                { label: 'Unit Tracker', path: '/unit-tracker' },
+                { label: 'Asset Tracker', path: '/asset-tracker' },
+                { label: 'Files', path: '/documents/files' },
+                { label: 'Images', path: '/documents/images' },
+                { label: 'Directory', path: '/vendors/directory' },
             ]) {
                 await test.step(`S4: Click "${item.label}" (More menu) → URL must contain "${item.path}"`, async () => {
                     Logger.info(`[TC22-S4] Opening More menu for "${item.label}"`);
@@ -499,7 +500,7 @@ test.describe('Tailorbird Left Panel Flow - Modular', () => {
 
 });
 
-test.describe('TC02 Menu — Single-org user assertions', () => {
+test.describe('Left Panel - Single-org user', () => {
     test.use({ storageState: 'OneOrganizationUserSessionState.json' });
     test.setTimeout(60_000);
 
@@ -550,10 +551,10 @@ test.describe('TC02 Menu — Single-org user assertions', () => {
     });
 });
 
-test.describe('TC02 Menu — Text assertions', () => {
+test.describe('Left Panel - Text assertions', () => {
     test.setTimeout(120_000);
-
-    test('TC22 @menu @sanity Full nav text agent — all CTAs, labels, nav items, profile menu', async ({ page }) => {
+    test.describe.configure({ retries: 1 });
+    test('TC21 @menu @sanity Full nav text agent — all CTAs, labels, nav items, profile menu', async ({ page }) => {
         test.skip(!process.env.DASHBOARD_URL, 'DASHBOARD_URL required');
         // beforeEach already navigated to DASHBOARD_URL and set up auth session
         InteractionLogger.logNavigation(process.env.DASHBOARD_URL, 'Dashboard — left nav Text Agent');
@@ -586,6 +587,12 @@ test.describe('TC02 Menu — Text assertions', () => {
 
         await test.step('STATE 1b | Known nav labels — primary items visible (MCP-verified 2026-05-18)', async () => {
             const nav = page.getByRole('navigation');
+            // Defensive no-op when already expanded: "Construction Management" is a
+            // collapsible section, and its expand state can persist across tests sharing
+            // the same page/session (another test in this file deliberately collapses it
+            // as its own starting state) — a suite-order run can inherit that collapsed
+            // state even though an isolated run of just this test never sees it.
+            await helper.ensureSectionExpanded(page, 'Construction Management').catch(() => { });
             for (const label of [
                 'Properties', 'Approvals', 'Construction Management',
                 'Projects', 'Jobs (Contracts & POs)', 'Bids', 'Change Orders', 'Invoices',
@@ -628,7 +635,9 @@ test.describe('TC02 Menu — Text assertions', () => {
 
         await test.step('STATE 2 | Profile menu — open and assert all action labels', async () => {
             const nav = page.getByRole('navigation');
-            const profileTrigger = nav.locator('[class*="Avatar-root"]').first();
+            // Healed (locators/leftPanelLocator.js: profileTriggerStrategies) — original
+            // class-partial-match kept as primary, ARIA-based `[aria-haspopup=menu]` as fallback.
+            const profileTrigger = healingLocator(locators.profileTriggerStrategies(page));
             if (await profileTrigger.isVisible({ timeout: 3_000 }).catch(() => false)) {
                 InteractionLogger.logButtonClick('Profile avatar', 'S');
                 await profileTrigger.click();
@@ -636,7 +645,14 @@ test.describe('TC02 Menu — Text assertions', () => {
                 InteractionLogger.logButtonClick('Profile name', 'Sumit Mishra');
                 await nav.locator('text=Sumit Mishra').first().click();
             }
-            const profileMenu = page.locator('[role="menu"]');
+            // MCP-verified live (2026-07-30): a bare `[role="menu"]` locator is a strict-mode
+            // trap here — Mantine's "More" nav dropdown (opened in STATE 1 above) can still
+            // be present in the DOM as its own [role="menu"] node even after Escape/close, and
+            // Playwright's strict mode counts every DOM match regardless of visibility. Anchor
+            // on "Logout" instead — content that only ever renders inside the profile menu,
+            // never in the nav's "More" menu — so this resolves to exactly one element no
+            // matter how many other menu nodes (open, closing, or stale) exist in the DOM.
+            const profileMenu = page.getByRole('menu').filter({ has: page.getByText('Logout', { exact: true }) });
             await profileMenu.waitFor({ state: 'visible', timeout: 10_000 });
 
             for (const label of ['Manage Approvers', 'Manage Organization', 'Profile', 'Switch Organization', 'Logout']) {

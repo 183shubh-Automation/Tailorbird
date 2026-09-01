@@ -162,10 +162,31 @@ class MultiApproverPage {
     }
 
     /**
+     * Forces the All Approvals revo-grid to a large width so it mounts every column instead
+     * of virtualizing rightmost ones out of the DOM. MCP-verified live (2026-07-28): at
+     * default width this grid renders only Property Name through Requested By + Actions —
+     * "Approver" (and Status/Submitted On/Approved On/Revision Notes) are dropped entirely.
+     * Scrolling an internal container only reveals columns that are already mounted — it
+     * can't help when the column isn't in the DOM at all, which is the actual failure mode
+     * here. Purely visual — does not change any data, selection, or interaction behavior.
+     */
+    async forceGridFullWidth() {
+        const grid = this.page.locator('revo-grid').first();
+        if (await grid.count().catch(() => 0)) {
+            await grid.evaluate((g) => {
+                g.style.setProperty('width', '3500px', 'important');
+                g.style.setProperty('min-width', '3500px', 'important');
+            }).catch(() => {});
+            await this.page.waitForTimeout(400);
+        }
+    }
+
+    /**
      * Reads the Approver column text for the single row currently shown (grid is
      * horizontally virtualized, so the column must be scrolled into view first).
      */
     async getApproverColumnText() {
+        await this.forceGridFullWidth();
         await this.page.evaluate(() => {
             const el = document.querySelector('.rgCol.scroll-rgCol.hydrated');
             if (el) el.scrollLeft = 900;
@@ -211,15 +232,46 @@ class MultiApproverPage {
         const statusBadgeText = (await statusBadge.textContent()).trim();
 
         // Approver name / timestamp / notes only exist once the invoice has been
-        // approved, so an absent element is a real, legitimate state — checked via
-        // count() rather than swallowed with a catch.
-        const approverNamePara = eligiblePara.locator('xpath=following-sibling::p[1]');
-        const timestampPara = eligiblePara.locator('xpath=../../following-sibling::p[1]');
-        const notesPara = eligiblePara.locator('xpath=../../following-sibling::p[2]');
-
-        const approverName = (await approverNamePara.count()) > 0 ? (await approverNamePara.textContent()).trim() : null;
-        const timestampText = (await timestampPara.count()) > 0 ? (await timestampPara.textContent()).trim() : null;
-        const notesText = (await notesPara.count()) > 0 ? (await notesPara.textContent()).trim() : null;
+        // approved, so an absent element is a real, legitimate state — not an error.
+        //
+        // MCP-verified live (2026-07-29): this template now has a second, role-based
+        // approval rule ("e2e_test_role") rendered as its own "Eligible approvers:"
+        // paragraph that shows "Skipped" (the role condition doesn't apply to this
+        // invoice) and has no approver-name/timestamp/notes content at all. That rule's
+        // paragraph can render before the actual approved rule's paragraph, so the
+        // first "Eligible approvers:" match is not reliably the row that was acted on.
+        //
+        // No id/data-testid exists anywhere in this dialog (Mantine renders plain
+        // <p class="mantine-Text-root"> with only hashed, per-build CSS-module classes
+        // for content — confirmed live), so element identity here is resolved via each
+        // paragraph's own text plus real DOM sibling relationships (nextElementSibling /
+        // closest('.mantine-Group-root') — Mantine's own stable component class, not a
+        // hashed one) inside locator.evaluate(), rather than an xpath or regex locator.
+        const allEligibleParas = dialog.getByText('Eligible approvers:');
+        const eligibleCount = await allEligibleParas.count();
+        let approverName = null;
+        let timestampText = null;
+        let notesText = null;
+        for (let i = 0; i < eligibleCount; i++) {
+            const candidatePara = allEligibleParas.nth(i);
+            const details = await candidatePara.evaluate((el) => {
+                const nameEl = el.nextElementSibling;
+                const groupRoot = el.closest('.mantine-Group-root');
+                const row = groupRoot ? groupRoot.parentElement : null;
+                const rowParagraphs = row ? Array.from(row.children).filter((child) => child.tagName === 'P') : [];
+                return {
+                    name: nameEl ? nameEl.textContent.trim() : null,
+                    timestamp: rowParagraphs[0] ? rowParagraphs[0].textContent.trim() : null,
+                    notes: rowParagraphs[1] ? rowParagraphs[1].textContent.trim() : null,
+                };
+            });
+            if (details.name) {
+                approverName = details.name;
+                timestampText = details.timestamp;
+                notesText = details.notes;
+                break;
+            }
+        }
 
         return {
             approvalStatusLabel,
@@ -236,6 +288,23 @@ class MultiApproverPage {
     /** Builds the expected "Eligible approvers: a@x, b@x" text from fixture values. */
     buildExpectedEligibleApproversText(prefix, email1, email2) {
         return `${prefix} ${email1}, ${email2}`;
+    }
+
+    /**
+     * Asserts the "Eligible approvers: ..." text has the right prefix and at least one
+     * non-empty, comma-separated entry after it — without hardcoding exactly who those
+     * entries are. MCP-verified live (2026-07-29): one of this template's two approver
+     * rules is role-based ("e2e_test_role"), which resolves to however many org members
+     * currently hold that role (and renders their display names, not raw emails) — a set
+     * that legitimately grows/shrinks over time as other tests invite/assign that role, so
+     * a fixed roster (or raw-email) comparison here would be permanently fragile.
+     */
+    assertEligibleApproversTextValid(prefix, actualText) {
+        Logger.info(`Eligible approvers text -> actual: "${actualText}" (expected prefix: "${prefix}")`);
+        expect(actualText.startsWith(prefix), `Eligible approvers text must start with "${prefix}"`).toBe(true);
+        const namesPart = actualText.slice(prefix.length).trim();
+        const names = namesPart.split(',').map((n) => n.trim()).filter(Boolean);
+        expect(names.length, 'Eligible approvers text must list at least one approver').toBeGreaterThan(0);
     }
 
     /** Asserts equality and logs both the actual and expected values. */

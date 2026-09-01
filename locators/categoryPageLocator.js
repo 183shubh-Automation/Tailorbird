@@ -80,4 +80,80 @@ function categoryPageLocators(page) {
     };
 }
 
-module.exports = { categoryPageLocators };
+/**
+ * Self-healing strategies for TC98/TC101 (tests/TC07_category.spec.js — category upload
+ * and filter options). All MCP-verified live 2026-08-06 (beta.tailorbird.com/financials/category).
+ * @param {import('@playwright/test').Page} page
+ */
+function categoryElementStrategies(page) {
+    return {
+        /** Category-page readiness indicator — original 6-mechanism CSS union kept intact. */
+        contentReadyIndicator: [
+            { name: 'css:table|role variants|upload-icon|Import-Data-title|Import-Data-text(original)', locator: page.locator('table, [role="table"], [role="grid"], [role="treegrid"], button:has(svg.lucide-upload), [title="Import Data"], main') },
+        ],
+        /**
+         * Toolbar Import/Upload trigger — original main-scoped exact-text regex kept as #1
+         * (MCP-verified this IS the one that actually resolves live: current product copy
+         * is "Import", not "Import Data" — the button's `title` attribute is empty and its
+         * text is exactly "Import", so the OTHER 3 candidates in uploadCategory()'s retry
+         * loop — icon-only, `[title="Import Data"]`, and `getByRole(name:'Import Data')` —
+         * are now stale/legacy assumptions kept only as safety-net fallbacks, not because
+         * they're expected to fire). A `data-table-action` attribute fallback is added since
+         * it's a genuinely independent mechanism confirmed present on this exact button.
+         */
+        importMainBtn: [
+            { name: 'role:button[name=/^Import$/i][in main](original)', locator: page.locator('main').getByRole('button', { name: /^Import$/i }) },
+            { name: 'css:button[data-table-action=true][hasText=Import]', locator: page.locator('button[data-table-action="true"]').filter({ hasText: 'Import' }) },
+        ],
+        /** Icon-based Import/Upload candidate — original CSS kept as #1; MCP-verified icon class is `lucide-upload`. */
+        uploadIconBtn: [
+            { name: 'css:button:has(svg.lucide-upload)(original)', locator: page.locator('button:has(svg.lucide-upload)') },
+        ],
+        /**
+         * `[title="Import Data"]` candidate — original kept verbatim as #1 even though
+         * MCP-verified this attribute no longer exists on ANY element on this page (stale,
+         * product copy changed from "Import Data" to "Import"). Fallback uses the
+         * confirmed-live exact-text match so this candidate can still resolve on its own.
+         */
+        importDataButtonHealed: [
+            { name: 'css:[title=Import Data](original, MCP-confirmed stale)', locator: page.locator('[title="Import Data"]') },
+            { name: 'role:button[name=Import](exact, confirmed-live)', locator: page.getByRole('button', { name: 'Import', exact: true }) },
+        ],
+        /**
+         * `getByRole(name:'Import Data')` candidate — original kept verbatim as #1 even
+         * though MCP-verified the button's accessible name is "Import", not "Import Data"
+         * (same stale-copy finding as above).
+         */
+        importRoleBtn: [
+            { name: 'role:button[name=Import Data](original, MCP-confirmed stale)', locator: page.getByRole('button', { name: 'Import Data' }) },
+            { name: 'role:button[name=Import](exact, confirmed-live)', locator: page.getByRole('button', { name: 'Import', exact: true }) },
+        ],
+        /** Uploadcare widget "From device" button. */
+        fromDeviceBtn: [
+            { name: 'role:button[name=From device](original,exact)', locator: page.getByRole('button', { name: 'From device' }) },
+        ],
+        /** Uploadcare widget "Done" button. */
+        uploadDoneBtn: [
+            { name: 'role:button[name=Done](original,exact)', locator: page.getByRole('button', { name: 'Done' }) },
+        ],
+    };
+}
+
+/** Grid cell matching a given filter value, used to count filtered rows (TC101). */
+function categoryGridCellByTextStrategies(page, value) {
+    return [
+        { name: 'css:[role=gridcell][hasText](original)', locator: page.locator('[role="gridcell"]').filter({ hasText: value }) },
+    ];
+}
+
+/**
+ * Filter drawer's close (X) button, located "near" the "Filters" title text — original
+ * uses Playwright's `near` proximity filter combined with an icon-class selector.
+ */
+function categoryFilterCloseNearStrategies(page) {
+    return [
+        { name: 'css:button:has(svg.lucide-x)[near=Filters](original)', locator: page.locator('button:has(svg.lucide-x)').filter({ near: page.getByText('Filters', { exact: true }) }) },
+    ];
+}
+
+module.exports = { categoryPageLocators, categoryElementStrategies, categoryGridCellByTextStrategies, categoryFilterCloseNearStrategies };

@@ -2552,15 +2552,87 @@ class InvoicePage {
                 .locator('revo-grid:has([role="columnheader"] span:text("Invoice Number")) revogr-data[type="rgRow"] div[role="row"]')
                 .filter({ hasText: searchTerm })
                 .first();
-            const rowVisible = await matchingRow.isVisible({ timeout: 10000 }).catch(() => false);
+            // MCP-verified live (2026-08-25): locator.isVisible({timeout}) checks the DOM once and
+            // does not poll/retry for that long — passing a large timeout here does not actually
+            // wait for the row to render. That's why this returned "row not found" even though
+            // openInvoiceDetailsBySearch() (called moments later in the same recovery loop, with a
+            // longer fixed pre-wait before its own equivalent check) reliably found the very same
+            // row. waitFor({state:'visible'}) actually polls, so use that instead.
+            const rowVisible = await matchingRow
+                .waitFor({ state: 'visible', timeout: 40000 })
+                .then(() => true)
+                .catch(() => false);
             if (!rowVisible) {
                 Logger.info(`[TC109 recovery] No invoice row found for "${searchTerm}".`);
                 return null;
             }
 
-            const rowText = (await matchingRow.textContent().catch(() => '')) || '';
-            const statusMatch = rowText.match(/(Pending Approval|Approved|Rejected|Draft)/i);
-            const status = statusMatch ? statusMatch[0] : null;
+            // MCP-verified live (2026-08-25): the actual root cause of this returning null for a
+            // real, existing invoice — at this suite's actual 1280x720 viewport (the "Desktop
+            // Chrome" device preset used by playwright.config.js's chromium project — not the
+            // 1920x1080 named in the top-level `use` block, which that preset's own viewport
+            // overrides), this revo-grid mounts only ~11-15 of its ~18 header/cell columns, and
+            // "Status" is often not among them, so it's simply not present in
+            // matchingRow.textContent() to regex-match — independent of whether the row itself was
+            // found, and this does not resolve by waiting longer at that width. IMPORTANT: forcing
+            // more columns to mount by writing scrollLeft on the grid or its descendants (the
+            // scroll-and-poll pattern used elsewhere in this codebase for a different grid) does
+            // NOT apply here — MCP-verified live doing so on THIS grid makes the entire
+            // <revo-grid> element disappear from the DOM for the rest of the interaction. What
+            // does reliably work, MCP-verified live: temporarily widening the actual viewport (this
+            // grid mounts every column once there's enough real width, same as it does at this
+            // suite's default width for its first ~11-15 columns) — not a fragile "hasText"/scroll
+            // trick, just giving the grid enough room the way it already knows how to use. Restore
+            // the original viewport afterward so this has no visible side effect on the test.
+            let status = null;
+            const originalViewport = this.page.viewportSize();
+            if (originalViewport) {
+                await this.page.setViewportSize({ width: 2400, height: originalViewport.height });
+            }
+            try {
+                let statusText = '';
+                const gotStatusText = await expect
+                    .poll(
+                        async () => {
+                            statusText = await this.page.evaluate((term) => {
+                                const grid = Array.from(document.querySelectorAll('revo-grid')).find((g) =>
+                                    Array.from(g.querySelectorAll('[role="columnheader"] span')).some(
+                                        (s) => s.textContent.trim() === 'Invoice Number',
+                                    ),
+                                );
+                                if (!grid) return '';
+                                const row = Array.from(
+                                    grid.querySelectorAll('revogr-data[type="rgRow"] div[role="row"]'),
+                                ).find((r) => r.textContent.includes(term));
+                                const statusHeader = Array.from(grid.querySelectorAll('[role="columnheader"]')).find(
+                                    (h) => (h.textContent || '').trim() === 'Status',
+                                );
+                                const colIdx = statusHeader
+                                    ? statusHeader.getAttribute('data-rgcol') || statusHeader.getAttribute('aria-colindex')
+                                    : null;
+                                const cell = row && colIdx ? row.querySelector(`[role="gridcell"][data-rgcol="${colIdx}"]`) : null;
+                                return cell ? (cell.textContent || '').trim() : '';
+                            }, searchTerm);
+                            return statusText;
+                        },
+                        { timeout: 15000, intervals: [300] },
+                    )
+                    .not.toBe('')
+                    .then(() => true)
+                    .catch(() => false);
+
+                if (gotStatusText) {
+                    const statusMatch = statusText.match(/(Pending Approval|Approved|Rejected|Draft)/i);
+                    status = statusMatch ? statusMatch[0] : statusText;
+                } else {
+                    Logger.info(`[TC109 recovery] Status column for "${searchTerm}" never yielded text.`);
+                }
+            } finally {
+                if (originalViewport) {
+                    await this.page.setViewportSize(originalViewport).catch(() => {});
+                }
+            }
+
             Logger.info(`[TC109 recovery] Status for "${searchTerm}": ${status}`);
             return status;
         } catch (error) {
@@ -2585,28 +2657,37 @@ class InvoicePage {
                 await this.page.waitForTimeout(300);
                 await searchBox.fill(searchTerm);
                 await this.page.waitForLoadState('load').catch(() => { });
-                await this.page.waitForTimeout(2000);
+                await this.page.waitForTimeout(5000);
             }
 
             const matchingRow = this.page
                 .locator('revo-grid:has([role="columnheader"] span:text("Invoice Number")) revogr-data[type="rgRow"] div[role="row"]')
                 .filter({ hasText: searchTerm })
                 .first();
-            const rowVisible = await matchingRow.isVisible({ timeout: 10000 }).catch(() => false);
+            // Same isVisible()-doesn't-poll fix as getInvoiceStatusBySearch() above — this happened
+            // to work in practice only because of the longer fixed wait just above, which is not a
+            // reliable substitute for actually waiting on the row.
+            const rowVisible = await matchingRow
+                .waitFor({ state: 'visible', timeout: 40000 })
+                .then(() => true)
+                .catch(() => false);
             if (!rowVisible) {
                 Logger.info(`[TC109 recovery] Could not find invoice row for "${searchTerm}" to open.`);
                 return false;
             }
 
             const viewInvoiceBtn = this.page.getByRole('button', { name: 'View Invoice' }).first();
-            const viewVisible = await viewInvoiceBtn.isVisible({ timeout: 5000 }).catch(() => false);
+            const viewVisible = await viewInvoiceBtn
+                .waitFor({ state: 'visible', timeout: 20000 })
+                .then(() => true)
+                .catch(() => false);
             if (!viewVisible) {
                 Logger.info(`[TC109 recovery] "View Invoice" action not found for "${searchTerm}".`);
                 return false;
             }
 
             await viewInvoiceBtn.click({ timeout: 10000 });
-            await this.page.waitForURL(/\/invoices\/\d+/, { timeout: 15000 }).catch(() => { });
+            await this.page.waitForURL(/\/invoices\/\d+/, { timeout: 45000 }).catch(() => { });
             await this.page.waitForLoadState('load');
             await this.page.waitForTimeout(1000);
             Logger.success(`[TC109 recovery] Opened invoice details for "${searchTerm}".`);

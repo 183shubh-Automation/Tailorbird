@@ -1,13 +1,16 @@
 const { expect } = require('@playwright/test');
 const { Logger } = require('../utils/logger');
-const { approvalJobLocators } = require('../locators/approvalLocator');
+const { approvalJobLocators, approvalElementStrategies, addPropertyRowStrategies, addPropertyRowCheckboxStrategies, firstPropertyResultRowStrategies, createPropertyDialogStrategies } = require('../locators/approvalLocator');
+const { healingLocator } = require('../utils/locatorHealer');
 
 let approval;
+let approvalStrategies;
 
 exports.ApprovalJob = class ApprovalJob {
     constructor(page) {
         this.page = page;
         approval = approvalJobLocators(page);
+        approvalStrategies = approvalElementStrategies(page);
     }
 
     async navigateToApprovalTab() {
@@ -16,7 +19,7 @@ exports.ApprovalJob = class ApprovalJob {
             await approval.approvalTab.click();
             await this.page.waitForURL('**/approvals/**', { timeout: 25000 }).catch(() => { });
             const _t0 = Date.now();
-            const _tab = this.page.getByRole('tab', { name: 'Approval Templates' });
+            const _tab = healingLocator(approvalStrategies.approvalTemplatesTab);
             const _ok = await _tab.waitFor({ state: 'visible', timeout: 20_000 }).then(() => true).catch(() => false);
             if (_ok) {
                 Logger.info(`[Approval] Nav ready in ${Date.now() - _t0}ms`);
@@ -40,7 +43,7 @@ exports.ApprovalJob = class ApprovalJob {
     async waitForPageLoad() {
         const _t0 = Date.now();
         try {
-            const _btn = this.page.getByRole('button', { name: 'Create Template' }).first();
+            const _btn = healingLocator(approvalStrategies.createTemplateButton);
             const _ok = await _btn.waitFor({ state: 'visible', timeout: 30_000 }).then(() => true).catch(() => false);
             if (_ok) {
                 Logger.info(`[Approval] Page ready in ${Date.now() - _t0}ms`);
@@ -139,12 +142,12 @@ exports.ApprovalJob = class ApprovalJob {
         try {
             Logger.step('Submitting create template form');
             await approval.createTemplateSubmit.click();
-            await this.page.getByRole('button', { name: 'Create Template' }).first()
+            await healingLocator(approvalStrategies.createTemplateButton)
                 .waitFor({ state: 'visible', timeout: 20000 }).catch(() => { });
             await this.page.waitForTimeout(600);
 
             // Detect backend rejection (e.g. "already linked" property conflict).
-            const errorToast = this.page.locator('[role="alert"]').filter({ hasText: /already linked|already exists|duplicate/i });
+            const errorToast = healingLocator(approvalStrategies.duplicateTemplateToast);
             if (await errorToast.isVisible({ timeout: 1500 }).catch(() => false)) {
                 const msg = (await errorToast.textContent().catch(() => '')).trim();
                 Logger.info(`submitCreateTemplate: server rejected — "${msg}"`);
@@ -789,7 +792,7 @@ exports.ApprovalJob = class ApprovalJob {
         try {
             Logger.step('Opening Create Template dialog');
             await approval.createTemplateButton.click();
-            const dialog = this.page.getByRole('dialog').filter({ has: approval.templateNameInput });
+            const dialog = healingLocator(approvalStrategies.templateDialog);
             await expect(dialog).toBeVisible({ timeout: 30000 });
             await this.page.waitForTimeout(4000);
             Logger.success('Create Template dialog opened');
@@ -839,26 +842,23 @@ exports.ApprovalJob = class ApprovalJob {
             await this.page.waitForTimeout(5000);
 
             // Mantine renders options inside a visible Combobox dropdown; each row contains a checkbox input.
-            const dropdown = this.page.locator('.mantine-Combobox-dropdown:visible').first();
+            const dropdown = healingLocator(approvalStrategies.addPropertiesDropdown).first();
             await expect(dropdown).toBeVisible({ timeout: 15000 });
 
             // Prefer the exact matching result row (when searching full property name this should be a single option).
-            const matchingRow = dropdown.locator('div:has(input[type="checkbox"])').filter({ hasText: propertyName }).first();
+            const matchingRow = healingLocator(addPropertyRowStrategies(dropdown, propertyName)).first();
             const matchingRowVisible = await matchingRow.isVisible().catch(() => false);
 
             if (matchingRowVisible) {
-                const checkbox = matchingRow.locator('input[type="checkbox"].mantine-Checkbox-input').first();
+                const checkbox = healingLocator(addPropertyRowCheckboxStrategies(matchingRow)).first();
                 await expect(checkbox).toBeVisible({ timeout: 15000 });
                 await checkbox.check({ force: true });
             } else {
                 // Fallback: check the first result checkbox (skip the "Select all" control)
-                const firstResultRow = dropdown
-                    .locator('div:has(input[type="checkbox"])')
-                    .filter({ hasNotText: 'Select all' })
-                    .first();
+                const firstResultRow = healingLocator(firstPropertyResultRowStrategies(dropdown)).first();
                 await expect(firstResultRow).toBeVisible({ timeout: 15000 });
 
-                const checkbox = firstResultRow.locator('input[type="checkbox"].mantine-Checkbox-input').first();
+                const checkbox = healingLocator(addPropertyRowCheckboxStrategies(firstResultRow)).first();
                 await expect(checkbox).toBeVisible({ timeout: 15000 });
                 await checkbox.check({ force: true });
             }
@@ -896,7 +896,7 @@ exports.ApprovalJob = class ApprovalJob {
     async addThreeApprovers() {
         const approverTimeout = 15000;
         const approverInputs = approval.selectApproverInput;
-        const amountFields = this.createTemplateDialog().getByPlaceholder('Enter Amount');
+        const amountFields = healingLocator(approvalStrategies.amountInputInDialog);
         const input0 = approverInputs.nth(0);
         await input0.waitFor({ state: 'visible', timeout: approverTimeout });
         await input0.click();
@@ -956,8 +956,7 @@ exports.ApprovalJob = class ApprovalJob {
         const fieldTimeout = 15000;
         try {
             Logger.step('Filling amount: ' + amount);
-            const dialog = this.createTemplateDialog();
-            const amountFields = dialog.getByPlaceholder('Enter Amount');
+            const amountFields = healingLocator(approvalStrategies.amountInputInDialog);
             const n = await amountFields.count();
             for (let i = 0; i < n; i++) {
                 const amountField = amountFields.nth(i);
@@ -1184,6 +1183,16 @@ exports.ApprovalJob = class ApprovalJob {
      *  Self-heals: if any required column is hidden (e.g. from a previous test toggling Manage Columns),
      *  opens the Manage Columns drawer and checks all checkboxes before asserting. */
     async expectApprovalTemplatesTableCoreColumnsVisible() {
+        // Proactively cap column widths up front (once, for every column) rather than
+        // reacting per-pattern below — MCP-verified live 2026-08-04: auto-sized columns
+        // (esp. "Approval Rules" with long multi-approver text) can push total content
+        // width past 2600px, which overflows the grid's real rendered width at the
+        // suite's 1920x1080 viewport and causes revo-grid to virtualize out trailing
+        // AND middle columns alike (not just "Created By" — "Template Type" was also
+        // observed missing in the same run). Fixing width for all columns at once here
+        // is far cheaper than the reactive per-pattern widen/pin/scroll fallback below.
+        await this.shrinkApprovalTemplatesColumnWidths().catch(() => {});
+
         const patterns = [/Name/i, /Template Type/i, /Properties/i, /Approval Rules/i, /Created By/i];
 
         const allColumnsVisible = async () => {
@@ -1228,10 +1237,108 @@ exports.ApprovalJob = class ApprovalJob {
             await this.waitForPageLoad().catch(() => {});
         }
 
+        // Targeted guarantee for "Created By" specifically, using the dedicated
+        // shrink-only-the-crowding-columns utility (Name/Template Type/Properties/
+        // Approval Rules) before falling back to the generic per-pattern healing below.
+        await this.shrinkApprovalTemplateColumnsUntilCreatedByVisible({ skipNavigation: true }).catch(() => {});
+
         for (const pattern of patterns) {
+            await this.ensureColumnHeaderVisible(pattern);
             await expect(this.page.getByRole('columnheader', { name: pattern }).first()).toBeVisible({
                 timeout: 30000,
             });
+        }
+    }
+
+    /**
+     * Caps every non-pinned column in the Approval Templates grid to a fixed, modest
+     * width via revo-grid's own `columns` API. MCP-verified live 2026-08-04: with
+     * columns auto-sized to fit content, several (e.g. "Name", "Properties", and
+     * especially "Approval Rules" — which renders long multi-approver strings like
+     * "1. Sumit Mishra: Always Required, 2. ...") can each auto-grow past 600-700px,
+     * pushing total content width over 2600px — wider than the grid's actual rendered
+     * area once the pinned left nav and page padding are subtracted from the suite's
+     * configured 1920x1080 viewport. That overflow is exactly what causes revo-grid to
+     * virtualize trailing columns like "Created By" out of the DOM entirely. Capping
+     * every non-pinned column here collapses total content width to a few hundred
+     * pixels, removing the overflow condition at its source rather than reacting to it
+     * after the fact. Purely visual — does not change any data or selection.
+     */
+    async shrinkApprovalTemplatesColumnWidths(maxColumnWidth = 200) {
+        await this.page.locator('revo-grid').first().evaluate((grid, width) => {
+            if (!grid || !Array.isArray(grid.columns)) return;
+            grid.columns = grid.columns.map((c) => (c.pin ? c : { ...c, size: width }));
+        }, maxColumnWidth).catch(() => {});
+        await this.page.waitForTimeout(400);
+    }
+
+    /**
+     * Ensures a columnheader matching `pattern` is actually rendered/visible rather than
+     * virtualized out of the DOM — revo-grid unmounts off-screen columns entirely (not
+     * just visually hides them), which can happen even without a full column count
+     * overflow when other columns (e.g. a long "Approval Rules" or "Properties" cell
+     * value) grow wide enough to crowd a later column past the grid's visible/scrolled
+     * area (MCP-verified live 2026-08-03; same class of issue already documented for the
+     * Budget grid's horizontally-scrolled columns). Tries, in order: (1) shrinking every
+     * non-pinned column to a fixed width via shrinkApprovalTemplatesColumnWidths() so
+     * total content width can no longer exceed the viewport, (2) widening the grid via
+     * the existing forceGridFullWidth() so nothing needs to be virtualized, then
+     * (3) pinning the matching column to the grid's right edge via revo-grid's own
+     * `columns` API (same mechanism the grid already uses to pin "Actions" —
+     * MCP-verified live 2026-08-04: setting `pin: 'colPinEnd'` on the matching column
+     * renders it in the always-visible pinned section regardless of how wide the
+     * scrollable columns grow, confirmed even with the grid forced down to 900px), then
+     * (4) scrolling the target header into view — first via Playwright's native
+     * scrollIntoViewIfNeeded() (precise, works when the header already exists in the DOM
+     * but sits outside the scrolled area), then falling back to forcing the grid's main
+     * viewport scrollLeft to its max (covers the case where scrollIntoViewIfNeeded can't
+     * resolve the element). MCP-verified live 2026-08-04: at a width where columns are
+     * genuinely virtualized out of the DOM (not just scrolled off), scrollWidth equals
+     * clientWidth on .main-viewport (no overflow to scroll to at all) — scrolling alone
+     * cannot recover from that case, which is why steps (1)-(3) exist first; this step
+     * still matters for the separate case where the header is present but merely
+     * scrolled out of the visible area. Purely visual — does not change any data or
+     * selection.
+     */
+    async ensureColumnHeaderVisible(pattern) {
+        const header = this.page.getByRole('columnheader', { name: pattern }).first();
+        if (await header.isVisible({ timeout: 2000 }).catch(() => false)) {
+            return;
+        }
+
+        Logger.info(`[ensureColumnHeaderVisible] Column matching ${pattern} not visible — shrinking column widths`);
+        await this.shrinkApprovalTemplatesColumnWidths();
+        if (await header.isVisible({ timeout: 3000 }).catch(() => false)) {
+            return;
+        }
+
+        Logger.info(`[ensureColumnHeaderVisible] Column matching ${pattern} still not visible — widening grid`);
+        await this.forceGridFullWidth();
+        if (await header.isVisible({ timeout: 3000 }).catch(() => false)) {
+            return;
+        }
+
+        Logger.info(`[ensureColumnHeaderVisible] Column matching ${pattern} still not visible — pinning it via revo-grid columns API`);
+        await this.page.locator('revo-grid').first().evaluate((grid, patternSource) => {
+            if (!grid || !Array.isArray(grid.columns)) return;
+            const needle = patternSource.toLowerCase();
+            grid.columns = grid.columns.map((c) => ((c.name || '').toLowerCase().includes(needle) ? { ...c, pin: 'colPinEnd' } : c));
+        }, pattern.source).catch(() => {});
+        await this.page.waitForTimeout(400);
+        if (await header.isVisible({ timeout: 3000 }).catch(() => false)) {
+            return;
+        }
+
+        Logger.info(`[ensureColumnHeaderVisible] Column matching ${pattern} still not visible — scrolling it into view`);
+        await header.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
+        if (await header.isVisible({ timeout: 2000 }).catch(() => false)) {
+            return;
+        }
+
+        const viewport = this.page.locator('.main-viewport').first();
+        if (await viewport.count().catch(() => 0)) {
+            await viewport.evaluate((el) => { el.scrollLeft = el.scrollWidth; }).catch(() => {});
+            await this.page.waitForTimeout(400);
         }
     }
 
@@ -1440,45 +1547,46 @@ exports.ApprovalJob = class ApprovalJob {
     async createProperty(name, address, city, state, zip, type) {
         try {
             Logger.step('Creating new property: ' + name);
+            const createPropertyDialog = createPropertyDialogStrategies(this.page);
 
             // Navigate to Properties page
-            const propertiesNavLink = this.page.locator(".mantine-NavLink-root:has-text('Properties')").first();
+            const propertiesNavLink = healingLocator(createPropertyDialog.propertiesNavLink);
             await propertiesNavLink.waitFor({ state: 'visible' });
             await propertiesNavLink.click();
 
             // Wait for properties page to load
-            await this.page.locator("button:has-text('Create Property')")
+            const createPropertyButton = healingLocator(createPropertyDialog.createPropertyButton);
+            await createPropertyButton
                 .waitFor({ state: 'visible', timeout: 20000 }).catch(() => { });
             await this.page.waitForTimeout(800);
 
             // Click Create Property button
-            const createPropertyButton = this.page.locator("button:has-text('Create Property')");
             await createPropertyButton.waitFor({ state: 'visible' });
             await createPropertyButton.click({ force: true });
 
             // Wait for Add Property modal to appear
-            const addPropertyModalHeader = this.page.locator(".mantine-Modal-header:has-text('Add property')");
+            const addPropertyModalHeader = healingLocator(createPropertyDialog.addPropertyModalHeader);
             await addPropertyModalHeader.waitFor({ state: 'visible' });
 
             // Fill Name
-            const nameInput = this.page.getByLabel('Name');
+            const nameInput = healingLocator(createPropertyDialog.nameInput);
             await nameInput.waitFor({ state: 'visible' });
             await nameInput.fill(name);
 
             // Fill Address
-            const addressInput = this.page.getByRole('textbox', { name: 'Address' });
+            const addressInput = healingLocator(createPropertyDialog.addressInput);
             await addressInput.fill(address);
 
             // Select address suggestion
-            const addressSuggestion = this.page.locator(`.mantine-Autocomplete-option:has-text("${address}")`);
+            const addressSuggestion = healingLocator(createPropertyDialog.addressSuggestion(address));
             await addressSuggestion.waitFor({ state: 'visible' });
             await addressSuggestion.nth(0).click();
 
             // Select property type
-            const typeInput = this.page.locator('input[placeholder="Select type"]');
+            const typeInput = healingLocator(createPropertyDialog.typeInput);
             await typeInput.fill(type);
 
-            const propertyTypeOption = this.page.locator(`.mantine-Select-option:has-text("${type}")`);
+            const propertyTypeOption = healingLocator(createPropertyDialog.propertyTypeOption(type));
             await propertyTypeOption.waitFor({ state: 'visible' });
             await propertyTypeOption.click();
 
@@ -1486,19 +1594,19 @@ exports.ApprovalJob = class ApprovalJob {
             await this.page.waitForTimeout(1500);
 
             // Click Add Property button
-            const addPropertyBtn = this.page.getByRole('button', { name: /add property/i });
+            const addPropertyBtn = healingLocator(createPropertyDialog.addPropertyBtn);
             await addPropertyBtn.click();
 
             // Wait for property creation breadcrumb
-            const breadcrumb = this.page.locator(`.mantine-Breadcrumbs-root:has-text('${name}')`);
+            const breadcrumb = healingLocator(createPropertyDialog.breadcrumb(name));
             await breadcrumb.waitFor({ state: 'visible' });
 
             // Navigate back to properties list
-            const propertiesNavLink2 = this.page.locator(".mantine-NavLink-root:has-text('Properties')").first();
+            const propertiesNavLink2 = healingLocator(createPropertyDialog.propertiesNavLink);
             await propertiesNavLink2.click();
 
             // Verify property appears in list
-            const propertyGrid = this.page.locator(`.mantine-SimpleGrid-root p:has-text('${name}')`);
+            const propertyGrid = healingLocator(createPropertyDialog.propertyGrid(name));
             await propertyGrid.nth(0).waitFor({ state: 'visible' });
 
             Logger.success('Property created successfully: ' + name);
@@ -1824,6 +1932,26 @@ exports.ApprovalJob = class ApprovalJob {
     }
 
     /**
+     * Forces the All Approvals revo-grid to a large width so it mounts every column
+     * instead of virtualizing rightmost ones out of the DOM. MCP-verified live (2026-07-28):
+     * at default width the grid renders only Property Name through Requested By + Actions —
+     * "Status" (and Submitted On/Approved On/Approver/Revision Notes) are dropped entirely,
+     * so any row-text scan for a status keyword like "pending" silently finds nothing even
+     * though the matching row itself is visible and present. Purely visual — does not change
+     * any data, selection, or interaction behavior.
+     */
+    async forceGridFullWidth() {
+        const grid = this.page.locator('revo-grid').first();
+        if (await grid.count().catch(() => 0)) {
+            await grid.evaluate((g) => {
+                g.style.setProperty('width', '3500px', 'important');
+                g.style.setProperty('min-width', '3500px', 'important');
+            }).catch(() => {});
+            await this.page.waitForTimeout(400);
+        }
+    }
+
+    /**
      * Navigates directly to the All Approvals page via URL to avoid property
      * context filter that persists from the Budget page URL params.
      */
@@ -1835,6 +1963,7 @@ exports.ApprovalJob = class ApprovalJob {
             await this.page.locator('[role="treegrid"]').first()
                 .waitFor({ state: 'visible', timeout: 30000 }).catch(() => { });
             await this.page.waitForTimeout(3000);
+            await this.forceGridFullWidth();
             Logger.success('Navigated to All Approvals tab');
         } catch (error) {
             Logger.error('navigateToAllApprovalsTab failed: ' + error.message);
@@ -1859,6 +1988,7 @@ exports.ApprovalJob = class ApprovalJob {
             const dataRows = treegrid.locator('[role="row"]').filter({ has: this.page.locator('[role="gridcell"]') });
 
             const findTargetIndex = async () => {
+                await this.forceGridFullWidth();
                 const count = await dataRows.count();
                 for (let i = 0; i < count; i++) {
                     const rowText = (await dataRows.nth(i).textContent().catch(() => '')).toLowerCase();
@@ -1951,6 +2081,7 @@ exports.ApprovalJob = class ApprovalJob {
                 await this.page.locator('[role="treegrid"]').first()
                     .waitFor({ state: 'visible', timeout: 30000 }).catch(() => { });
                 await this.page.waitForTimeout(3000);
+                await this.forceGridFullWidth();
 
                 // Check if any pending revisions remain for this property
                 const treegrid = this.page.locator('[role="treegrid"]').first();
@@ -1988,6 +2119,7 @@ exports.ApprovalJob = class ApprovalJob {
             // All Approvals grid truncates property names (removes timestamp suffix)
             const searchName = propertyName.replace(/_\d+$/, '');
 
+            await this.forceGridFullWidth();
             const treegrid = this.page.locator('[role="treegrid"]').first();
             const dataRows = treegrid.locator('[role="row"]').filter({ has: this.page.locator('[role="gridcell"]') });
             const count = await dataRows.count();
@@ -2022,6 +2154,7 @@ exports.ApprovalJob = class ApprovalJob {
             Logger.step(`Navigating to budget revision editor #${nthOccurrence + 1} for property: "${propertyName}"`);
             const searchName = propertyName.replace(/_\d+$/, '');
 
+            await this.forceGridFullWidth();
             const treegrid = this.page.locator('[role="treegrid"]').first();
             const dataRows = treegrid.locator('[role="row"]').filter({ has: this.page.locator('[role="gridcell"]') });
             const count = await dataRows.count();
@@ -2051,5 +2184,76 @@ exports.ApprovalJob = class ApprovalJob {
             Logger.error(`navigateToNthBudgetRevisionEditorByProperty failed: ${error.message}`);
             throw error;
         }
+    }
+
+    /**
+     * STANDALONE utility — independent of expectApprovalTemplatesTableCoreColumnsVisible(),
+     * ensureColumnHeaderVisible(), and shrinkApprovalTemplatesColumnWidths() above; does not
+     * call, share state with, or alter any of them. Opens the Approval Templates tab, then
+     * repeatedly reads the live revo-grid's ACTUAL rendered column widths (via
+     * getBoundingClientRect on each columnheader — nothing about initial widths is assumed)
+     * and shrinks ONLY the "Name", "Template Type", "Properties", and "Approval Rules"
+     * columns (MCP-verified live 2026-08-04: these are the columns crowding "Created By" out
+     * — the pinned "Actions" column consumes fixed trailing space regardless, and "Created
+     * By" itself is left alone since shrinking the target column would not help reveal it).
+     * Re-checks after each step whether the "Created By" columnheader has a real, non-zero,
+     * hit-testable bounding box, and stops the moment it does.
+     *
+     * Uses Playwright's expect.poll to drive the shrink-and-recheck loop — each poll tick
+     * performs exactly one shrink step and re-tests visibility — so no fixed/hardcoded sleep
+     * is used anywhere in this method; poll cadence is Playwright's own backoff.
+     *
+     * MCP-verified live 2026-08-04 on beta.tailorbird.com: with the grid narrowed enough to
+     * virtualize both "Approval Rules" and "Created By" out of the DOM entirely, shrinking
+     * only these 4 columns still converges (11 steps of 20px) and restores "Created By".
+     *
+     * @param {Object} [options]
+     * @param {number} [options.stepPx=20] px to shrink each targeted column by per iteration
+     * @param {number} [options.minColumnWidthPx=60] floor width a column will not be shrunk below
+     * @param {number} [options.timeout=20000] overall timeout (ms) for the poll loop
+     * @param {boolean} [options.skipNavigation=false] when true, assumes the caller is already
+     *   on the Approval Templates tab (e.g. mid-test, with search/filter state already applied)
+     *   and skips the navigateToApprovalTab()/navigateToApprovalTemplatesTab() calls so this
+     *   utility can be reused as a shrink-only step without disturbing that state.
+     * @returns {Promise<boolean>} true once "Created By" is confirmed visible
+     */
+    async shrinkApprovalTemplateColumnsUntilCreatedByVisible({ stepPx = 20, minColumnWidthPx = 60, timeout = 20000, skipNavigation = false } = {}) {
+        if (!skipNavigation) {
+            Logger.step('[shrinkApprovalTemplateColumnsUntilCreatedByVisible] Opening Approval Templates tab');
+            await this.navigateToApprovalTab();
+            await this.navigateToApprovalTemplatesTab();
+        }
+
+        const grid = this.page.locator('revo-grid').first();
+        const createdByHeader = this.page.getByRole('columnheader', { name: /Created By/i }).first();
+        const targetColumnNames = ['Name', 'Template Type', 'Properties', 'Approval Rules'];
+
+        await expect.poll(async () => {
+            if (await createdByHeader.isVisible().catch(() => false)) {
+                return true;
+            }
+
+            await grid.evaluate((el, { step, minWidth, targetNames }) => {
+                if (!el || !Array.isArray(el.columns)) return;
+                const headers = [...el.querySelectorAll('[role="columnheader"]')];
+                el.columns = el.columns.map((col) => {
+                    if (!targetNames.includes(col.name)) return col;
+                    const headerEl = headers.find((h) => h.textContent.trim().startsWith(col.name));
+                    const currentWidth = headerEl ? headerEl.getBoundingClientRect().width : null;
+                    if (currentWidth == null) return col;
+                    const nextWidth = Math.max(minWidth, currentWidth - step);
+                    return nextWidth < currentWidth ? { ...col, size: nextWidth } : col;
+                });
+            }, { step: stepPx, minWidth: minColumnWidthPx, targetNames: targetColumnNames }).catch(() => {});
+
+            return await createdByHeader.isVisible().catch(() => false);
+        }, {
+            timeout,
+            intervals: [100, 200, 300, 500],
+            message: '[shrinkApprovalTemplateColumnsUntilCreatedByVisible] "Created By" column did not become visible within timeout',
+        }).toBe(true);
+
+        Logger.success('[shrinkApprovalTemplateColumnsUntilCreatedByVisible] "Created By" column is fully visible');
+        return true;
     }
 };

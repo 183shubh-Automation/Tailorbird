@@ -14,7 +14,7 @@ const LOGIN_SCREENSHOT_OPTIONS = {
   maxDiffPixelRatio: 0.3,
 };
 
-test.describe('Tailorbird Login Flow', () => {
+test.describe('Login Flow', () => {
   let context;
   let page;
   let login;
@@ -29,6 +29,7 @@ test.describe('Tailorbird Login Flow', () => {
     await test.step('Go to login page', async () => {
       Logger.step('Navigating to login URL...');
       await page.goto(process.env.LOGIN_URL, { waitUntil: 'load' });
+      await login.checkLocatorHealth('TC01 email step', ['emailInput', 'continueButton', 'errorMessage']);
     });
 
     await test.step('Perform login', async () => {
@@ -65,7 +66,7 @@ test.describe('Tailorbird Login Flow', () => {
     });
   });
 
-  test('TC03 @sanity @login Login with another user successfully', async ({ browser }) => {
+  test('TC03 @sanity @login Login with another multiorganization user successfully', async ({ browser }) => {
     Logger.info('Starting Tailorbird login test...');
 
     context = await browser.newContext();
@@ -88,7 +89,7 @@ test.describe('Tailorbird Login Flow', () => {
     });
   });
 
-  test('TC04 @sanity @login Login with existing user which has only one organization', async ({ browser }) => {
+  test('TC04 @sanity @login Validate login with an existing single-organization user successfully', async ({ browser }) => {
     Logger.info('Starting Tailorbird login test...');
 
     context = await browser.newContext();
@@ -112,8 +113,8 @@ test.describe('Tailorbird Login Flow', () => {
   });
 });
 
-test.describe('Regression — login (consolidated)', () => {
-  test('TC05 @regression @login Full login regression — negatives, edges, benchmarks, snapshots', async ({
+test.describe('Login Flow', () => {
+  test('TC05 @regression @login Validate login negative, edge, navigation, and visual scenarios.', async ({
     browser,
   }, testInfo) => {
     testInfo.setTimeout(600_000);
@@ -473,13 +474,13 @@ test.describe('Regression — login (consolidated)', () => {
   });
 });
 
-test.describe('TC01 Login — Text assertions', () => {
+test.describe('Login Flow', () => {
   test.setTimeout(300_000);
 
   const loginUrl = process.env.LOGIN_URL;
   const testEmail = process.env.TEST_EMAIL;
 
-  test('TC06 @login Full login text agent — email step, password step, all error states', async ({ browser }) => {
+  test('TC06 @login Validate login text and error messages for email, password, empty and invalid credential scenarios.', async ({ browser }) => {
     Logger.info('[TEXT AGENT] Starting full login text scan — one context, sequential states');
     const ctx = await browser.newContext();
     const page = await ctx.newPage();

@@ -137,13 +137,62 @@ class CapexColumnPersistencePage {
 
     // ─── Column visibility in grid ────────────────────────────────────────────
 
+    /**
+     * Forces the CapEx grid to a large width so revo-grid mounts every column marked
+     * visible in the saved preference, instead of virtualizing rightmost ones out of the
+     * DOM to fit the default (narrow) viewport. MCP-verified live (2026-07-28): toggling
+     * "Invoiced Amount" to visible correctly saves server-side (GET /api/table-view-config
+     * confirms columnVisibility.invoiced_amount: true) and toggles the drawer checkbox, but
+     * the column header still never mounts at default width — isColumnVisibleInGrid() reads
+     * DOM presence, which is a rendering/virtualization concern separate from the saved
+     * preference itself.
+     */
+    async forceGridFullWidth() {
+        const grid = this.page.locator('revo-grid').first();
+        if (await grid.count().catch(() => 0)) {
+            await grid.evaluate((g) => {
+                g.style.setProperty('width', '3000px', 'important');
+                g.style.setProperty('min-width', '3000px', 'important');
+            }).catch(() => {});
+            await this.page.waitForTimeout(400);
+        }
+    }
+
+    /**
+     * Undoes forceGridFullWidth()'s inline override. MCP/test-run-verified (2026-07-28): the
+     * forced 3000px width otherwise persists across test.step()s that share the same page
+     * (it's only cleared by a real reload), which silently changed how many rows render and
+     * broke an unrelated later assertion (TC206 Scenario 2's before/after-reload row-count
+     * comparison) that has nothing to do with column visibility. Restoring immediately after
+     * each visibility read keeps the width-forcing effect scoped to just that read.
+     */
+    async restoreGridWidth() {
+        const grid = this.page.locator('revo-grid').first();
+        if (await grid.count().catch(() => 0)) {
+            await grid.evaluate((g) => {
+                g.style.removeProperty('width');
+                g.style.removeProperty('min-width');
+            }).catch(() => {});
+            await this.page.waitForTimeout(400);
+        }
+    }
+
     // Instant DOM query — safe to call right after showColumn/hideColumn which
     // already waited for the grid to update before returning.
     async isColumnVisibleInGrid(columnName) {
-        return this.page.evaluate((name) => {
+        const checkHeaderPresent = () => this.page.evaluate((name) => {
             return Array.from(document.querySelectorAll('[role="columnheader"]'))
                 .some(h => h.textContent.trim() === name);
         }, columnName);
+        // Fast path first — most columns (e.g. "Budget Revision", "Approved Change Orders")
+        // already fit at default width, so most callers never need the force/restore below.
+        // Only pay that cost (and its ~800ms of waiting) for columns that are actually
+        // virtualized out at default width (e.g. "Invoiced Amount", MCP-verified 2026-07-28).
+        if (await checkHeaderPresent()) return true;
+        await this.forceGridFullWidth();
+        const isVisible = await checkHeaderPresent();
+        await this.restoreGridWidth();
+        return isVisible;
     }
 
     // ─── Sorting ──────────────────────────────────────────────────────────────
@@ -249,21 +298,39 @@ class CapexColumnPersistencePage {
         const header = this.l.columnHeaders
             .filter({ has: this.page.getByText(columnName, { exact: true }) })
             .first();
-        const box = await header.boundingBox();
-        if (!box) {
+
+        const attemptDrag = async () => {
+            await header.scrollIntoViewIfNeeded().catch(() => {});
+            const box = await header.boundingBox();
+            if (!box) return null;
+            // The .resizable-r handle sits at the very right edge of the header (6 px wide).
+            const resizerX = box.x + box.width - 3;
+            const resizerY = box.y + box.height / 2;
+            await this.page.mouse.move(resizerX, resizerY);
+            await this.page.mouse.down();
+            await this.page.mouse.move(resizerX + deltaX, resizerY, { steps: 8 });
+            await this.page.mouse.up();
+            // Wait for revo-grid to commit the resize and the API to save it
+            await this.page.waitForTimeout(1200);
+            return this.getColumnWidthPx(columnName);
+        };
+
+        const widthBefore = await this.getColumnWidthPx(columnName);
+        let widthAfter = await attemptDrag();
+        if (widthAfter === null) {
             Logger.error(`resizeColumn: column "${columnName}" bounding box not found`);
             return null;
         }
-        // The .resizable-r handle sits at the very right edge of the header (6 px wide).
-        const resizerX = box.x + box.width - 3;
-        const resizerY = box.y + box.height / 2;
-        await this.page.mouse.move(resizerX, resizerY);
-        await this.page.mouse.down();
-        await this.page.mouse.move(resizerX + deltaX, resizerY, { steps: 8 });
-        await this.page.mouse.up();
-        // Wait for revo-grid to commit the resize and the API to save it
-        await this.page.waitForTimeout(1200);
-        return this.getColumnWidthPx(columnName);
+        // A real drag should move the width in the direction of deltaX. MCP-verified: the
+        // same drag logic reliably resizes the column in isolation, but an occasional miss
+        // can happen deep into a long test (header position can shift after an earlier
+        // scenario's reload/scroll) — retry once before accepting a no-op result.
+        const movedAsExpected = deltaX > 0 ? widthAfter > widthBefore : widthAfter < widthBefore;
+        if (!movedAsExpected) {
+            Logger.info(`resizeColumn: "${columnName}" width unchanged (${widthBefore}px) after first drag attempt — retrying once`);
+            widthAfter = await attemptDrag();
+        }
+        return widthAfter;
     }
 
     // ─── Grouping observation ─────────────────────────────────────────────────

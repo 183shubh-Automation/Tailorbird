@@ -1012,6 +1012,25 @@ exports.ProjectJob = class ProjectJob {
             if (!hasPrice && !hasTotal) throw new Error(`Price not visible. Price: "${priceText}", Total: "${totalText}"`);
         }).toPass({ timeout: 10000, intervals: [500, 1000, 1000] });
     }
+
+    /**
+     * Forces a revo-grid to a large width so it mounts every column instead of virtualizing
+     * rightmost ones out of the DOM at narrower effective render widths (font-metric
+     * differences between local Windows and headless Linux CI can shift where this threshold
+     * falls — MCP-verified live: the Contract line grid drops columns past a certain
+     * aria-colindex once available width is insufficient). Purely visual — does not change
+     * any data, selection, or interaction behavior of the grid.
+     */
+    async forceGridFullWidth(grid) {
+        if (await grid.count().catch(() => 0)) {
+            await grid.evaluate((g) => {
+                g.style.setProperty('width', '3000px', 'important');
+                g.style.setProperty('min-width', '3000px', 'important');
+            }).catch(() => {});
+            await this.page.waitForTimeout(400);
+        }
+    }
+
     /**
      * TC47_NEW_UI: contract grid fill + finalize (enters via Jobs menu).
      * @param {{ projectName: string }} projectData — must match Jobs grid row filtering
@@ -1196,7 +1215,8 @@ exports.ProjectJob = class ProjectJob {
             };
             const contractsGrid = await resolveContractsGrid();
             await expect(contractsGrid).toBeVisible({ timeout: 10000 });
-    
+            await this.forceGridFullWidth(contractsGrid);
+
             const getHeaders = async () =>
                 contractsGrid.locator('div[role="columnheader"]').evaluateAll((els) =>
                     els.map((e) => ({
@@ -1276,11 +1296,15 @@ exports.ProjectJob = class ProjectJob {
                 commitKey = 'Enter',
                 label = 'field',
             }) => {
+                // Re-apply in case an intervening action (e.g. the row-add above) remounted
+                // the grid and reset its width — MCP-verified live elsewhere in this app that
+                // a revo-grid remount wipes any previously-forced inline width.
+                await this.forceGridFullWidth(contractsGrid);
                 const triggerCell = getCell(triggerCol);
                 await triggerCell.scrollIntoViewIfNeeded();
                 await triggerCell.dblclick({ force: true });
                 await page.waitForTimeout(700);
-    
+
                 let activeCol = await getActiveCellCol();
                 Logger.info(`${label} focus after trigger: activeCol=${activeCol}, targetCol=${targetCol}`);
     
