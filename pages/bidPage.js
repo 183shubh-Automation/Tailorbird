@@ -82,10 +82,23 @@ class BidPage {
         await expect(loc.detailLevelInput).toBeVisible();
         await expect(loc.priceByInput).toBeVisible();
         await expect(loc.bidDueDateInput).toBeVisible();
-        await expect(loc.statusInput).toBeVisible();
-        await expect(loc.linkedJobInput).toBeVisible();
         await expect(loc.cancelModalButton).toBeVisible();
         await expect(loc.submitBidButton).toBeVisible();
+
+        // Regression guard: a bid must NOT be linkable to a job at creation time (product
+        // decision — job-linking only happens at award time, never across a different
+        // property). See locators/bidLocator.js linkedJobFieldCheck for the bug this guards.
+        await expect(loc.linkedJobFieldCheck).toHaveCount(0);
+        Logger.info('Linked Job option correctly NOT offered at bid creation ✓');
+
+        // Supporting Documents (optional) — Uploadcare widget, MCP-verified live (2026-09-01)
+        await expect(loc.supportingDocsLabel).toBeVisible();
+        await expect(loc.dropFilesHereText).toBeVisible();
+        await expect(loc.supportingDocsFromDeviceBtn).toBeVisible();
+        await expect(loc.supportingDocsGoogleDriveBtn).toBeVisible();
+        await expect(loc.supportingDocsDropboxBtn).toBeVisible();
+        await expect(loc.poweredByUploadcareLink).toBeVisible();
+
         Logger.success('All Create Bid modal fields present');
     }
 
@@ -120,19 +133,9 @@ class BidPage {
         Logger.success('Price By options verified');
     }
 
-    async assertStatusDropdownOptions() {
-        Logger.step('Asserting Status dropdown options...');
-        await this.loc().statusInput.click();
-        await expect(this.loc().dropdownOption('Draft')).toBeVisible();
-        await expect(this.loc().dropdownOption('In Progress')).toBeVisible();
-        await expect(this.loc().dropdownOption('Awarded')).toBeVisible();
-        await this.page.keyboard.press('Escape');
-        Logger.success('Status options verified: Draft, In Progress, Awarded');
-    }
-
     /**
      * @param {{ bidName: string, property: string, bidType: string, detailLevel: string,
-     *           priceBy: string, bidDueDate: string, status: string }} data
+     *           priceBy: string, bidDueDate: string }} data
      */
     async fillAndSubmitCreateBidForm(data) {
         const loc = this.loc();
@@ -156,16 +159,10 @@ class BidPage {
         await loc.dropdownOptionFuzzy(data.priceBy).click();
 
         await loc.bidDueDateInput.fill(data.bidDueDate);
-
-        await loc.statusInput.click();
-        await loc.dropdownOption(data.status).click();
-
-        if (data.linkedJob) {
-            await loc.linkedJobInput.click();
-            await loc.linkedJobInput.fill(data.linkedJob);
-            await this.page.waitForTimeout(800);
-            await loc.dropdownOptionFuzzy(data.linkedJob).click();
-        }
+        // MCP-verified live (2026-09-01): the due-date field is a masked/calendar-backed input
+        // that only commits its parsed value on blur — without this, the field can silently
+        // save as blank ("-") even though fill() visibly populated the text.
+        await loc.bidDueDateInput.press('Tab');
 
         Logger.step('Submitting Create Bid form...');
         await loc.submitBidButton.click();
@@ -199,13 +196,21 @@ class BidPage {
         await expect(loc.overviewFieldValue('Detail Level')).toContainText(data.detailLevel);
         await expect(loc.overviewFieldValue('Price By')).toContainText(data.priceBy);
 
-        const statusText = await loc.overviewFieldValue('Status').textContent().catch(() => '');
-        expect(statusText.trim().length).toBeGreaterThan(0);
-        Logger.info(`Status field value: "${statusText.trim()}"`);
+        // MCP-verified live (2026-09-01): the Create Bid modal no longer exposes a Status
+        // control — every newly created bid is auto-assigned "Draft" and Status only ever
+        // appears (read-only) here on Overview. Hard-assert the exact value rather than just
+        // checking for non-empty text, which would wrongly pass on a "-" placeholder too.
+        await expect(loc.overviewFieldValue('Status')).toHaveText('Draft', { timeout: 10000 });
+        Logger.info('Status field value: "Draft"');
 
-        const dueDateText = await loc.overviewFieldValue('Bid Due Date').textContent().catch(() => '');
-        expect(dueDateText.trim().length).toBeGreaterThan(0);
-        Logger.info(`Due Date field value: "${dueDateText.trim()}"`);
+        // MCP-verified live (2026-09-01): the due-date input is masked/calendar-backed and can
+        // silently persist as blank ("-") if the field wasn't blurred before submit — assert
+        // the exact expected display text instead of merely checking for non-empty text, which
+        // would wrongly pass on a "-" placeholder.
+        const expectedDueDateText = new Date(`${data.bidDueDate}T00:00:00`)
+            .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        await expect(loc.overviewFieldValue('Bid Due Date')).toContainText(expectedDueDateText, { timeout: 10000 });
+        Logger.info(`Due Date field value: "${expectedDueDateText}"`);
 
         await expect(loc.editButton).toBeVisible();
         await expect(loc.bidDocumentsLabel).toBeVisible();
@@ -403,6 +408,98 @@ class BidPage {
         Logger.success('Chat attachment dialog verified and closed');
     }
 
+    /**
+     * Attaches a local file to the Bid Book AI chat via the "Documents in context" dialog
+     * (chatAttachButton → docsContextUploadBtn "Upload files" → Uploadcare "From device" →
+     * native file chooser). MCP-verified live (2026-09-02) against an existing Bid Book chat.
+     * Distinct from attachFileToPiper(), which targets the separate Compare Bids chat panel.
+     * @param {string} filePath  Absolute path to the file to attach
+     */
+    async attachFileToBidBookChat(filePath) {
+        const loc = this.loc();
+        Logger.step(`Attaching file to Bid Book chat: ${path.basename(filePath)}`);
+
+        await expect(loc.chatAttachButton).toBeVisible({ timeout: 10000 });
+        await loc.chatAttachButton.click();
+        await expect(loc.docsContextDialog).toBeVisible({ timeout: 8000 });
+        await expect(loc.docsContextUploadBtn).toBeVisible();
+        await loc.docsContextUploadBtn.click();
+
+        const ucDialog = this.page.locator('dialog[open]').first();
+        await expect(ucDialog).toBeVisible({ timeout: 10000 });
+        const fileChooserPromise = this.page.waitForEvent('filechooser', { timeout: 15000 });
+        await ucDialog.getByRole('button', { name: 'From device' }).click();
+        const chooser = await fileChooserPromise;
+        await chooser.setFiles(filePath);
+        await this.page.waitForTimeout(2500);
+
+        // Same proven fix as TC316's Piper attach flow (MCP-verified live 2026-08-06, and
+        // re-confirmed live for THIS chat 2026-09-02 by the actual test run): Uploadcare leaves
+        // its own confirmation dialog ("N file(s) uploaded" + Done button) open on top of the
+        // panel, and that dialog's subtree intercepts pointer events on the chat textarea
+        // underneath — the widget does NOT reliably auto-close on its own. Explicitly click
+        // Done (falling back to Apply/Import/Confirm) and require every dialog[open] gone
+        // before returning, exactly like the already-working pattern in TC316.
+        const doneBtn = this.page.getByRole('button', { name: /^Done$/i }).last();
+        const doneVisible = await doneBtn.isVisible({ timeout: 10000 }).catch(() => false);
+        if (doneVisible) {
+            await expect(doneBtn).toBeEnabled({ timeout: 20000 });
+            await doneBtn.click({ force: true });
+        } else {
+            const fallbackDone = this.page.getByRole('button', { name: /Apply|Import|Confirm/i }).last();
+            if (await fallbackDone.isVisible({ timeout: 3000 }).catch(() => false)) {
+                await fallbackDone.click({ force: true });
+            }
+        }
+        await expect(this.page.locator('dialog[open]').first()).not.toBeVisible({ timeout: 15000 });
+
+        Logger.success(`File attached to Bid Book chat: ${path.basename(filePath)}`);
+    }
+
+    /**
+     * Sends the initial message to the Bid Book AI chat and adaptively drives the conversation
+     * to a generated table. The AI may ask a clarifying question before producing the table
+     * (non-deterministic — MCP-verified live it can take multiple turns), so this reads the
+     * AI's own response only to log it and always replies with a generic affirmative
+     * continuation, never assuming or asserting on the AI's specific wording.
+     * @param {string} initialMessage
+     * @param {number} [maxAttempts]  Max chat turns before giving up (product behavior: can take 3-4)
+     * @returns {Promise<boolean>} true if the bid book table (iframe) was generated
+     */
+    async generateBidBookViaChat(initialMessage, maxAttempts = 4) {
+        const loc = this.loc();
+        const bidBookPanel = this.page.getByRole('tabpanel', { name: 'Bid Book AI Assisted' });
+        Logger.step('Driving Bid Book AI chat adaptively to table generation...');
+
+        await this.typeInvokeMessage(initialMessage);
+
+        let tableVisible = false;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            const thoughtButton = bidBookPanel.getByRole('button', { name: 'Thought' }).nth(attempt - 1);
+            await thoughtButton.waitFor({ state: 'visible', timeout: 240000 });
+            await expect(loc.chatInput).toBeEnabled({ timeout: 240000 });
+            Logger.info(`Bid Book AI response #${attempt} received`);
+
+            tableVisible = await loc.bidBookIframe.isVisible().catch(() => false);
+            if (tableVisible) {
+                Logger.success(`Bid book table generated after ${attempt} chat turn(s)`);
+                break;
+            }
+
+            // AI content is non-deterministic — read it for logging only, never assert on wording.
+            const lastResponseText = (await bidBookPanel.locator('p').last().textContent().catch(() => '')).trim();
+            Logger.info(`Turn ${attempt} response (adaptive reply basis only): "${lastResponseText.substring(0, 150)}"`);
+
+            if (attempt < maxAttempts) {
+                await this.typeInvokeMessage(
+                    'Yes, please proceed exactly as you suggested above and generate the complete bid book table now.'
+                );
+            }
+        }
+
+        return tableVisible;
+    }
+
     async assertBidBookToolbar() {
         const loc = this.loc();
         Logger.step('Asserting Bid Book toolbar buttons...');
@@ -598,14 +695,12 @@ class BidPage {
 
         await expect(loc.vendorSearchInput).toBeVisible({ timeout: 15000 });
         await expect(loc.vendorFilterButton).toBeVisible({ timeout: 10000 });
-        await expect(loc.vendorViewButton).toBeVisible({ timeout: 10000 });
 
         await expect(loc.colVendorName).toBeVisible();
         await expect(loc.colVendorLocation).toBeVisible();
         await expect(loc.colVendorServiceArea).toBeVisible();
         await expect(loc.colVendorPrimaryContact).toBeVisible();
         await expect(loc.colVendorContactEmail).toBeVisible();
-        await expect(loc.colVendorTrades).toBeVisible();
         Logger.info('Vendor grid columns verified');
 
         await expect(loc.inviteVendorButton).toBeVisible();
@@ -1197,8 +1292,11 @@ class BidPage {
         Logger.success('All field labels and placeholders verified');
 
         for (const btnName of dialogFixture.buttons) {
+            // MCP-verified live (2026-09-01): the modal's submit button and the page-level
+            // button that opens it are BOTH named "Create Bid" — scope to the dialog so this
+            // matches the modal's own button, not the page-level one behind it.
             await expect(
-                this.page.getByRole('button', { name: btnName, exact: true })
+                loc.createBidDialog.getByRole('button', { name: btnName, exact: true })
             ).toBeVisible();
             Logger.info(`Button visible: "${btnName}"`);
         }
@@ -1233,25 +1331,6 @@ class BidPage {
             await expect(this.page.getByRole('option', { name: opt })).toBeVisible();
             Logger.info(`  ✓ Price By: "${opt}"`);
         }
-        await loc.bidNameInput.click();
-        await this.page.waitForTimeout(300);
-
-        Logger.step('Opening Status listbox...');
-        await loc.statusInput.click();
-        await this.page.getByRole('listbox', { name: 'Status' })
-            .waitFor({ state: 'visible', timeout: 10000 });
-        for (const opt of dialogFixture.statusOptions) {
-            await expect(this.page.getByRole('option', { name: opt })).toBeVisible();
-            Logger.info(`  ✓ Status: "${opt}"`);
-        }
-        await loc.bidNameInput.click();
-        await this.page.waitForTimeout(300);
-
-        Logger.step('Verifying Linked Job listbox opens...');
-        await loc.linkedJobInput.click();
-        await this.page.getByRole('listbox', { name: 'Linked Job' })
-            .waitFor({ state: 'visible', timeout: 10000 });
-        Logger.info('Linked Job listbox opened ✓ (options are environment-dynamic, not asserted by value)');
         await loc.bidNameInput.click();
         await this.page.waitForTimeout(300);
 

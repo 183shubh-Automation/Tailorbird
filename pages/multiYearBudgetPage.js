@@ -217,24 +217,39 @@ exports.MultiYearBudgetJob = class MultiYearBudgetJob {
      * for this exact virtualized grid.
      */
     async _readCellByHeaderAndItemRow(headerLocator, itemName) {
-        await expect(headerLocator).toBeVisible({ timeout: 15000 });
-        const headerBox = await headerLocator.boundingBox();
-        if (!headerBox) throw new Error('Column header bounding box not available');
-
         const itemCell = this.page.getByRole('gridcell', { name: itemName }).first();
-        await expect(itemCell).toBeVisible({ timeout: 15000 });
-        const itemBox = await itemCell.boundingBox();
-        if (!itemBox) throw new Error(`Bounding box not available for item row: "${itemName}"`);
 
-        const x = headerBox.x + headerBox.width / 2;
-        const y = itemBox.y + Math.min(itemBox.height / 2, 15);
+        // MCP-verified live (2026-09-02): a single point-in-time bounding-box sample can land
+        // on a stale/transient value (e.g. a "$0" placeholder briefly present the instant after
+        // a real-time-propagation re-render) even though both the header and the item row are
+        // independently confirmed correct moments later — this grid's virtualization already
+        // has documented alignment fragility (see _headerForYear's own comment). Re-sampling
+        // fresh boxes on each attempt (not reusing a possibly-stale box) until a value shows up
+        // makes this robust to that transient without masking a genuinely missing cell.
+        let text = null;
+        await expect(async () => {
+            await expect(headerLocator).toBeVisible({ timeout: 5000 });
+            const headerBox = await headerLocator.boundingBox();
+            if (!headerBox) throw new Error('Column header bounding box not available');
 
-        return this.page.evaluate(({ x, y }) => {
-            const el = document.elementFromPoint(x, y);
-            if (!el) return null;
-            const cell = el.closest('[role="gridcell"]');
-            return cell ? cell.textContent.trim() : null;
-        }, { x, y });
+            await expect(itemCell).toBeVisible({ timeout: 5000 });
+            const itemBox = await itemCell.boundingBox();
+            if (!itemBox) throw new Error(`Bounding box not available for item row: "${itemName}"`);
+
+            const x = headerBox.x + headerBox.width / 2;
+            const y = itemBox.y + Math.min(itemBox.height / 2, 15);
+
+            text = await this.page.evaluate(({ x, y }) => {
+                const el = document.elementFromPoint(x, y);
+                if (!el) return null;
+                const cell = el.closest('[role="gridcell"]');
+                return cell ? cell.textContent.trim() : null;
+            }, { x, y });
+
+            expect(text, 'Sampled cell text must be non-empty').not.toBeNull();
+        }).toPass({ timeout: 8000, intervals: [300, 500, 800, 1200] });
+
+        return text;
     }
 
     async getCurrentYearRowValues(itemName, currentYear) {

@@ -143,18 +143,24 @@ function addPropertyDialogStrategies(page) {
  * BEFORE the address step (matching this pre-fill placeholder text), so the placeholder
  * fallback strategy is valid at the point it's actually used.
  */
+/**
+ * CAUTION (found live, not assumed — MCP-verified 2026-09-02): the Add-property modal
+ * now also has "Legal Name" and "Legal Address" fields. Plain `getByLabel('Name')` /
+ * `getByRole('textbox', { name: 'Address' })` substring-match those too ("Legal Name"
+ * contains "Name", "Legal Address" contains "Address"), so both must be exact.
+ */
 function nameInputStrategies(page) {
     return [
-        { name: 'label:Name(original)', locator: page.getByLabel('Name') },
-        { name: 'placeholder:Enter name', locator: page.getByPlaceholder('Enter name') },
+        { name: 'label:Name(exact)', locator: page.getByLabel('Name', { exact: true }) },
+        { name: 'placeholder:Enter name', locator: page.getByPlaceholder('Enter name', { exact: true }) },
         { name: 'position:dialog-input[0]', locator: page.locator('[role="dialog"] input:not([type="hidden"])').nth(0) },
     ];
 }
 
 function addressInputStrategies(page) {
     return [
-        { name: 'role:textbox[name=Address](original)', locator: page.getByRole('textbox', { name: 'Address' }) },
-        { name: 'placeholder:Enter address', locator: page.getByPlaceholder('Enter address') },
+        { name: 'role:textbox[name=Address](exact)', locator: page.getByRole('textbox', { name: 'Address', exact: true }) },
+        { name: 'placeholder:Enter address', locator: page.getByPlaceholder('Enter address', { exact: true }) },
         { name: 'position:dialog-input[1]', locator: page.locator('[role="dialog"] input:not([type="hidden"])').nth(1) },
     ];
 }
@@ -197,7 +203,10 @@ function typeInputStrategies(page) {
     return [
         { name: 'css:input[placeholder=Select type](original)', locator: page.locator('input[placeholder="Select type"]') },
         { name: 'role:textbox[name=Type](exact)', locator: page.getByRole('textbox', { name: 'Type', exact: true }) },
-        { name: 'position:dialog-input[5]', locator: page.locator('[role="dialog"] input:not([type="hidden"])').nth(5) },
+        // MCP-verified live (2026-09-02): the modal now also has Legal Name/Legal Address
+        // fields ahead of Type, shifting it from index 5 to index 7 in dialog input order
+        // (Name/Address/City/State/Zipcode/Legal Name/Legal Address/Type/...).
+        { name: 'position:dialog-input[7]', locator: page.locator('[role="dialog"] input:not([type="hidden"])').nth(7) },
     ];
 }
 

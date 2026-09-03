@@ -218,22 +218,22 @@ function createPropertyDialogStrategies(page) {
         ],
         /** Name field. Original `getByLabel('Name')` kept as #1; MCP-verified placeholder="Enter name" is a genuinely independent attribute on the same input. */
         nameInput: [
-            { name: 'label:Name(original)', locator: page.getByLabel('Name') },
+            // { name: 'label:Name(original)', locator: page.getByLabel('Name') },
             { name: 'placeholder:Enter name', locator: page.getByPlaceholder('Enter name') },
         ],
         /** Address field. Original `getByRole('textbox', {name:'Address'})` kept as #1; MCP-verified placeholder="Enter address" fallback. */
         addressInput: [
-            { name: 'role:textbox[name=Address](original)', locator: page.getByRole('textbox', { name: 'Address' }) },
+            // { name: 'role:textbox[name=Address](original)', locator: page.getByRole('textbox', { name: 'Address' }) },
             { name: 'placeholder:Enter address', locator: page.getByPlaceholder('Enter address') },
         ],
         /** Google-Maps-Autocomplete address suggestion, keyed by the address text passed to createProperty(). Original CSS class+hasText kept as #1; MCP-verified the same option also carries `role="option"` in the accessibility tree (the visible popover only — stale/hidden popovers are excluded from the a11y tree, unlike an unscoped second CSS lookup). */
         addressSuggestion: (address) => [
-            { name: 'css:.mantine-Autocomplete-option[hasText](original)', locator: page.locator(`.mantine-Autocomplete-option:has-text("${address}")`) },
+            // { name: 'css:.mantine-Autocomplete-option[hasText](original)', locator: page.locator(`.mantine-Autocomplete-option:has-text("${address}")`) },
             { name: 'role:option[name=address]', locator: page.getByRole('option', { name: address }) },
         ],
         /** Property "Type" input. Original CSS placeholder-attribute selector kept as #1; MCP-verified role-based fallback (exact accessible name "Type", scoped to `textbox` role so it excludes Mantine's hidden `role="listbox"` sharing the same label). */
         typeInput: [
-            { name: 'css:input[placeholder=Select type](original)', locator: page.locator('input[placeholder="Select type"]') },
+            // { name: 'css:input[placeholder=Select type](original)', locator: page.locator('input[placeholder="Select type"]') },
             { name: 'role:textbox[name=Type](exact)', locator: page.getByRole('textbox', { name: 'Type', exact: true }) },
         ],
         /** Property-type Select dropdown option, keyed by the type text passed to createProperty(). Original CSS class+hasText kept as #1; MCP-verified role="option" fallback, same reasoning as addressSuggestion above. */
@@ -243,7 +243,7 @@ function createPropertyDialogStrategies(page) {
         ],
         /** Modal submit button. Original regex-based role lookup kept verbatim as #1 (pre-existing regex is fine to keep); fallback uses a plain (non-regex) text filter scoped to the dialog — Playwright's `hasText` string form is already a case-insensitive substring match, so no regex is needed in the new strategy. */
         addPropertyBtn: [
-            { name: 'role:button[name=/add property/i](original)', locator: page.getByRole('button', { name: /add property/i }) },
+            // { name: 'role:button[name=/add property/i](original)', locator: page.getByRole('button', { name: /add property/i }) },
             { name: "css:dialog>>button[hasText='add property']", locator: page.locator('[role="dialog"] button').filter({ hasText: 'add property' }) },
         ],
         /**
@@ -258,12 +258,12 @@ function createPropertyDialogStrategies(page) {
          * strategies resolve to the identical container node.
          */
         breadcrumb: (name) => [
-            { name: "css:.mantine-Breadcrumbs-root:has-text(name)(original)", locator: page.locator(`.mantine-Breadcrumbs-root:has-text('${name}')`) },
+            // { name: "css:.mantine-Breadcrumbs-root:has-text(name)(original)", locator: page.locator(`.mantine-Breadcrumbs-root:has-text('${name}')`) },
             { name: 'css:.mantine-Breadcrumbs-root[has=.tb-property-selector-button[hasText]]', locator: page.locator('.mantine-Breadcrumbs-root').filter({ has: page.locator('.tb-property-selector-button').filter({ hasText: name }) }) },
         ],
         /** Property card in the Properties grid list, keyed by name. Original scopes `.mantine-SimpleGrid-root p` by hasText (kept as #1); MCP-verified (2026-08-06) each card is a `div.PropertyCard_card__wSpcu` with the name in its own `<p>`. Fallback keeps the same `.mantine-SimpleGrid-root` scope (avoiding an unscoped page-wide text search that could resolve a different node elsewhere) but swaps the matching mechanism to Playwright's text engine — both resolve to the same `<p>`. */
         propertyGrid: (name) => [
-            { name: "css:.mantine-SimpleGrid-root p:has-text(name)(original)", locator: page.locator(`.mantine-SimpleGrid-root p:has-text('${name}')`) },
+            // { name: "css:.mantine-SimpleGrid-root p:has-text(name)(original)", locator: page.locator(`.mantine-SimpleGrid-root p:has-text('${name}')`) },
             { name: 'css:.mantine-SimpleGrid-root>>text(exact)', locator: page.locator('.mantine-SimpleGrid-root').getByText(name, { exact: true }) },
         ],
     };

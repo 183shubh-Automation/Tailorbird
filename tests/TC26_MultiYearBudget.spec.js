@@ -58,8 +58,20 @@ test.describe('Multi-Year Budget', () => {
         test.setTimeout(60000);
         await page.goto(`${process.env.BASE_URL.replace(/\/$/, '')}/properties`, { waitUntil: 'load' });
         await page.waitForTimeout(3000);
-        await page.getByText(propertyName, { exact: true }).first().click();
-        await page.waitForURL(/propertyId=/, { timeout: 20000 });
+        const propertyCard = page.getByText(propertyName, { exact: true }).first();
+        await expect(propertyCard, `Newly created property "${propertyName}" must appear in the properties list`).toBeVisible({ timeout: 20000 });
+        await propertyCard.scrollIntoViewIfNeeded();
+        // MCP-verified live (2026-09-02): occasionally the click on a just-created property's
+        // card doesn't register a navigation (real, reproducible timing flake — a fresh run
+        // with retries disabled hit this) — retry the click once before failing outright.
+        try {
+            await propertyCard.click();
+            await page.waitForURL(/propertyId=/, { timeout: 20000 });
+        } catch (e) {
+            Logger.info(`First click on property card didn't navigate (${e.message.substring(0, 80)}) — retrying`);
+            await propertyCard.click();
+            await page.waitForURL(/propertyId=/, { timeout: 20000 });
+        }
         propertyId = new URL(page.url()).searchParams.get('propertyId');
         expect(propertyId, 'propertyId must be extractable from the property detail URL').toBeTruthy();
 

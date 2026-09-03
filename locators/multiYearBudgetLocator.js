@@ -46,7 +46,10 @@ function multiYearBudgetLocators(page) {
         treegrid: page.locator('[role="treegrid"]'),
         categoryColumnHeader: page.getByRole('columnheader', { name: 'Category' }),
         budgetItemColumnHeader: page.getByRole('columnheader', { name: 'Budget Item' }),
-        plannedBudgetColumnHeaders: page.getByRole('columnheader', { name: 'Planned Budget' }),
+        // MCP-verified live (2026-09-02): this column now renders as "Proforma/Underwriting
+        // Budget" — the old "Planned Budget" copy is gone (confirmed by a live automated run
+        // and an independent manual MCP check against the same rendered plan table).
+        plannedBudgetColumnHeaders: page.getByRole('columnheader', { name: 'Proforma/Underwriting Budget' }),
         currentBudgetColumnHeaders: page.getByRole('columnheader', { name: 'Current Budget' }),
         varianceColumnHeaders: page.getByRole('columnheader', { name: 'Variance' }),
         totalRow: page.locator('[role="row"]').filter({ hasText: 'Total' }),
@@ -63,18 +66,21 @@ function multiYearBudgetLocators(page) {
         settingsBtn: page.locator('button:has(svg.lucide-settings)').first(),
         historyBtn: page.locator('button:has(svg.lucide-history)').first(),
 
-        // --- "Edit planned budget" dialog (opened by double-clicking a Planned Budget cell) ---
-        editPlannedBudgetDialog: page.getByRole('dialog', { name: 'Edit planned budget' }),
+        // --- "Edit Proforma/Underwriting budget" dialog (opened by double-clicking a year
+        // cell). MCP-verified live (2026-09-02): this dialog and its amount field were
+        // renamed in lockstep with the column header — was "Edit planned budget" / "Planned
+        // budget", now "Edit Proforma/Underwriting budget" / "Proforma/Underwriting budget".
+        editPlannedBudgetDialog: page.getByRole('dialog', { name: 'Edit Proforma/Underwriting budget' }),
         reallocateRadio: page.getByRole('radio', { name: 'Reallocate' }),
         setAmountRadio: page.getByRole('radio', { name: 'Set amount' }),
         reallocateFromInput: page.getByRole('textbox', { name: 'Reallocate from' }),
         reallocateFromOption: (labelPattern) => page.getByRole('option', { name: labelPattern }),
         reallocateFromOptionsList: page.getByRole('listbox', { name: 'Reallocate from' }).getByRole('option'),
         amountToReallocateInput: page.getByRole('textbox', { name: 'Amount to reallocate' }),
-        plannedBudgetAmountInput: page.getByRole('textbox', { name: 'Planned budget' }),
+        plannedBudgetAmountInput: page.getByRole('textbox', { name: 'Proforma/Underwriting budget' }),
         editReasonInput: page.getByRole('textbox', { name: 'Reason' }),
-        editSaveBtn: page.getByRole('dialog', { name: 'Edit planned budget' }).getByRole('button', { name: 'Save' }),
-        editCancelBtn: page.getByRole('dialog', { name: 'Edit planned budget' }).getByRole('button', { name: 'Cancel' }),
+        editSaveBtn: page.getByRole('dialog', { name: 'Edit Proforma/Underwriting budget' }).getByRole('button', { name: 'Save' }),
+        editCancelBtn: page.getByRole('dialog', { name: 'Edit Proforma/Underwriting budget' }).getByRole('button', { name: 'Cancel' }),
 
         // --- Upload CSV dialog ---
         uploadCsvDialog: page.getByRole('dialog', { name: 'Upload CSV' }),

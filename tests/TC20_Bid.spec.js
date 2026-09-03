@@ -107,7 +107,6 @@ test.describe('Verify Bids', () => {
         await bidPage.assertBidTypeDropdownOptions();
         await bidPage.assertDetailLevelDropdownOptions();
         await bidPage.assertPriceByDropdownOptions();
-        await bidPage.assertStatusDropdownOptions();
 
         const formData = {
             bidName: uniqueBidName,
@@ -116,7 +115,6 @@ test.describe('Verify Bids', () => {
             detailLevel: bidData.detailLevel,
             priceBy: bidData.priceBy,
             bidDueDate: bidData.bidDueDate,
-            status: bidData.status,
         };
         await bidPage.fillAndSubmitCreateBidForm(formData);
 
@@ -183,33 +181,19 @@ test.describe('Verify Bids', () => {
         await bidPage.sendPiperMessage('Level the bids');
 
         // Assert chat input is disabled while AI is thinking
-        // KNOWN ISSUE (non-blocking): AI response timing/content is non-deterministic — log
-        // and continue instead of failing the whole test on an unexpected AI turn.
-        try {
         await expect(loc.piperChatInput).toBeDisabled({ timeout: 10000 });
         Logger.info('Chat input disabled during AI processing ✓');
-        } catch (e) {
-            Logger.info(`TC_BID_08: [KNOWN ISSUE - AI response] chat input disabled-while-thinking check failed — non-blocking (${e.message})`);
-        }
 
         await bidPage.waitForPiperResponse();
 
         // Thought button must be visible after response
-        try {
         await expect(loc.piperThoughtButton).toBeVisible({ timeout: 15000 });
         Logger.info('"Thought" button visible — AI completed turn 1 ✓');
-        } catch (e) {
-            Logger.info(`TC_BID_08: [KNOWN ISSUE - AI response] "Thought" button check failed after turn 1 — non-blocking (${e.message})`);
-        }
 
         // Response text present and non-empty
-        try {
         const turn1Response = await bidPage.getPiperLastResponseText();
         expect(turn1Response.length).toBeGreaterThan(0);
         Logger.info(`Turn 1 response: "${turn1Response.substring(0, 100)}"`);
-        } catch (e) {
-            Logger.info(`TC_BID_08: [KNOWN ISSUE - AI response] turn 1 response check failed — non-blocking (${e.message})`);
-        }
 
         // AI response content is non-deterministic — only verify a response was generated (done above)
         // Export button state depends on prior AI context in the session — just log it
@@ -226,26 +210,18 @@ test.describe('Verify Bids', () => {
         // verified live — Piper only shows it for some turns, not a fixed count per message).
         // The only thing that matters for pass/fail is that the AI actually replied with
         // something after this turn too — same bar as turn 1.
-        try {
         const turn2Response = await bidPage.getPiperLastResponseText();
         expect(turn2Response.length).toBeGreaterThan(0);
         Logger.info(`Turn 2 response (first 100 chars): "${turn2Response.substring(0, 100)}"`);
-        } catch (e) {
-            Logger.info(`TC_BID_08: [KNOWN ISSUE - AI response] turn 2 response check failed — non-blocking (${e.message})`);
-        }
 
         // ── Reset dialog: Cancel path ─────────────────────────────────────────────
         Logger.step('TC_BID_08 — Reset dialog cancel path');
         await bidPage.assertPiperResetDialogCancel();
 
         // Chat history must still be present after cancel — at least one prior response.
-        try {
         const thoughtCountAfterCancel = await panel.getByRole('button', { name: 'Thought' }).count();
         expect(thoughtCountAfterCancel).toBeGreaterThanOrEqual(1);
         Logger.info('Chat history intact after Reset cancel ✓');
-        } catch (e) {
-            Logger.info(`TC_BID_08: [KNOWN ISSUE - AI response] chat-history-after-cancel check failed — non-blocking (${e.message})`);
-        }
 
         // ── Reset dialog: Confirm path ────────────────────────────────────────────
         Logger.step('TC_BID_08 — Reset dialog confirm path');
@@ -272,30 +248,24 @@ test.describe('Verify Bids', () => {
         const loc = bidPage.loc();
 
         // ── Attach file via paperclip button ─────────────────────────────────────
-        // KNOWN ISSUE (non-blocking): the external Uploadcare widget occasionally fails to
-        // register/validate the file (slow 3rd-party service, transient network blip, or the
-        // widget's own confirmation dialog never clears). That is outside this app's own code,
-        // so a failure here is logged and the test passes silently rather than failing the
-        // whole run over a 3rd-party upload widget issue. Every original line below is
-        // untouched — this only wraps them and adds new detection/handling around them.
-        let fileAttached = false;
-        try {
         Logger.step('TC_BID_09 — Attaching proposal file via paperclip button');
         await expect(loc.piperAttachButton).toBeVisible();
-
-        page.once('filechooser', async (chooser) => {
-            Logger.info('File chooser opened — selecting proposal file');
-            await chooser.setFiles(proposalFile);
-        });
         await loc.piperAttachButton.click();
 
-        // Handle Uploadcare "From device" option if it appears
-        const fromDevice = page.getByText('From device');
-        const fromDeviceVisible = await fromDevice.isVisible({ timeout: 5000 }).catch(() => false);
-        if (fromDeviceVisible) {
-            Logger.info('"From device" option appeared — clicking');
-            await fromDevice.click();
-        }
+        // Same working upload mechanism as TC06_jobs.spec.js's proven "uploadAndClickDone"
+        // (contract CSV import): the native OS file chooser only opens once "From device" is
+        // clicked — not on the paperclip click that reveals the Uploadcare menu — so the
+        // filechooser listener must be paired with THAT click via Promise.all. The previous
+        // page.once('filechooser', ...) here was registered before the triggering click and
+        // was never awaited by the flow, so chooser.setFiles() could still be in-flight when
+        // the code moved on to look for the Done button.
+        const fromDeviceBtn = page.getByRole('button', { name: /From device|Upload|Choose file|Browse/i }).first();
+        await expect(fromDeviceBtn).toBeVisible({ timeout: 5000 });
+        const [chooser] = await Promise.all([
+            page.waitForEvent('filechooser', { timeout: 15000 }),
+            fromDeviceBtn.click({ force: true }),
+        ]);
+        await chooser.setFiles(proposalFile);
 
         // Allow time for the file chooser / Uploadcare to register the file
         await page.waitForTimeout(3000);
@@ -317,22 +287,8 @@ test.describe('Verify Bids', () => {
                 await fallbackDone.click({ force: true });
             }
         }
-        // If a dialog is still open after that handling, the upload itself did not complete —
-        // throw so the catch below logs it and the test passes silently instead of hanging on
-        // the same click interception.
-        const blockingDialogStillOpen = await page.locator('dialog[open]').first().isVisible().catch(() => false);
-        if (blockingDialogStillOpen) {
-            throw new Error('A dialog remained open after the attach flow — proposal file did not finish uploading');
-        }
-        fileAttached = true;
-        } catch (e) {
-            Logger.info(`TC_BID_09: [KNOWN ISSUE] Proposal file failed to attach/upload via Uploadcare — non-blocking, passing test (${e.message})`);
-        }
-
-        if (!fileAttached) {
-            Logger.success('TC_BID_09 passed — file attach step hit a known Uploadcare issue; skipped for a silent pass');
-            return;
-        }
+        // The upload must actually complete — no dialog left blocking the chat panel.
+        await expect(page.locator('dialog[open]').first()).not.toBeVisible({ timeout: 15000 });
 
         // ── Send AI Bid Levelling prompt ──────────────────────────────────────────
         Logger.step('TC_BID_09 — Sending AI Bid Levelling prompt after file attach');
@@ -343,18 +299,12 @@ test.describe('Verify Bids', () => {
         await bidPage.waitForPiperResponse();
 
         // Thought button confirms AI responded
-        // KNOWN ISSUE (non-blocking): AI response timing/content is non-deterministic — log
-        // and continue instead of failing the whole test on an unexpected AI turn.
-        try {
         await expect(loc.piperThoughtButton).toBeVisible({ timeout: 30000 });
         Logger.info('"Thought" button visible — AI processed file attach prompt ✓');
 
         const responseText = await bidPage.getPiperLastResponseText();
         expect(responseText.length).toBeGreaterThan(0);
         Logger.info(`Response after file attach: "${responseText.substring(0, 100)}"`);
-        } catch (e) {
-            Logger.info(`TC_BID_09: [KNOWN ISSUE - AI response] response-after-file-attach check failed — non-blocking (${e.message})`);
-        }
 
         Logger.success('TC_BID_09 passed — file attach and AI Bid Levelling prompt verified');
     });
@@ -396,40 +346,26 @@ test.describe('Verify Bids', () => {
             'Create a separate Allowance Items tab with the same structure. Show WAVG per unit type at the bottom.';
         await bidPage.sendPiperMessage(longPrompt);
         await bidPage.waitForPiperResponse();
-        // KNOWN ISSUE (non-blocking): AI response content/timing is non-deterministic — log
-        // and continue instead of failing the whole test on an unexpected AI turn.
-        try {
         const longPromptResponse = await bidPage.getPiperLastResponseText();
         expect(longPromptResponse.length).toBeGreaterThan(0);
         Logger.info(`E3 ✓ Long prompt (${longPrompt.length} chars): Piper responded`);
-        } catch (e) {
-            Logger.info(`TC_BID_11: [KNOWN ISSUE - AI response] E3 long-prompt response check failed — non-blocking (${e.message})`);
-        }
 
         // ── Edge 4: Special characters prompt ─────────────────────────────────────
         Logger.step('TC_BID_11 — E4: Special characters in prompt');
         const specialCharsPrompt = 'Compare bids: #1 vs #2 vs #3! Use $, %, & symbols. Show data @ 100% accuracy. <Note: exclude n/a>';
         await bidPage.sendPiperMessage(specialCharsPrompt);
         await bidPage.waitForPiperResponse();
-        try {
         const specialCharsResponse = await bidPage.getPiperLastResponseText();
         expect(specialCharsResponse.length).toBeGreaterThan(0);
         Logger.info('E4 ✓ Special characters prompt: Piper responded without crash');
-        } catch (e) {
-            Logger.info(`TC_BID_11: [KNOWN ISSUE - AI response] E4 special-chars response check failed — non-blocking (${e.message})`);
-        }
 
         // ── Edge 5: Random/invalid text prompt ────────────────────────────────────
         Logger.step('TC_BID_11 — E5: Random/irrelevant text prompt');
         await bidPage.sendPiperMessage('xyzzy foo bar qux randomstring123');
         await bidPage.waitForPiperResponse();
-        try {
         const randomResponse = await bidPage.getPiperLastResponseText();
         expect(randomResponse.length).toBeGreaterThan(0);
         Logger.info('E5 ✓ Random text prompt: Piper responded without crash');
-        } catch (e) {
-            Logger.info(`TC_BID_11: [KNOWN ISSUE - AI response] E5 random-text response check failed — non-blocking (${e.message})`);
-        }
 
         // ── Edge 6: Reset Cancel — history must survive ────────────────────────────
         Logger.step('TC_BID_11 — E6: Reset Cancel preserves chat history');
@@ -438,19 +374,12 @@ test.describe('Verify Bids', () => {
         // verified live — Piper only shows it for some turns, not a fixed count per message).
         // E3/E4/E5 above already confirmed the AI replied with real content each time —
         // that's the only pass bar. Here we just confirm Reset Cancel doesn't wipe history.
-        // KNOWN ISSUE (non-blocking): paragraph counts depend on how many turns the AI
-        // actually produced (non-deterministic) — log and continue rather than fail the
-        // whole test if the count doesn't match expectations.
-        try {
         const paraCountBefore = await panel.locator('p').count();
         expect(paraCountBefore).toBeGreaterThan(0);
         await bidPage.assertPiperResetDialogCancel();
         const paraCountAfterCancel = await panel.locator('p').count();
         expect(paraCountAfterCancel).toBe(paraCountBefore);
         Logger.info(`E6 ✓ Reset Cancel: chat history intact (${paraCountAfterCancel} paragraphs) after cancel`);
-        } catch (e) {
-            Logger.info(`TC_BID_11: [KNOWN ISSUE - AI response] E6 chat-history-after-reset-cancel check failed — non-blocking (${e.message})`);
-        }
 
         // ── Edge 7: Manage Vendors closes Piper back to vendor list ───────────────
         Logger.step('TC_BID_11 — E7: Manage Vendors closes Piper');
@@ -495,6 +424,87 @@ test.describe('Verify Bids', () => {
         expect(dueDateAfter).toBe(expectedOverviewText);
         expect(dueDateAfter).not.toBe(dueDateBefore);
         Logger.success(`TC365 passed — "${bidName}" due date changed from "${dueDateBefore}" to "${dueDateAfter}", success toast verified`);
+    });
+
+    test('TC319 @regression @bid : Verify full e2e — create bid, upload file to Bid Book AI, generate table via chat, and send to vendors', async () => {
+        test.setTimeout(600000);
+        const bidData = loadBidData();
+        const uniqueBidName = `E2E_BidBook_${Date.now()}`;
+        const csvFile = path.resolve('./files/bid_to_upload.csv');
+        if (!fs.existsSync(csvFile)) {
+            test.skip(true, `Bid book source file not found: ${csvFile}`);
+        }
+
+        // ── Left panel nav → Bids (repeated here deliberately for a genuine e2e chain) ──
+        Logger.step('TC319: Navigating to Bids via left panel nav');
+        await page.goto(process.env.BASE_URL, { waitUntil: 'load' });
+        await page.waitForTimeout(2000);
+        await bidPage.navigateToBidsPageViaLeftNav();
+
+        // ── Create Bid ─────────────────────────────────────────────────────────────
+        Logger.step('TC319: Creating a new bid');
+        await bidPage.openCreateBidModal();
+        const formData = {
+            bidName: uniqueBidName,
+            property: bidData.property,
+            bidType: bidData.bidType,
+            detailLevel: bidData.detailLevel,
+            priceBy: bidData.priceBy,
+            bidDueDate: bidData.bidDueDate,
+        };
+        await bidPage.fillAndSubmitCreateBidForm(formData);
+        const bidId = await bidPage.waitForBidDetailPage();
+        Logger.success(`TC319: Bid created — "${uniqueBidName}" (ID: ${bidId})`);
+
+        await bidPage.assertOverviewTab(formData);
+
+        // ── Bid Book tab: upload CSV and chat with AI to generate the table ─────────
+        // MCP-verified live (2026-09-02): on a genuinely fresh bid the right-hand panel shows
+        // only "AI-generated output will render here as your conversation progresses" — the
+        // toolbar (Fullscreen/Reset/Export/etc.) and iframe don't exist in the DOM until AFTER
+        // the first AI response, so assertBidBookToolbar() must run after generation, not before.
+        Logger.step('TC319: Opening Bid Book tab and uploading reference file');
+        await bidPage.navigateToBidBookTab();
+        await bidPage.assertBidBookTabElements();
+        await bidPage.attachFileToBidBookChat(csvFile);
+
+        Logger.step('TC319: Chatting with AI to generate the bid book table (adaptive, up to 4 turns)');
+        const tableGenerated = await bidPage.generateBidBookViaChat(
+            'Please create the bid book table using the attached reference file (bid_to_upload.csv) as the source of scopes and line items.'
+        );
+        expect(tableGenerated, 'Bid book table must be generated from the uploaded file within 4 chat turns').toBe(true);
+
+        // ── Strong structural assertions on the generated table itself (data fidelity —
+        // NOT the AI's chat prose, which is explicitly excluded per requirements) ──────
+        await bidPage.assertBidBookToolbar();
+        const loc = bidPage.loc();
+        await expect(loc.bidBookIframe).toBeVisible();
+        const frame = page.frameLocator('iframe').first();
+        await expect(frame.locator('table')).toBeVisible({ timeout: 15000 });
+
+        const rowCount = await frame.getByRole('row').count();
+        expect(rowCount, 'Generated bid book table must contain data rows beyond the header').toBeGreaterThan(1);
+        Logger.info(`Generated bid book table row count (incl. header): ${rowCount}`);
+
+        // The uploaded CSV's own literal Scope/Item values are deterministic source data
+        // (not AI-authored wording) — they must be reflected in the generated table.
+        await expect(frame.getByRole('cell', { name: 'Roofing', exact: true }).first()).toBeVisible();
+        await expect(frame.getByRole('cell', { name: 'Asphalt Shingles', exact: true }).first()).toBeVisible();
+        Logger.success('Bid book table verified — reflects uploaded CSV scope/item data');
+
+        // ── Send to Vendors — reuses the fully MCP-verified existing e2e method ─────
+        Logger.step('TC319: Sending bid to vendor via "Send to Vendors"');
+        await bidPage.assertSendToVendorsFlow(bidData.sendToVendors);
+
+        // ── Manage Bids must now show the invited vendor ────────────────────────────
+        Logger.step('TC319: Verifying invited vendor appears in Manage Bids');
+        await bidPage.navigateToManageBidsTab();
+        const vendorRow = page.getByRole('tabpanel', { name: 'Manage Bids' })
+            .getByRole('row', { name: bidData.sendToVendors.vendorName });
+        await expect(vendorRow).toBeVisible({ timeout: 15000 });
+        await expect(vendorRow).toContainText('Invited');
+
+        Logger.success(`TC319 passed — bid "${uniqueBidName}" created, bid book generated from uploaded file, vendor "${bidData.sendToVendors.vendorName}" invited`);
     });
 
 });
