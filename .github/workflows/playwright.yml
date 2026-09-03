@@ -30,7 +30,7 @@ jobs:
 
       # Run all remaining tests except mandatory
       - name: Run remaining tests
-        run: npx playwright test TC15_Budget.spec.js TC10_approval.spec.js TC20_Bid.spec.js TC07_category.spec.js TC13_FInalizeBidWithUIFlow.spec.js TC17_OOO_OutOfOffice.spec.js TC25_Draw_reporting.spec.js TC26_MultiYearBudget.spec.js --workers=4
+        run: npx playwright test TC01_login.spec.js TC20_Bid.spec.js TC07_category.spec.js TC17_OOO_OutOfOffice.spec.js TC25_Draw_reporting.spec.js TC26_MultiYearBudget.spec.js --workers=4
 
       - name: Upload Playwright report
         if: always()

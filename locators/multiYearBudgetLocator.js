@@ -49,9 +49,20 @@ function multiYearBudgetLocators(page) {
         // MCP-verified live (2026-09-02): this column now renders as "Proforma/Underwriting
         // Budget" — the old "Planned Budget" copy is gone (confirmed by a live automated run
         // and an independent manual MCP check against the same rendered plan table).
-        plannedBudgetColumnHeaders: page.getByRole('columnheader', { name: 'Proforma/Underwriting Budget' }),
-        currentBudgetColumnHeaders: page.getByRole('columnheader', { name: 'Current Budget' }),
-        varianceColumnHeaders: page.getByRole('columnheader', { name: 'Variance' }),
+        //
+        // MCP-verified live (2026-09-03): this revo-grid renders the per-year Proforma/Current
+        // Budget/Variance columns TWICE — once per hold-period year in the scrollable middle
+        // pane (`revogr-viewport-scroll.scroll-rgCol`), and again as its own grand-total-across-
+        // years group in a separate right-pinned pane (`revogr-viewport-scroll.colPinEnd`), which
+        // reuses the identical header text. An unscoped role query matches both, and the caller's
+        // geometric (bounding-box) disambiguation between a specific year and that pinned Total
+        // group is a coincidence of on-screen position, not a real distinction — it can and did
+        // misfire, reading the pinned Total pane's value instead of the intended year's. Scoping
+        // to the scrollable pane's own container structurally excludes the pinned pane, so only
+        // genuine per-year headers are ever matched — no positional guessing required.
+        plannedBudgetColumnHeaders: page.locator('revogr-viewport-scroll.scroll-rgCol').getByRole('columnheader', { name: 'Proforma/Underwriting Budget' }),
+        currentBudgetColumnHeaders: page.locator('revogr-viewport-scroll.scroll-rgCol').getByRole('columnheader', { name: 'Current Budget' }),
+        varianceColumnHeaders: page.locator('revogr-viewport-scroll.scroll-rgCol').getByRole('columnheader', { name: 'Variance' }),
         totalRow: page.locator('[role="row"]').filter({ hasText: 'Total' }),
         itemRow: (itemName) => page.locator('[role="row"]').filter({ hasText: itemName }),
         yearGroupHeader: (year) => page.getByText(String(year), { exact: true }),

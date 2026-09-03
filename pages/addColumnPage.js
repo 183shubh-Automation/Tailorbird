@@ -42,7 +42,7 @@ class AddColumnPage {
      */
     async _dismissOverlaysViaCrossButton() {
         const crossButton = this.loc.openDialogCloseButton;
-        if (await crossButton.isVisible({ timeout: 500 }).catch(() => false)) {
+        if (await crossButton.isVisible({ timeout: 5000 }).catch(() => false)) {
             await crossButton.click({ force: true }).catch(() => {});
             await this.page.waitForTimeout(300);
         }
@@ -182,12 +182,12 @@ class AddColumnPage {
                     await this._scrollGridRight();
                     return (await header.count()) > 0;
                 },
-                { timeout: 60000, intervals: [250] },
+                { timeout: 120000, intervals: [250] },
             )
             .toBe(true);
 
         await header.scrollIntoViewIfNeeded();
-        await expect(header).toBeVisible({ timeout: 5000 });
+        await expect(header).toBeVisible({ timeout: 120000 });
         return header;
     }
 

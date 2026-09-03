@@ -211,42 +211,51 @@ exports.MultiYearBudgetJob = class MultiYearBudgetJob {
     }
 
     /**
-     * Reads the text of the cell at the intersection of a given column header
-     * and the single budget item's row, using the same bounding-box +
-     * elementFromPoint technique already relied on elsewhere in this framework
-     * for this exact virtualized grid.
+     * Reads the text of the value cell for a given column header and the single budget
+     * item's row.
+     *
+     * MCP-verified live (2026-09-03): this revo-grid's right-pinned "Total" summary pane
+     * (`revogr-viewport-scroll.colPinEnd`) can render at the exact same on-screen position
+     * as the scrollable per-year pane (`revogr-viewport-scroll.scroll-rgCol`) — both panes
+     * use identical LOCAL `transform: translateX(...)` offsets within their own containers,
+     * and the pinned pane's outer container isn't always pushed clear of the scrollable
+     * pane's content at first render. So a screen-pixel sample via `elementFromPoint` at the
+     * header's own (verified-correct) bounding-box position can still silently resolve to
+     * the WRONG pane's cell — reproduced live: this returned the pinned Total pane's "$0"
+     * instead of the scrollable pane's real "$50,000", consistently, across fresh runs.
+     * Reading the cell structurally instead — by the grid's own `data-rgcol`/`data-rgrow`
+     * indices, scoped to the SAME pane as the header — sidesteps screen geometry (and any
+     * visual pane overlap) entirely.
      */
     async _readCellByHeaderAndItemRow(headerLocator, itemName) {
         const itemCell = this.page.getByRole('gridcell', { name: itemName }).first();
+        await expect(headerLocator).toBeVisible({ timeout: 5000 });
+        await expect(itemCell).toBeVisible({ timeout: 5000 });
 
-        // MCP-verified live (2026-09-02): a single point-in-time bounding-box sample can land
-        // on a stale/transient value (e.g. a "$0" placeholder briefly present the instant after
-        // a real-time-propagation re-render) even though both the header and the item row are
-        // independently confirmed correct moments later — this grid's virtualization already
-        // has documented alignment fragility (see _headerForYear's own comment). Re-sampling
-        // fresh boxes on each attempt (not reusing a possibly-stale box) until a value shows up
-        // makes this robust to that transient without masking a genuinely missing cell.
+        const rgcol = await headerLocator.getAttribute('data-rgcol');
+        const rgrow = await itemCell.getAttribute('data-rgrow');
+        if (rgcol === null || rgrow === null) {
+            throw new Error(`Could not resolve structural cell index (data-rgcol="${rgcol}", data-rgrow="${rgrow}")`);
+        }
+
+        // MCP-verified live (2026-09-03): `data-rgrow` is NOT unique across the whole pane —
+        // revo-grid renders the regular scrollable rows (`[slot="data"]`, type="rgRow") and the
+        // pinned aggregate "Total" row (`[slot="footer"]`, type="rowPinEnd") as two SEPARATE row
+        // groups that each restart their own row numbering at 0. So `data-rgcol`+`data-rgrow`
+        // alone can match one cell in the item's own row AND one in the unrelated pinned Total
+        // row (reproduced live: a strict-mode "resolved to 2 elements", "—" vs "$0"). Scoping to
+        // `[slot="data"]` selects only the regular (non-pinned) row group the budget item itself
+        // lives in, resolving the ambiguity deterministically rather than guessing between them.
+        const valueCell = this.page.locator(
+            `revogr-viewport-scroll.scroll-rgCol [slot="data"] [role="gridcell"][data-rgcol="${rgcol}"][data-rgrow="${rgrow}"]`
+        );
+
         let text = null;
         await expect(async () => {
-            await expect(headerLocator).toBeVisible({ timeout: 5000 });
-            const headerBox = await headerLocator.boundingBox();
-            if (!headerBox) throw new Error('Column header bounding box not available');
-
-            await expect(itemCell).toBeVisible({ timeout: 5000 });
-            const itemBox = await itemCell.boundingBox();
-            if (!itemBox) throw new Error(`Bounding box not available for item row: "${itemName}"`);
-
-            const x = headerBox.x + headerBox.width / 2;
-            const y = itemBox.y + Math.min(itemBox.height / 2, 15);
-
-            text = await this.page.evaluate(({ x, y }) => {
-                const el = document.elementFromPoint(x, y);
-                if (!el) return null;
-                const cell = el.closest('[role="gridcell"]');
-                return cell ? cell.textContent.trim() : null;
-            }, { x, y });
-
-            expect(text, 'Sampled cell text must be non-empty').not.toBeNull();
+            await expect(valueCell).toBeVisible({ timeout: 5000 });
+            const sample = (await valueCell.textContent()).trim();
+            expect(sample, 'Sampled cell text must be non-empty').not.toBe('');
+            text = sample;
         }).toPass({ timeout: 8000, intervals: [300, 500, 800, 1200] });
 
         return text;
