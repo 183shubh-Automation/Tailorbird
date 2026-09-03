@@ -371,7 +371,9 @@ test.describe('Multi-Year Budget', () => {
             new RegExp(`${budgetItemName}.*\\(2029\\)`),
             '50000',
             'TC408 automation - over-allocation from a zero-balance year',
-            'Insufficient planned budget in source cell'
+            // MCP-verified live (2026-09-03): leftover from the "Planned Budget" →
+            // "Proforma/Underwriting Budget" column rename — the toast body itself renamed too.
+            'Insufficient Proforma/Underwriting budget in source cell'
         );
         await mybJob.cancelEditPlannedBudgetDialog();
         const afterValue = await mybJob.getFutureYearPlannedValue(budgetItemName, targetYear);

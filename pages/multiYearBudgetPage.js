@@ -211,44 +211,52 @@ exports.MultiYearBudgetJob = class MultiYearBudgetJob {
     }
 
     /**
-     * Reads the text of the value cell for a given column header and the single budget
-     * item's row.
+     * Resolves the value-cell Locator at the intersection of a given column header and
+     * the single budget item's row, addressed structurally by the grid's own
+     * `data-rgcol`/`data-rgrow` indices rather than a screen-pixel sample. Shared by every
+     * caller that needs a specific year/item cell (reading its text or colour, or
+     * double-clicking it to open the edit dialog).
      *
-     * MCP-verified live (2026-09-03): this revo-grid's right-pinned "Total" summary pane
-     * (`revogr-viewport-scroll.colPinEnd`) can render at the exact same on-screen position
-     * as the scrollable per-year pane (`revogr-viewport-scroll.scroll-rgCol`) — both panes
-     * use identical LOCAL `transform: translateX(...)` offsets within their own containers,
-     * and the pinned pane's outer container isn't always pushed clear of the scrollable
-     * pane's content at first render. So a screen-pixel sample via `elementFromPoint` at the
-     * header's own (verified-correct) bounding-box position can still silently resolve to
-     * the WRONG pane's cell — reproduced live: this returned the pinned Total pane's "$0"
-     * instead of the scrollable pane's real "$50,000", consistently, across fresh runs.
-     * Reading the cell structurally instead — by the grid's own `data-rgcol`/`data-rgrow`
-     * indices, scoped to the SAME pane as the header — sidesteps screen geometry (and any
-     * visual pane overlap) entirely.
+     * MCP-verified live (2026-09-03): `data-rgcol`/`data-rgrow` are NOT unique across the
+     * whole grid — this revo-grid renders row groups as three PARALLEL sections that each
+     * restart their own row numbering at 0: `type="rowPinStart"` (pinned-top, empty here),
+     * `type="rgRow"` (the regular scrollable rows a budget item lives in), and
+     * `type="rowPinEnd"` (the pinned aggregate "Total" row). All three share `slot="data"`,
+     * so that alone doesn't disambiguate — `data-rgcol`+`data-rgrow` can match one cell in
+     * the item's own row AND one in the unrelated pinned Total row (reproduced live: a
+     * strict-mode "resolved to 2 elements", "—" vs "$0" — this is also what made every
+     * former `elementFromPoint`/`mouse.dblclick(x, y)` pixel sample at this same
+     * intersection unreliable: at that exact screen position it could land on either row
+     * depending on layout timing).
+     *
+     * `itemName` isn't always a regular budget item either — callers also pass `'Total'`
+     * (e.g. `getFutureYearPlannedValue('Total', year)`) to deliberately read the pinned
+     * aggregate row, which lives in that OTHER `type="rowPinEnd"` section. So rather than
+     * hardcoding one row-type, this reads it off `itemCell`'s own row (MCP-verified live:
+     * the "Total" gridcell in the frozen pane also carries `data-rgrow="0"` with its
+     * ancestor `type="rowPinEnd"`) and queries the SAME section in the value pane —
+     * correct for both a real item and the Total row, driven by the DOM rather than an
+     * assumption about which caller is asking.
      */
-    async _readCellByHeaderAndItemRow(headerLocator, itemName) {
+    async _valueCellLocator(headerLocator, itemName) {
         const itemCell = this.page.getByRole('gridcell', { name: itemName }).first();
         await expect(headerLocator).toBeVisible({ timeout: 5000 });
         await expect(itemCell).toBeVisible({ timeout: 5000 });
 
         const rgcol = await headerLocator.getAttribute('data-rgcol');
         const rgrow = await itemCell.getAttribute('data-rgrow');
-        if (rgcol === null || rgrow === null) {
-            throw new Error(`Could not resolve structural cell index (data-rgcol="${rgcol}", data-rgrow="${rgrow}")`);
+        const rowType = await itemCell.evaluate((cell) => cell.closest('[type]')?.getAttribute('type'));
+        if (rgcol === null || rgrow === null || !rowType) {
+            throw new Error(`Could not resolve structural cell index (data-rgcol="${rgcol}", data-rgrow="${rgrow}", type="${rowType}")`);
         }
 
-        // MCP-verified live (2026-09-03): `data-rgrow` is NOT unique across the whole pane —
-        // revo-grid renders the regular scrollable rows (`[slot="data"]`, type="rgRow") and the
-        // pinned aggregate "Total" row (`[slot="footer"]`, type="rowPinEnd") as two SEPARATE row
-        // groups that each restart their own row numbering at 0. So `data-rgcol`+`data-rgrow`
-        // alone can match one cell in the item's own row AND one in the unrelated pinned Total
-        // row (reproduced live: a strict-mode "resolved to 2 elements", "—" vs "$0"). Scoping to
-        // `[slot="data"]` selects only the regular (non-pinned) row group the budget item itself
-        // lives in, resolving the ambiguity deterministically rather than guessing between them.
-        const valueCell = this.page.locator(
-            `revogr-viewport-scroll.scroll-rgCol [slot="data"] [role="gridcell"][data-rgcol="${rgcol}"][data-rgrow="${rgrow}"]`
+        return this.page.locator(
+            `revogr-viewport-scroll.scroll-rgCol [type="${rowType}"] [role="gridcell"][data-rgcol="${rgcol}"][data-rgrow="${rgrow}"]`
         );
+    }
+
+    async _readCellByHeaderAndItemRow(headerLocator, itemName) {
+        const valueCell = await this._valueCellLocator(headerLocator, itemName);
 
         let text = null;
         await expect(async () => {
@@ -283,11 +291,8 @@ exports.MultiYearBudgetJob = class MultiYearBudgetJob {
      */
     async getVarianceColorCategory(itemName, year) {
         const headerLocator = await this._headerForYear(myb.varianceColumnHeaders, year);
-        const headerBox = await headerLocator.boundingBox();
-        const itemCell = this.page.getByRole('gridcell', { name: itemName }).first();
-        const itemBox = await itemCell.boundingBox();
-        const x = headerBox.x + headerBox.width / 2;
-        const y = itemBox.y + Math.min(itemBox.height / 2, 15);
+        const valueCell = await this._valueCellLocator(headerLocator, itemName);
+        await expect(valueCell).toBeVisible({ timeout: 5000 });
 
         // The health colour is applied to a specific descendant text node, not
         // necessarily the first child, and the default (uncoloured) text renders in a
@@ -295,18 +300,14 @@ exports.MultiYearBudgetJob = class MultiYearBudgetJob {
         // for the first one whose colour differs from that default reliably finds the
         // actual coloured node regardless of exactly how deep it is nested.
         const NEUTRAL_TEXT_COLOR = 'rgb(33, 37, 41)';
-        const color = await this.page.evaluate(({ x, y, neutral }) => {
-            const el = document.elementFromPoint(x, y);
-            if (!el) return null;
-            const cell = el.closest('[role="gridcell"]');
-            if (!cell) return null;
+        const color = await valueCell.evaluate((cell, neutral) => {
             const candidates = [cell, ...cell.querySelectorAll('*')];
             for (const node of candidates) {
                 const c = window.getComputedStyle(node).color;
                 if (c && c !== neutral) return c;
             }
             return window.getComputedStyle(cell).color;
-        }, { x, y, neutral: NEUTRAL_TEXT_COLOR });
+        }, NEUTRAL_TEXT_COLOR);
 
         if (!color) return 'unknown';
         const match = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(color);
@@ -322,14 +323,9 @@ exports.MultiYearBudgetJob = class MultiYearBudgetJob {
 
     async openEditPlannedBudgetDialog(itemName, year) {
         const headerLocator = await this._headerForYear(myb.plannedBudgetColumnHeaders, year);
-        const headerBox = await headerLocator.boundingBox();
-        const itemCell = this.page.getByRole('gridcell', { name: itemName }).first();
-        const itemBox = await itemCell.boundingBox();
-        const x = headerBox.x + headerBox.width / 2;
-        const y = itemBox.y + Math.min(itemBox.height / 2, 15);
-
-        await this.page.mouse.dblclick(x, y);
-        await expect(myb.editPlannedBudgetDialog).toBeVisible({ timeout: 10000 });
+        const valueCell = await this._valueCellLocator(headerLocator, itemName);
+        await valueCell.dblclick();
+        await expect(myb.editPlannedBudgetDialog).toBeVisible({ timeout: 60000 });
         Logger.success(`Opened "Edit planned budget" dialog for "${itemName}" (year ${year})`);
     }
 
@@ -342,9 +338,12 @@ exports.MultiYearBudgetJob = class MultiYearBudgetJob {
         await myb.editReasonInput.fill(reason);
         await expect(myb.editSaveBtn).toBeEnabled({ timeout: 5000 });
         await myb.editSaveBtn.click();
-        await expect(myb.editPlannedBudgetDialog).not.toBeVisible({ timeout: 10000 });
-        const savedToast = this.page.getByText('Planned budget saved');
-        await expect(savedToast).toBeVisible({ timeout: 10000 });
+        await expect(myb.editPlannedBudgetDialog).not.toBeVisible({ timeout: 60000 });
+        // MCP-verified live (2026-09-03): this toast now reads "Proforma/Underwriting budget
+        // saved" — leftover from the "Planned Budget" → "Proforma/Underwriting Budget" column
+        // rename (see the comment on plannedBudgetColumnHeaders) that was never applied here.
+        const savedToast = this.page.getByText('Proforma/Underwriting budget saved');
+        await expect(savedToast).toBeVisible({ timeout: 60000 });
         // Let the toast auto-dismiss before returning — while visible it can overlap and
         // absorb clicks/dblclicks aimed at table cells underneath it (MCP-verified).
         await expect(savedToast).not.toBeVisible({ timeout: 15000 }).catch(() => { });

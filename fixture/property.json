@@ -6,6 +6,8 @@
     "City",
     "State",
     "Zipcode",
+    "Legal Name",
+    "Legal Address",
     "Type",
     "Unit Count",
     "Fund",
