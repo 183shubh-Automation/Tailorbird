@@ -1,13 +1,12 @@
 {
-  "bidName": "Auto_Bid_1783319571320",
-  "bidId": "203",
-  "bidUrl": "https://beta.tailorbird.com/bids/203",
-  "property": "bid_prop_1785091858551",
+  "bidName": "Auto_Bid_1788416660701",
+  "bidId": "421",
+  "bidUrl": "https://beta.tailorbird.com/bids/421",
+  "property": "bid_prop_1788420780784",
   "bidType": "Unit Interior",
   "detailLevel": "Short & Summarized",
   "priceBy": "Lump Sum: by Scope",
   "bidDueDate": "2026-12-31",
-  "status": "In Progress",
   "invokeText": "Create an interior paint bid book. Scopes: Wall Paint, Ceiling Paint, Trim & Doors — each with 1 Material row and 1 Labor row. Include EXACTLY these columns in this order: Scope, Location, Item, Cost Type, Description, # Units, Unit Price, Aggregate, Weighted Avg Price, Notes.",
   "invokeTextFallback": "paint",
   "editedDueDate": "2027-03-15",
@@ -16,7 +15,7 @@
     "vendorName": "sumit corp"
   },
   "createBidDialog": {
-    "heading": "Add ai_bid",
+    "heading": "Create New Bid",
     "fields": [
       {
         "label": "Bid Name",
@@ -40,20 +39,12 @@
       },
       {
         "label": "Bid Due Date",
-        "placeholder": "Enter bid due date (YYYY-MM-DD)"
-      },
-      {
-        "label": "Status",
-        "placeholder": "Select status"
-      },
-      {
-        "label": "Linked Job",
-        "placeholder": "Select linked job"
+        "placeholder": "Select due date"
       }
     ],
     "buttons": [
       "Cancel",
-      "add ai_bid"
+      "Create Bid"
     ],
     "bidTypeOptions": [
       "CapEx",
@@ -70,11 +61,6 @@
       "Lump Sum: by Asset",
       "Price x Quantity: by Scope",
       "Price x Quantity: by Location"
-    ],
-    "statusOptions": [
-      "Draft",
-      "In Progress",
-      "Awarded"
     ]
   }
 }

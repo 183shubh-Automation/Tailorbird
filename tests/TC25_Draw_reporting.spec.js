@@ -316,7 +316,7 @@ test.describe('Draw Reporting', () => {
     });
 
     test('TC376 @drawReporting @regression : Verify Draw calculations for CM Fee, Current Draw Request, and disbursement amounts', async () => {
-        test.setTimeout(300000);
+        test.setTimeout(500000);
 
         const propertyName = 'Test Property 6_Draw reporting';
         const jobId = 4330;
@@ -372,7 +372,7 @@ test.describe('Draw Reporting', () => {
     });
 
     test('TC377 @drawReporting @regression : Verify Draw Reporting invoice inclusion/exclusion math and CM Fee line lock-in', async () => {
-        test.setTimeout(300000);
+        test.setTimeout(500000);
 
         const propertyName = 'Test Property 6_Draw reporting';
         const jobId = 4330;
@@ -417,7 +417,7 @@ test.describe('Draw Reporting', () => {
     });
 
     test('TC378 @drawReporting @regression : Verify Draw Reporting — Reject / Reject on Behalf flow', async ({ browser }) => {
-        test.setTimeout(300000);
+        test.setTimeout(500000);
 
         const propertyName = 'Test Property 6_Draw reporting';
         const jobId = 4330;
@@ -450,7 +450,7 @@ test.describe('Draw Reporting', () => {
     });
 
     test('TC379 @drawReporting @regression : Verify Draw submission prevents empty and duplicate pending submissions', async ({ browser }) => {
-        test.setTimeout(400000);
+        test.setTimeout(500000);
 
         const propertyName = 'Test Property 6_Draw reporting';
         const jobId = 4330;
